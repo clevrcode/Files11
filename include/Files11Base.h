@@ -14,6 +14,7 @@ public:
 
 protected:
 	static bool     ReadBlock(int lbn, std::ifstream& istrm, uint8_t* buf);
+	static bool     ReadFileHeader(int lbn, std::ifstream& istrm, ODS1_FileHeader* hdr);
 	static uint16_t CalcChecksum(uint16_t* buffer, size_t wordCount);
 	static void     MakeString(char* str, size_t len, std::string &outstr);
 	static void     MakeDate(uint8_t* date, std::string& fdate, bool time);

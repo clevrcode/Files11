@@ -5,7 +5,6 @@
 // Constructor
 Files11FileSystem::Files11FileSystem()
 {
-    m_iDiskSize = 0;
     m_bValid = false;
 }
 
@@ -17,16 +16,17 @@ bool Files11FileSystem::Open(const char *dskName)
 {
     std::ifstream is(dskName, std::ifstream::binary);
     if (is) {
-        // get length of file:
-        is.seekg(0, is.end);
-        m_iDiskSize = is.tellg();
-        is.seekg(0, is.beg);
 
         // Read the Home Block
         m_bValid = m_HomeBlock.Initialize(is);
         is.close();
     }
 	return m_bValid;
+}
+
+int Files11FileSystem::GetDiskSize(void)
+{ 
+    return m_HomeBlock.GetDiskSize();
 }
 
 void Files11FileSystem::PrintVolumeInfo(void)

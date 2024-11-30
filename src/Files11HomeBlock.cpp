@@ -10,6 +10,9 @@ Files11HomeBlock::Files11HomeBlock()
 	//std::string strVolumeOwner;
 	//std::string strFormatType;
 	bValid = false;
+	iDiskSize = 0;
+	iScbNbBlocks = 0;
+	iScbUnitSizeBlk = 0;
 	iIndexBitmapSize = 0;
 	iIndexBitmapLBN  = 0;
 	iIndexFileLBN    = 0;
@@ -40,11 +43,14 @@ bool Files11HomeBlock::Initialize(const char* diskName)
 
 bool Files11HomeBlock::Initialize(std::ifstream& istrm)
 {
-	int home_lbn = F11_HOME_LBN * F11_BLOCK_SIZE;
+	// get length of file:
+	istrm.seekg(0, istrm.end);
+	iDiskSize = static_cast<int>(istrm.tellg());
+	istrm.seekg(0, istrm.beg);
 
 	ODS1_HomeBlock home;
 	assert(sizeof(home) == F11_BLOCK_SIZE);
-	if (ReadBlock(home_lbn, istrm, (uint8_t*)&home))
+	if (ReadBlock(F11_HOME_LBN, istrm, (uint8_t*)&home))
 	{
 		//----------------------
 		// Validate home block
@@ -63,7 +69,8 @@ bool Files11HomeBlock::Initialize(std::ifstream& istrm)
 			// home block is valid
 			iIndexBitmapSize            = home.hm1_w_ibmapsize;
 			iIndexBitmapLBN             = (home.hm1_w_ibmaplbn_hi << 16) + home.hm1_w_ibmaplbn_lo;
-			iIndexFileLBN               = iIndexBitmapLBN + iIndexBitmapSize;
+			iIndexFileLBN               = iIndexBitmapLBN + iIndexBitmapSize; 
+			iBitmapSysLBN               = iIndexFileLBN + 1; 
 			iMaxFiles                   = home.hm1_w_maxfiles;
 			iStorageBitmapClusterFactor = home.hm1_w_cluster;
 			iVolumeStructureLevel       = home.hm1_w_structlev;
@@ -81,6 +88,44 @@ bool Files11HomeBlock::Initialize(std::ifstream& istrm)
 			MakeString((char *)home.hm1_t_ownername, sizeof(home.hm1_t_ownername), strVolumeOwner);
 			MakeDate(home.hm1_t_lastrev, strLastRevision, false);
 			MakeDate(home.hm1_t_credate, strVolumeCreationDate, true);
+
+			ODS1_FileHeader BitmapSysHeader;
+			if (ReadFileHeader(iBitmapSysLBN, istrm, &BitmapSysHeader))
+			{
+				int scb_lbn = 0;
+				F11_MapArea_t* pMap = (F11_MapArea_t*)((uint16_t*)&BitmapSysHeader + BitmapSysHeader.fh1_b_mpoffset);
+				if (pMap->LBSZ == 3) {
+					scb_lbn = (pMap->pointers.fm1.hi_lbn << 16) + pMap->pointers.fm1.lo_lbn;
+				}
+				else if (pMap->LBSZ == 2) {
+					scb_lbn = pMap->pointers.fm2.lbn;
+				}
+				else if (pMap->LBSZ == 4) {
+					scb_lbn = (pMap->pointers.fm3.hi_lbn << 16) + pMap->pointers.fm3.lo_lbn;
+				}
+				else {
+					// ERROR
+					bValid = false;
+				}
+				if (bValid)
+				{
+					// Read Storage Control Block
+					uint8_t block[F11_BLOCK_SIZE];
+					if (ReadBlock(scb_lbn, istrm, block))
+					{
+						SCB_t *Scb = (SCB_t *)block;
+						iScbNbBlocks = Scb->nbBitmapBlks;
+						if (iScbNbBlocks < 127) {
+							uint8_t*  pBegin = (uint8_t*)&Scb->blocks.smallUnit;
+							uint16_t *pSize  = (uint16_t*)(pBegin + (iScbNbBlocks * sizeof(SCB_DataFreeBlks_t)));
+							iScbUnitSizeBlk = (pSize[0] << 16) + pSize[1];
+						}
+						else {
+							iScbUnitSizeBlk = (Scb->blocks.largeUnit.unitSizeLogBlks_hi << 16) + Scb->blocks.largeUnit.unitSizeLogBlks_lo;
+						}
+					}
+				}
+			}
 		}
 	}
 	return bValid;
@@ -89,14 +134,17 @@ bool Files11HomeBlock::Initialize(std::ifstream& istrm)
 void Files11HomeBlock::PrintInfo(void)
 {
 	printf("Volume contains a valid ODS1 File system\n");
-	printf("Volume Name             : %s\n", strVolumeName.c_str());
-	printf("Format                  : %s\n", strFormatType.c_str());
-	printf("Sectors In Volume       : %d\n", 0);
-	printf("Maximum number of files : %d\n", iMaxFiles);
-	printf("Disk size               : %d\n", 0);
-	printf("Volume owner UIC        : %s\n", strVolumeOwner.c_str());
-	printf("Volume creation date    : %s\n", strVolumeCreationDate.c_str());
-	printf("Bitmap LBN              : %d\n", iIndexBitmapLBN);
-	printf("Bitmap Index file size  : %d\n", iIndexBitmapSize);
+	printf("Volume Name              : %s\n", strVolumeName.c_str());
+	printf("Format                   : %s\n", strFormatType.c_str());
+	printf("Maximum number of files  : %d\n", iMaxFiles);
+	printf("Blocks In Volume         : %d\n", (iDiskSize / F11_BLOCK_SIZE) - 1); // Do not count the boot block
+	printf("Disk size                : %d\n", iDiskSize);
+	printf("Unit size in blocks      : %d\n", iScbUnitSizeBlk);
+	printf("Volume owner UIC         : %s\n", strVolumeOwner.c_str());
+	printf("Volume creation date     : %s\n", strVolumeCreationDate.c_str());
+	printf("Home block last rev date : %s\n", strLastRevision.c_str());
+	printf("Home block modif count   : %d\n", iCountHomeBlockRevision);
+	printf("Bitmap LBN               : %d (0x%08X)\n", iIndexBitmapLBN, iIndexBitmapLBN);
+	printf("Bitmap Index file size   : %d\n", iIndexBitmapSize);
 }
 

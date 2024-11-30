@@ -13,6 +13,8 @@
 #define HM1_C_LEVEL1    (0401)
 #define HM1_C_LEVEL2    (0402)
 
+#pragma pack(push, 1)
+
 typedef struct _ODS1_HomeBlock
 {
 	uint16_t hm1_w_ibmapsize;
@@ -145,7 +147,11 @@ typedef struct f11_MapArea {
 	uint8_t		LBSZ;
 	uint8_t		USE;
 	uint8_t		MAX;
-	uint16_t	pointers;
+	union {
+		F11_Format1_t fm1;
+		F11_Format2_t fm2;
+		F11_Format3_t fm3;
+	} pointers;
 } F11_MapArea_t;
 
 //---------------------------------------------------------------------
@@ -159,3 +165,35 @@ typedef struct DirectoryRecord {
 	uint16_t	fileType;		// File extension (3 characters encoded in Radix50)
 	uint16_t	version;		// File Version number
 } DirectoryRecord_t;
+
+//---------------------------------------------------------------------
+// Storage Control Block (ref: 5.2.1)
+
+typedef struct _SCB_DataFreeBlks {
+	uint16_t	nbFreeBlks;			// Number of free blocks in nth block
+	uint16_t	firstFreeBlockPtr;	// Free block pointer in nth bitmap block
+} SCB_DataFreeBlks_t;
+
+typedef struct _SCB_Data_large {
+	uint16_t	unitSizeLogBlks_hi;	// size of unit in logical blocks
+	uint16_t	unitSizeLogBlks_lo;	// size of unit in logical blocks
+	uint8_t		unused[246];		// not used (zero)
+} SCB_Data_large_t;
+
+#define NB_SCB_RECORDS  ((sizeof(SCB_Data_large_t) - sizeof(uint32_t)) / sizeof(SCB_DataFreeBlks_t))
+
+typedef struct _SCB_Data_small {
+	SCB_DataFreeBlks_t free_blks[NB_SCB_RECORDS];
+	uint32_t	unitSizeLogBlks;	// size of unit in logical blocks
+} SCB_Data_small_t;
+
+typedef struct _SCB {
+	uint8_t		unused[3];		// should be 0
+	uint8_t		nbBitmapBlks;	// Number of storage bitmap blocks
+	union {
+		uint16_t smallUnit;
+		SCB_Data_large_t largeUnit;
+	} blocks;
+} SCB_t;
+
+#pragma pack(pop)

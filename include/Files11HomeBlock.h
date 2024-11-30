@@ -12,12 +12,17 @@ public:
 	bool Initialize(const char *diskName);
 	bool Initialize(std::ifstream& istrm);
 	void PrintInfo(void);
+	int  GetDiskSize(void) { return bValid ? iDiskSize : 0;  };
 
 private:
 	bool bValid;
+	int iDiskSize; // size of disk in bytes
 	int iIndexBitmapSize;
+	int iScbNbBlocks;
+	int iScbUnitSizeBlk;
 	int iIndexBitmapLBN;
 	int iIndexFileLBN;
+	int iBitmapSysLBN;
 	int iMaxFiles;
 	int iStorageBitmapClusterFactor;
 	// DeviceType;
@@ -36,7 +41,5 @@ private:
 	int iPackSerialNumber;
 	std::string strVolumeOwner;
 	std::string strFormatType;
-
-
 };
 

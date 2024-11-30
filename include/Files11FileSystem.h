@@ -1,6 +1,8 @@
 #pragma once
 #include <iostream>
 #include <fstream>
+#include <vector>
+#include <map>
 #include "Files11Base.h"
 #include "Files11HomeBlock.h"
 
@@ -12,13 +14,13 @@ public:
 
 	bool Open(const char* diskFile);
 	void PrintVolumeInfo(void);
-	int  GetDiskSize(void) { return static_cast<int>(m_iDiskSize); };
+	int  GetDiskSize(void);
 	const char* GetErrorMessage(void) { return m_strErrorMsg.c_str(); };
 
 private:
 	bool             m_bValid;
 	Files11HomeBlock m_HomeBlock;
 	std::string      m_strErrorMsg;
-	std::streampos   m_iDiskSize; // size of disk in bytes
+
 };
 

@@ -10,9 +10,21 @@ Files11Base::~Files11Base()
 
 bool Files11Base::ReadBlock(int lbn, std::ifstream& istrm, uint8_t* buf)
 {
-	istrm.seekg(lbn, istrm.beg);
+    int ofs = lbn * F11_BLOCK_SIZE;
+
+	istrm.seekg(ofs, istrm.beg);
 	istrm.read((char*)buf, F11_BLOCK_SIZE);
 	return istrm.good();
+}
+
+bool Files11Base::ReadFileHeader(int lbn, std::ifstream& istrm, ODS1_FileHeader* buf)
+{
+    if (ReadBlock(lbn, istrm, (uint8_t*)buf))
+    {
+        uint16_t checksum = CalcChecksum((uint16_t*)buf, 255);
+        return checksum == buf->fh1_w_checksum;
+    }
+    return false;
 }
 
 uint16_t Files11Base::CalcChecksum(uint16_t *buffer, size_t wordCount)
