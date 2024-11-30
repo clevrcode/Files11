@@ -17,10 +17,16 @@ int main(int argc, char *argv[])
         return 0;
     }
 
-    Files11FileSystem F11_fs;
-    F11_fs.Open(argv[1]);
     std::cout << "Opening disk file " << argv[1] << std::endl;
-    std::cout << "Size of file is: " << F11_fs.GetDiskSize() << std::endl;
+    Files11FileSystem F11_fs;
+    if (F11_fs.Open(argv[1]))
+    {
+        std::cout << "Size of file is: " << F11_fs.GetDiskSize() << std::endl;
+        F11_fs.PrintVolumeInfo();
+    }
+    else
+        std::cout << "Failed to open " << argv[1] << std::endl;
+    std::cout << "----------------------------------------------------\n";
     return 0;
 }
 

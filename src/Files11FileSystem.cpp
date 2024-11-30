@@ -5,7 +5,8 @@
 // Constructor
 Files11FileSystem::Files11FileSystem()
 {
-    iDiskSize = 0;
+    m_iDiskSize = 0;
+    m_bValid = false;
 }
 
 Files11FileSystem::~Files11FileSystem()
@@ -18,26 +19,20 @@ bool Files11FileSystem::Open(const char *dskName)
     if (is) {
         // get length of file:
         is.seekg(0, is.end);
-        iDiskSize = is.tellg();
+        m_iDiskSize = is.tellg();
         is.seekg(0, is.beg);
 
         // Read the Home Block
-        ODS1_HomeBlock HomeBlock;
-        readBlock(F11_HOME_LBN, (char*)&HomeBlock, is);
-
+        m_bValid = m_HomeBlock.Initialize(is);
         is.close();
     }
-
-	return false;
+	return m_bValid;
 }
 
-
-//=============================================================================
-//  L O W   L E V E L    S E R V I C E S
-
-bool Files11FileSystem::readBlock(int lbn, char *pBlk, std::ifstream& istrm)
+void Files11FileSystem::PrintVolumeInfo(void)
 {
-    istrm.seekg(0, istrm.beg);
-    istrm.read(pBlk, F11_BLOCK_SIZE);
-    return istrm.good();
+    if (m_bValid)
+        m_HomeBlock.PrintInfo();
+    else
+        printf("Invalid Files11 Volume\n");
 }

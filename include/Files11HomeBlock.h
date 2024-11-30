@@ -11,11 +11,13 @@ public:
 	Files11HomeBlock();
 	bool Initialize(const char *diskName);
 	bool Initialize(std::ifstream& istrm);
+	void PrintInfo(void);
 
 private:
 	bool bValid;
 	int iIndexBitmapSize;
 	int iIndexBitmapLBN;
+	int iIndexFileLBN;
 	int iMaxFiles;
 	int iStorageBitmapClusterFactor;
 	// DeviceType;
@@ -34,5 +36,7 @@ private:
 	int iPackSerialNumber;
 	std::string strVolumeOwner;
 	std::string strFormatType;
+
+
 };
 

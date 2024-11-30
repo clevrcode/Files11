@@ -27,12 +27,14 @@ typedef struct _ODS1_HomeBlock
 	uint16_t hm1_w_volowner;
 	uint16_t hm1_w_protect;
 	uint16_t hm1_w_volchar;
-	uint16_t hm1_w_fileprot;
-	uint8_t  hm1_b_fill_2[6];
+	uint16_t hm1_w_deffileprot;
+	uint16_t hm1_b_fill_2[3];
 	uint8_t  hm1_b_window;
 	uint8_t  hm1_b_extend;
-	uint8_t  hm1_b_lru_lim;
-	uint8_t  hm1_b_fill_3[11];
+	uint8_t  hm1_b_dirlimit;
+	uint8_t  hm1_t_lastrev[7];
+	uint16_t hm1_w_modifcnt;
+	uint16_t hm1_w_fill_3;
 	uint16_t hm1_w_checksum1;
 	uint8_t  hm1_t_credate[14];
 	uint8_t  hm1_b_fill_4[382];
@@ -41,7 +43,7 @@ typedef struct _ODS1_HomeBlock
 	uint8_t  hm1_t_volname2[12];
 	uint8_t  hm1_t_ownername[12];
 	uint8_t  hm1_t_format[12];
-	uint8_t  hm1_t_fill_6[2];
+	uint16_t hm1_t_fill_6;
 	uint16_t hm1_w_checksum2;
 } ODS1_HomeBlock;
 
@@ -110,20 +112,6 @@ typedef struct f11_IdentArea {
 	uint16_t	ident_size[46];
 } F11_IdentArea_t;
 
-//--------------------------------
-// Map Area
-
-typedef struct f11_MapArea {
-	uint8_t		ext_SegNumber;
-	uint8_t		ext_RelVolNo;
-	uint16_t	ext_FileNumber;
-	uint16_t	ext_FileSeqNumber;
-	uint8_t		m_CTSZ;
-	uint8_t		m_LBSZ;
-	uint8_t		m_USE;
-	uint8_t		m_MAX;
-	uint16_t	m_pointers;
-} F11_MapArea_t;
 
 //--------------------------------
 // Retrieval Pointers
@@ -145,6 +133,20 @@ typedef struct F11_format3 {
 	uint16_t	lo_lbn;
 } F11_Format3_t;
 
+//--------------------------------
+// Map Area
+
+typedef struct f11_MapArea {
+	uint8_t		ext_SegNumber;
+	uint8_t		ext_RelVolNo;
+	uint16_t	ext_FileNumber;
+	uint16_t	ext_FileSeqNumber;
+	uint8_t		CTSZ;
+	uint8_t		LBSZ;
+	uint8_t		USE;
+	uint8_t		MAX;
+	uint16_t	pointers;
+} F11_MapArea_t;
 
 //---------------------------------------------------------------------
 // Directory Structure (ref: 4.2)
