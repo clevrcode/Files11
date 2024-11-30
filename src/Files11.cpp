@@ -5,27 +5,22 @@
 #include <Windows.h>
 #include <iostream>
 #include "ProductInfo.h"
-
-void PrintUsage(void)
-{
-    std::cout << "usage: >files11 <disk-file>\n";
-    std::cout << "        <disk-file> is a valid Files-11 disk image file\n";
-}
+#include <Files11FileSystem.h>
 
 int main(int argc, char *argv[])
 {
     ProductInfo product;
-    std::cout << product.GetProductName() << " -- Version " << product.GetProductVersion() << std::endl;
-    
+    product.PrintGreetings();  
     if (argc != 2)
     {
-        PrintUsage();
+        product.PrintUsage();
         return 0;
     }
 
-
-
-
+    Files11FileSystem F11_fs;
+    F11_fs.Open(argv[1]);
+    std::cout << "Opening disk file " << argv[1] << std::endl;
+    std::cout << "Size of file is: " << F11_fs.GetDiskSize() << std::endl;
     return 0;
 }
 

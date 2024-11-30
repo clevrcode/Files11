@@ -1,6 +1,7 @@
 #include "ProductInfo.h"
 
 #include "Windows.h"
+#include <iostream>
 #include <vector>
 
 ProductInfo::ProductInfo()
@@ -57,4 +58,15 @@ ProductInfo::ProductInfo()
         strProductName = (const char*)pvProductName;       // , iProductNameLen);
     if (pvProductVersion != NULL)
         strProductVersion = (const char*)pvProductVersion; // , iProductVersionLen);
+}
+
+void ProductInfo::PrintGreetings(void)
+{
+    std::cout << strProductName << " -- Version " << strProductVersion << std::endl;
+}
+
+void ProductInfo::PrintUsage(void)
+{
+    std::cout << "usage: >" << strProductName << " <disk - file>\n";
+    std::cout << "        <disk-file> is a valid Files-11 disk image file\n";
 }
