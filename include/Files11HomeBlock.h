@@ -13,6 +13,7 @@ public:
 	bool Initialize(std::ifstream& istrm);
 	void PrintInfo(void);
 	int  GetDiskSize(void) { return bValid ? iDiskSize : 0;  };
+	int  CountTotalFiles(std::ifstream& istrm);
 
 private:
 	bool bValid;
@@ -24,6 +25,7 @@ private:
 	int iIndexFileLBN;
 	int iBitmapSysLBN;
 	int iMaxFiles;
+	int iTotalFiles;
 	int iStorageBitmapClusterFactor;
 	// DeviceType;
 	int iVolumeStructureLevel;
@@ -41,5 +43,7 @@ private:
 	int iPackSerialNumber;
 	std::string strVolumeOwner;
 	std::string strFormatType;
+
+	int bitCount[16] = { 0, 1, 1, 2, 1, 2, 2, 3, 1, 2, 2, 3, 2, 3, 3, 4 };
 };
 

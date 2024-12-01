@@ -21,12 +21,12 @@ int main(int argc, char *argv[])
     Files11FileSystem F11_fs;
     if (F11_fs.Open(argv[1]))
     {
-        std::cout << "Size of file is: " << F11_fs.GetDiskSize() << std::endl;
+        std::cout << "----------------------------------------------------\n";
         F11_fs.PrintVolumeInfo();
+        std::cout << "----------------------------------------------------\n";
     }
     else
         std::cout << "Failed to open " << argv[1] << std::endl;
-    std::cout << "----------------------------------------------------\n";
     return 0;
 }
 

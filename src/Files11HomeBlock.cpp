@@ -17,6 +17,7 @@ Files11HomeBlock::Files11HomeBlock()
 	iIndexBitmapLBN  = 0;
 	iIndexFileLBN    = 0;
 	iMaxFiles        = 0;
+	iTotalFiles      = 0;
 	iStorageBitmapClusterFactor = 0;
 	// DeviceType;
 	iVolumeStructureLevel = 0;
@@ -124,11 +125,36 @@ bool Files11HomeBlock::Initialize(std::ifstream& istrm)
 							iScbUnitSizeBlk = (Scb->blocks.largeUnit.unitSizeLogBlks_hi << 16) + Scb->blocks.largeUnit.unitSizeLogBlks_lo;
 						}
 					}
+
+					iTotalFiles = CountTotalFiles(istrm);
+
 				}
+
 			}
 		}
 	}
 	return bValid;
+}
+
+int Files11HomeBlock::CountTotalFiles(std::ifstream& istrm)
+{
+	int fileCount = 0;
+	if (bValid)
+	{
+		uint8_t block[F11_BLOCK_SIZE];
+		for (int i = 0; i < iIndexBitmapSize; i++)
+		{
+			if (ReadBlock(iIndexBitmapLBN + i, istrm, block))
+			{
+				for (int b = 0; b < F11_BLOCK_SIZE; b++)
+				{
+					fileCount += bitCount[block[b] % 16];
+					fileCount += bitCount[block[b] / 16];
+				}
+			}
+		}
+	}
+	return fileCount;
 }
 
 void Files11HomeBlock::PrintInfo(void)
@@ -137,6 +163,7 @@ void Files11HomeBlock::PrintInfo(void)
 	printf("Volume Name              : %s\n", strVolumeName.c_str());
 	printf("Format                   : %s\n", strFormatType.c_str());
 	printf("Maximum number of files  : %d\n", iMaxFiles);
+	printf("Total nb of headers used : %d\n", iTotalFiles);
 	printf("Blocks In Volume         : %d\n", (iDiskSize / F11_BLOCK_SIZE) - 1); // Do not count the boot block
 	printf("Disk size                : %d\n", iDiskSize);
 	printf("Unit size in blocks      : %d\n", iScbUnitSizeBlk);

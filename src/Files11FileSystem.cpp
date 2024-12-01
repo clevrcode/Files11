@@ -16,9 +16,11 @@ bool Files11FileSystem::Open(const char *dskName)
 {
     std::ifstream is(dskName, std::ifstream::binary);
     if (is) {
-
         // Read the Home Block
         m_bValid = m_HomeBlock.Initialize(is);
+
+        // Build File Database
+
         is.close();
     }
 	return m_bValid;
@@ -27,6 +29,11 @@ bool Files11FileSystem::Open(const char *dskName)
 int Files11FileSystem::GetDiskSize(void)
 { 
     return m_HomeBlock.GetDiskSize();
+}
+
+bool Files11FileSystem::BuildFileDatabase(void)
+{
+    return false;
 }
 
 void Files11FileSystem::PrintVolumeInfo(void)

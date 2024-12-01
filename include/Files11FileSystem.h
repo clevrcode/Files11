@@ -15,6 +15,7 @@ public:
 	bool Open(const char* diskFile);
 	void PrintVolumeInfo(void);
 	int  GetDiskSize(void);
+	bool BuildFileDatabase(void);
 	const char* GetErrorMessage(void) { return m_strErrorMsg.c_str(); };
 
 private:
