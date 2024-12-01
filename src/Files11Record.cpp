@@ -1,24 +1,72 @@
 #include "Files11Record.h"
 
 // Default constructor
-File11Record::File11Record(void) : fileNumber(0), fileSeq(0), fileRev(0), headerLBN(0), blockCount(0), bDirectory(false)
+Files11Record::Files11Record(void)
 {
-}
-
-// Constructor
-File11Record::File11Record(const char* fname, const char* fext, const char* fcreate, uint16_t fnumber, uint16_t fseq, uint16_t frev, uint32_t lbn, int block_count) :
-	fileName(fname), fileExt(fext), fileCreated(fcreate), fileNumber(fnumber), fileSeq(fseq), fileRev(frev), headerLBN(lbn), blockCount(block_count)
-{
-	bDirectory = (fileExt == "DIR");
-	fullName = fileName;
-	fullName += ".";
-	fullName += fileExt;
+	fileNumber = 0;
+	fileSeq = 0;
+	fileVersion = 0;
+	fileRevision = 0;
+	ownerUIC = 0;
+	fileProtection = 0;
+	sysCharacteristics = 0;
+	userCharacteristics = 0;
+	bDirectory = false;
+	headerLBN  = 0;
+	blockCount = 0;
 }
 
 // Copy constructor
-File11Record::File11Record(const File11Record& frec) :
-	fileName(frec.fileName), fileExt(frec.fileExt), fileCreated(frec.fileCreated), fullName(frec.fullName), fileNumber(frec.fileNumber), fileSeq(frec.fileSeq),
-	fileRev(frec.fileRev), headerLBN(frec.headerLBN), blockCount(frec.blockCount), bDirectory(frec.bDirectory)
+Files11Record::Files11Record(const Files11Record& frec) :
+	fileName(frec.fileName), fileExt(frec.fileExt), fileCreationDate(frec.fileCreationDate), fullName(frec.fullName),
+	fileNumber(frec.fileNumber), fileSeq(frec.fileSeq), fileVersion(frec.fileVersion), fileRevision(frec.fileRevision),
+	ownerUIC(frec.ownerUIC), fileProtection(frec.fileProtection), headerLBN(frec.headerLBN),
+	sysCharacteristics(frec.sysCharacteristics), userCharacteristics(frec.userCharacteristics),
+	blockCount(frec.blockCount), bDirectory(frec.bDirectory)
 {
 }
+
+// Initialization
+// Return the file number, 0 if header is not valid
+
+int Files11Record::Initialize(int lbn, std::ifstream &istrm)
+{
+	ODS1_FileHeader_t* pHdr = ReadFileHeader(lbn, istrm);
+	if (pHdr)
+	{
+		// If the header is a continuation segment, skip it
+		F11_MapArea_t* pMap = GetMapArea();
+		if (pMap->ext_SegNumber != 0)
+			return 0;
+
+		fileNumber = pHdr->fh1_w_fid_num;
+		fileSeq    = pHdr->fh1_w_fid_seq;
+		ownerUIC   = pHdr->fh1_w_fileowner;
+		fileProtection = pHdr->fh1_w_fileprot;
+		sysCharacteristics = pHdr->fh1_b_syschar;
+		userCharacteristics = pHdr->fh1_b_userchar;
+
+		F11_IdentArea_t* pIdent = GetIdentArea();
+		if (pIdent)
+		{
+			//fileRev = pRecord->fileRVN;
+			Radix50ToAscii(pIdent->filename, 3, fileName, true);
+			Radix50ToAscii(pIdent->filetype, 1, fileExt, true);
+			fullName = fileName + "." + fileExt;
+			MakeDate(pIdent->revision_date, fileRevisionDate, true);
+			MakeDate(pIdent->creation_date, fileCreationDate, true);
+			MakeDate(pIdent->expiration_date, fileExpirationDate, false);
+			bDirectory = (fileExt == "DIR");
+			headerLBN = lbn;
+			blockCount = GetBlockList(lbn, blockList, istrm);
+		}
+		else
+			return 0;
+
+		// Everything is OK, return the file number
+		return fileNumber;
+	}
+	return 0;
+}
+
 

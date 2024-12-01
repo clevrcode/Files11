@@ -24,6 +24,9 @@ int main(int argc, char *argv[])
         std::cout << "----------------------------------------------------\n";
         F11_fs.PrintVolumeInfo();
         std::cout << "----------------------------------------------------\n";
+
+        F11_fs.RunCLI();
+
     }
     else
         std::cout << "Failed to open " << argv[1] << std::endl;

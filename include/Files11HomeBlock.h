@@ -12,8 +12,11 @@ public:
 	bool Initialize(const char *diskName);
 	bool Initialize(std::ifstream& istrm);
 	void PrintInfo(void);
+	int  GetMaxFiles(void) { return iMaxFiles; };
+	int  GetIndexLBN(void) { return iIndexFileLBN; };
 	int  GetDiskSize(void) { return bValid ? iDiskSize : 0;  };
 	int  CountTotalFiles(std::ifstream& istrm);
+	int  CountUsedHeaders(std::ifstream& istrm);
 
 private:
 	bool bValid;
@@ -26,6 +29,7 @@ private:
 	int iBitmapSysLBN;
 	int iMaxFiles;
 	int iTotalFiles;
+	int iUsedHeaders;
 	int iStorageBitmapClusterFactor;
 	// DeviceType;
 	int iVolumeStructureLevel;

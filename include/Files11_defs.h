@@ -47,7 +47,7 @@ typedef struct _ODS1_HomeBlock
 	uint8_t  hm1_t_format[12];
 	uint16_t hm1_t_fill_6;
 	uint16_t hm1_w_checksum2;
-} ODS1_HomeBlock;
+} ODS1_HomeBlock_t;
 
 //---------------------------------------------------------------------
 // File Header
@@ -66,7 +66,7 @@ typedef struct _ODS1_FileHeader
 	uint16_t fh1_w_ufat;
 	uint8_t  fh1_b_fill_1[494];
 	uint16_t fh1_w_checksum;
-} ODS1_FileHeader;
+} ODS1_FileHeader_t;
 
 //--------------------------------
 // User Attributes Area
@@ -95,14 +95,14 @@ typedef struct _ODS1_UserAttrArea {
 	uint16_t	ufcs_eofblck_hi;
 	uint16_t	ufcs_eofblck_lo;
 	uint16_t	ufcs_ffbyte;
-} ODS1_UserAttrArea;
+} ODS1_UserAttrArea_t;
 
 //--------------------------------
 // Ident Area
 
 typedef struct f11_IdentArea {
-	uint8_t		filename[6];	// File name
-	uint16_t	filetype;	    // Revision Number
+	uint16_t	filename[3];	// File name
+	uint16_t	filetype[1];    // Revision Number
 	uint16_t	version;
 	uint16_t	revision;
 	uint8_t		revision_date[7];
@@ -138,6 +138,12 @@ typedef struct F11_format3 {
 //--------------------------------
 // Map Area
 
+typedef union PtrsFormat {
+	F11_Format1_t fm1;
+	F11_Format2_t fm2;
+	F11_Format3_t fm3;
+} PtrsFormat_t;
+
 typedef struct f11_MapArea {
 	uint8_t		ext_SegNumber;
 	uint8_t		ext_RelVolNo;
@@ -147,11 +153,7 @@ typedef struct f11_MapArea {
 	uint8_t		LBSZ;
 	uint8_t		USE;
 	uint8_t		MAX;
-	union {
-		F11_Format1_t fm1;
-		F11_Format2_t fm2;
-		F11_Format3_t fm3;
-	} pointers;
+	PtrsFormat_t pointers;
 } F11_MapArea_t;
 
 //---------------------------------------------------------------------
@@ -162,7 +164,7 @@ typedef struct DirectoryRecord {
 	uint16_t	fileSeq;		// File Sequence Number
 	uint16_t	fileRVN;		// Relative Volume Number (not used)
 	uint16_t	fileName[3];	// File name (9 characters encoded in Radix50)
-	uint16_t	fileType;		// File extension (3 characters encoded in Radix50)
+	uint16_t	fileType[1];    // File extension (3 characters encoded in Radix50)
 	uint16_t	version;		// File Version number
 } DirectoryRecord_t;
 
