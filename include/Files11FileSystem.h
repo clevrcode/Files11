@@ -36,7 +36,6 @@ private:
 	std::string      m_strErrorMsg;
 	std::string      m_DiskFileName;
 
-	std::vector<std::string> commandQueue;
 	typedef std::map<int, Files11Record> FileDatabase_t;
 	FileDatabase_t FileDatabase;
 
