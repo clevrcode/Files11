@@ -16,11 +16,18 @@ public:
 	bool Open(const char* diskFile);
 	void Close(void);
 	void PrintVolumeInfo(void);
-	void RunCLI(void);
 	int  GetDiskSize(void);
 	bool BuildHeaderDatabase(void);
 	bool BuildFileDatabase(void);
-	const char* GetErrorMessage(void) { return m_strErrorMsg.c_str(); };
+
+	// Commands
+	void RunCLI(void);
+	void ListFiles(const BlockList_t& blks, const char* creationDate, int nbBlocks);
+	void ListDirs(const char* arg);
+	static void del(size_t n=1);
+	static void putstring(const char* str);
+
+	const char* GetErrorMessage(void) const { return m_strErrorMsg.c_str(); };
 
 private:
 	std::ifstream    m_dskStream;
@@ -29,12 +36,9 @@ private:
 	std::string      m_strErrorMsg;
 	std::string      m_DiskFileName;
 
-
+	std::vector<std::string> commandQueue;
 	typedef std::map<int, Files11Record> FileDatabase_t;
 	FileDatabase_t FileDatabase;
-
-
-
 
 };
 

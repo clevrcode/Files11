@@ -152,7 +152,7 @@ void Files11Base::Radix50ToAscii(uint16_t *pR50, int len, std::string &str, bool
     }
 }
 
-int Files11Base::GetBlockList(int lbn, BlockList_t& blk_list, std::ifstream& istrm)
+int Files11Base::BuildBlockList(int lbn, BlockList_t& blk_list, std::ifstream& istrm)
 {
     int count = 0;
     uint8_t expected_segment = 0;

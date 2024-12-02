@@ -29,7 +29,7 @@ public:
 	typedef struct BlockPtrs BlockPtrs_t;
 	typedef std::vector<BlockPtrs_t> BlockList_t;
 
-	int GetBlockList(int lbn, BlockList_t& blk_list, std::ifstream& istrm);
+	int BuildBlockList(int lbn, BlockList_t& blk_list, std::ifstream& istrm);
 	int GetBlockCount(F11_MapArea_t* pMap, BlockList_t* pBlkList = NULL);
 
 protected:

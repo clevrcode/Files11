@@ -52,13 +52,15 @@ int Files11Record::Initialize(int lbn, std::ifstream &istrm)
 			//fileRev = pRecord->fileRVN;
 			Radix50ToAscii(pIdent->filename, 3, fileName, true);
 			Radix50ToAscii(pIdent->filetype, 1, fileExt, true);
-			fullName = fileName + "." + fileExt;
+			fullName = fileName + "." + fileExt + ";";
 			MakeDate(pIdent->revision_date, fileRevisionDate, true);
 			MakeDate(pIdent->creation_date, fileCreationDate, true);
 			MakeDate(pIdent->expiration_date, fileExpirationDate, false);
 			bDirectory = (fileExt == "DIR");
 			headerLBN = lbn;
-			blockCount = GetBlockList(lbn, blockList, istrm);
+			blockCount = BuildBlockList(lbn, blockList, istrm);
+			blockCountString = std::to_string(blockCount);
+			blockCountString += ".";
 		}
 		else
 			return 0;
@@ -69,4 +71,17 @@ int Files11Record::Initialize(int lbn, std::ifstream &istrm)
 	return 0;
 }
 
+const char* Files11Record::GetFileCreation(bool no_seconds /*=true*/) const
+{
+	// If no seconds wanted, give a substring
+	if (no_seconds)
+		return fileCreationDate.substr(0, 17).c_str();
+	// Otherwise, give the full string
+	return fileCreationDate.c_str(); 
+};
+
+const char* Files11Record::GetBlockCountString(void) const
+{
+	return blockCountString.c_str();
+}
 

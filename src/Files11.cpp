@@ -25,6 +25,8 @@ int main(int argc, char *argv[])
         F11_fs.PrintVolumeInfo();
         std::cout << "----------------------------------------------------\n";
 
+        //F11_fs.ListFiles("*.*");
+        //F11_fs.ListDirs("IPLISP");
         F11_fs.RunCLI();
 
     }

@@ -3,28 +3,29 @@
 
 Files11HomeBlock::Files11HomeBlock()
 {
-	bValid = false;
-	iDiskSize = 0;
-	iScbNbBlocks = 0;
-	iScbUnitSizeBlk = 0;
+	bValid           = false;
+	iDiskSize        = 0;
+	iScbNbBlocks     = 0;
+	iScbUnitSizeBlk  = 0;
 	iIndexBitmapSize = 0;
 	iIndexBitmapLBN  = 0;
 	iIndexFileLBN    = 0;
+	iBitmapSysLBN    = 0;
 	iMaxFiles        = 0;
 	iTotalFiles      = 0;
 	iUsedHeaders     = 0;
 	iStorageBitmapClusterFactor = 0;
 	// DeviceType;
 	iVolumeStructureLevel = 0;
-	iVolumeOwnerUIC = 0;
+	iVolumeOwnerUIC       = 0;
 	iVolumeProtectionCode = 0;
 	// VolumeCharacteristics;
-	iDefaultFileProtection = 0;
-	iDefaultWindowSize = 0;
-	iDefaultFileExtend = 0;
+	iDefaultFileProtection   = 0;
+	iDefaultWindowSize       = 0;
+	iDefaultFileExtend       = 0;
 	iDirectoryPreAccessLimit = 0;
-	iCountHomeBlockRevision = 0;
-	iPackSerialNumber = 0;
+	iCountHomeBlockRevision  = 0;
+	iPackSerialNumber        = 0;
 }
 
 bool Files11HomeBlock::Initialize(const char* diskName)
