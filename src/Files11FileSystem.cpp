@@ -52,19 +52,66 @@ bool Files11FileSystem::Open(const char *dskName)
 	return m_bValid;
 }
 
-void Files11FileSystem::ListFiles(const BlockList_t& blks, const char *creationDate, int nbBlocks)
+const std::string Files11FileSystem::GetCurrentDate(void)
+{
+    time_t rawtime;
+    struct tm tinfo;
+    m_CurrentDate.clear();
+    // get current timeinfo
+    time(&rawtime);
+    errno_t err = localtime_s(&tinfo, &rawtime);
+    if (err == 0) {
+        const char* months[] = {"JAN", "FEB", "MAR", "APR", "MAY", "JUN", "JUL", "AUG", "SEP", "OCT", "NOV", "DEC"};
+        m_CurrentDate = std::to_string(tinfo.tm_mday) + "-" + months[tinfo.tm_mon] + "-" + std::to_string(tinfo.tm_year + 1900) + " " + std::to_string(tinfo.tm_hour) + ":" + std::to_string(tinfo.tm_min);
+    }
+    return m_CurrentDate;
+}
+
+// Returns the directory file number (0 if not found)
+int Files11FileSystem::FindDirectory(const char* dirname) const
+{
+    int fileNumber = 0;
+    for (auto cit = FileDatabase.cbegin(); cit != FileDatabase.cend(); ++cit)
+    {
+        if (cit->second.IsDirectory())
+        {
+            std::string directory = FormatDirectory(cit->second.fileName);
+            if (directory.compare(dirname) == 0)
+            {
+                fileNumber = cit->second.GetFileNumber();
+                break;
+            }
+        }
+    }
+    return fileNumber;
+}
+
+void Files11FileSystem::TypeFile(const char* arg)
+{
+    
+
+
+
+}
+
+void Files11FileSystem::ListFiles(const BlockList_t& blks, const Files11FCS& fileFCS)
 {
     int usedBlocks = 0;
     int totalBlocks = 0;
     int totalFiles = 0;
+    int vbn = 1;
+    int last_vbn = fileFCS.GetUsedBlockCount();
+    int eof_bytes = fileFCS.GetFirstFreeByte();
 
     for (BlockList_t::const_iterator it = blks.cbegin(); it != blks.cend(); ++it)
     {
-        //TODO ??? DO NOT GO OVER EOFVBN ???
-        for (auto lbn = it->lbn_start; lbn <= it->lbn_end; ++lbn)
+        for (auto lbn = it->lbn_start; (lbn <= it->lbn_end) && (vbn <= last_vbn); ++lbn, ++vbn)
         {
+            int nbrecs = (vbn == last_vbn) ? eof_bytes : F11_BLOCK_SIZE;
+            nbrecs /= sizeof(DirectoryRecord_t);
+
             DirectoryRecord_t* pRec = (DirectoryRecord_t*) ReadBlock(lbn, m_dskStream);
-            for (int idx = 0; idx < (F11_BLOCK_SIZE / sizeof(DirectoryRecord_t)); idx++)
+            for (int idx = 0; idx < nbrecs; idx++)
             {
                 if (pRec[idx].fileNumber != 0)
                 {
@@ -74,12 +121,14 @@ void Files11FileSystem::ListFiles(const BlockList_t& blks, const char *creationD
                     fileName += "." + fileExt + ";" + std::to_string(pRec[idx].version);
 
                     // Get other file info
+                    // BATCH.BAT;1         1.      C  18-DEC-1998 02:46
                     auto it = FileDatabase.find(pRec[idx].fileNumber);
                     if (it != FileDatabase.end()) {
                         std::string strBlocks;
                         std::string creationDate(it->second.GetFileCreation());
+                        char contiguous = it->second.IsContiguous() ? 'C' : ' ';
                         strBlocks = std::to_string(it->second.GetUsedBlockCount()) + ".";
-                        printf("%-20s%-8s%s\n", fileName.c_str(), strBlocks.c_str(), creationDate.c_str());
+                        printf("%-20s%-8s%c  %s\n", fileName.c_str(), strBlocks.c_str(), contiguous, creationDate.c_str());
                         usedBlocks += it->second.GetUsedBlockCount();
                         totalBlocks += it->second.GetBlockCount();
                         totalFiles++;
@@ -103,27 +152,50 @@ void Files11FileSystem::ListDirs(const char *dirname)
     if (dirname == NULL)
         cwd = m_CurrentDirectory;
     else
-        cwd = dirname;
+        cwd = FormatDirectory(dirname);
 
     bool found = false;
-    for (FileDatabase_t::const_iterator it = FileDatabase.cbegin(); it != FileDatabase.cend(); ++it)
+    if (cwd.length() > 0)
     {
-        if (it->second.IsDirectory())
+        int dirFile = FindDirectory(cwd.c_str());
+        if (dirFile != 0)
         {
-            std::string directory = FormatDirectory(it->second.fileName);
-            if (directory.compare(cwd) == 0)
-            {
-                std::cout << "\nDirectory DU0:" << directory << std::endl;
-                std::cout << "CURRENT TIME TODO\n\n";
+            std::cout << "\nDirectory DU0:" << cwd << std::endl;
+            std::cout << GetCurrentDate() << "\n\n";
 
-                ListFiles(it->second.getBlockList(), it->second.GetFileCreation(), it->second.GetBlockCount());
-                found = true;
-                break;
+            ListFiles(FileDatabase[dirFile].getBlockList(), FileDatabase[dirFile].GetFileFCS());
+            found = true;
+        }
+        if (!found)
+            std::cout << "Directory '" << cwd << "' not found!\n";
+    }
+    if (!found)
+    {
+        std::cout << "DIR -- No such file(s)\n\n";
+    }
+}
+
+void Files11FileSystem::ChangeWorkingDirectory(const char* dir)
+{
+    std::string newdir(FormatDirectory(dir));
+    bool found = false;
+    if (newdir.length() > 0)
+    {
+        for (auto cit = FileDatabase.cbegin(); cit != FileDatabase.cend(); ++cit)
+        {
+            if (cit->second.IsDirectory())
+            {
+                std::string directory = FormatDirectory(cit->second.fileName);
+                if (directory.compare(newdir) == 0)
+                {
+                    m_CurrentDirectory = newdir;
+                    found = true;
+                }
             }
         }
     }
     if (!found)
-        std::cout << "Directory '" << cwd << "' not found!\n";
+        std::cout << "SET -- Invalid UIC\n";
 }
 
 void Files11FileSystem::Close(void)

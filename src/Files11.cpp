@@ -65,9 +65,18 @@ void putstring(const char* str)
 
 std::string stripWhitespaces(std::string str)
 {
-    auto pos = str.find_first_not_of(' ');
-    if (pos != std::string::npos)
-        return str.substr(pos);
+    if (str.length() > 0)
+    {
+        std::string out(str);
+        // strip front whitespaces
+        auto pos = str.find_first_not_of(' ');
+        if (pos != std::string::npos)
+            out = str.substr(pos);
+        // strip back whitespaces
+        while (out.back() == ' ')
+            out.pop_back();
+        return out;
+    }
     return str;
 }
 
@@ -157,10 +166,11 @@ void RunCLI(Files11FileSystem &fs)
                     }
                     else if (words[0] == "CD")
                     {
-                        if (nbWords == 2)
-                            std::cout << "change working directory to " << words[1] << std::endl;
+                        if (nbWords == 2) {
+                            fs.ChangeWorkingDirectory(words[1].c_str());
+                        }
                         else
-                            std::cout << "CD error: missing argument\n";
+                            std::cout << "ERROR -- missing argument\n";
                     }
                     else if (words[0] == "DIR")
                     {
@@ -168,6 +178,13 @@ void RunCLI(Files11FileSystem &fs)
                             fs.ListDirs(words[1].c_str());
                         else
                             fs.ListDirs(NULL);
+                    }
+                    else if ((words[0] == "CAT")|| (words[0] == "TYPE"))
+                    {
+                        if (nbWords == 2)
+                            fs.TypeFile(words[1].c_str());
+                        else
+                            std::cout << "ERROR -- missing argument\n";
                     }
                     else
                     {

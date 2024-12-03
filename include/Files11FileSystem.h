@@ -21,13 +21,13 @@ public:
 	bool BuildFileDatabase(void);
 
 	// Commands
-	void RunCLI(void);
-	void ListFiles(const BlockList_t& blks, const char* creationDate, int nbBlocks);
+	void ListFiles(const BlockList_t& blks, const Files11FCS& fileFCS);
 	void ListDirs(const char* arg);
-	static void del(size_t n=1);
-	static void putstring(const char* str);
-
+	void TypeFile(const char* arg);
+	void ChangeWorkingDirectory(const char*);
 	const char* GetErrorMessage(void) const { return m_strErrorMsg.c_str(); };
+	const std::string GetCurrentDate(void);
+	int FindDirectory(const char* dirname) const;
 
 private:
 	std::ifstream    m_dskStream;
@@ -36,7 +36,7 @@ private:
 	std::string      m_strErrorMsg;
 	std::string      m_DiskFileName;
 	std::string      m_CurrentDirectory;
-
+	std::string      m_CurrentDate;
 	typedef std::map<int, Files11Record> FileDatabase_t;
 	FileDatabase_t FileDatabase;
 

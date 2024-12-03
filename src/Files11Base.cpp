@@ -1,3 +1,4 @@
+#include <regex>
 #include "Files11Base.h"
 
 Files11Base::Files11Base()
@@ -130,7 +131,7 @@ void Files11Base::MakeDate(uint8_t* date, std::string& fdate, bool time)
 std::string Files11Base::FormatDirectory(const std::string& dir)
 {
     std::string out(dir);
-    if (dir.length() == 6)
+    if ((dir.length() == 6)&&(dir.front() != '['))
     {
         int count = 0;
         for (auto it = dir.begin(); it != dir.end(); ++it) {
@@ -143,6 +144,24 @@ std::string Files11Base::FormatDirectory(const std::string& dir)
         if (count == 6) {
             out = "[" + dir.substr(0, 3) + "," + dir.substr(3) + "]";
         }
+    }
+    else if ((dir.length() > 0) && (dir.front() == '[') && (dir.back() == ']'))
+    {
+        std::regex re("\\[([0-7]+),([0-7]+)\\]");
+        std::smatch sm;
+        std::regex_match(dir, sm, re);
+        if (sm.size() == 3)
+        {
+            char buf[16];
+            int a = strtol(sm.str(1).c_str(), NULL, 8);
+            int b = strtol(sm.str(2).c_str(), NULL, 8);
+            sprintf_s(buf, sizeof(buf), "[%03o,%03o]", a, b);
+            out = buf;
+        }
+    }
+    else if ((dir.length() > 0) && (dir.front() != '[') && (dir.back() != ']'))
+    {
+        out = "[" + dir + "]";
     }
     return out;
 }

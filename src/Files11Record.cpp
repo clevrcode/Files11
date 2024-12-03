@@ -24,7 +24,6 @@ Files11Record::Files11Record(const Files11Record& frec) :
 	sysCharacteristics(frec.sysCharacteristics), userCharacteristics(frec.userCharacteristics),
 	blockCount(frec.blockCount), bDirectory(frec.bDirectory), fileFCS(frec.fileFCS)
 {
-	//memcpy((void*)&fileFCS, (void*)(&frec.fileFCS), sizeof(ODS1_UserAttrArea_t));
 }
 
 // Initialization
@@ -46,7 +45,7 @@ int Files11Record::Initialize(int lbn, std::ifstream &istrm)
 		fileProtection = pHdr->fh1_w_fileprot;
 		sysCharacteristics = pHdr->fh1_b_syschar;
 		userCharacteristics = pHdr->fh1_b_userchar;
-		memcpy((void*)&fileFCS, (void*)(&pHdr->fh1_w_ufat), sizeof(ODS1_UserAttrArea_t));
+		fileFCS.Initialize((ODS1_UserAttrArea_t*) & pHdr->fh1_w_ufat);
 
 		F11_IdentArea_t* pIdent = GetIdentArea();
 		if (pIdent)
