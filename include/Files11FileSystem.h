@@ -35,6 +35,7 @@ private:
 	Files11HomeBlock m_HomeBlock;
 	std::string      m_strErrorMsg;
 	std::string      m_DiskFileName;
+	std::string      m_CurrentDirectory;
 
 	typedef std::map<int, Files11Record> FileDatabase_t;
 	FileDatabase_t FileDatabase;

@@ -83,13 +83,18 @@ uint16_t Files11Base::CalcChecksum(uint16_t *buffer, size_t wordCount)
 	return checkSum;
 }
 
-void Files11Base::MakeString(char* str, size_t len, std::string &outstr)
+void Files11Base::MakeString(char* str, size_t len, std::string &outstr, bool strip)
 {
 	char* strBuffer = new char[len + 1];
 	memset(strBuffer, 0, len + 1);
 	memcpy(strBuffer, str, len);
 	outstr = strBuffer;
-	delete[] strBuffer;
+    if (strip) {
+        auto pos = outstr.find_first_of(' ');
+        if (pos != std::string::npos)
+            outstr = outstr.substr(0,pos);
+    }
+    delete[] strBuffer;
 }
 
 void Files11Base::MakeDate(uint8_t* date, std::string& fdate, bool time)
@@ -117,10 +122,31 @@ void Files11Base::MakeDate(uint8_t* date, std::string& fdate, bool time)
         fdate += date[d++]; fdate += date[d++];
         fdate += ':';
         fdate += date[d++]; fdate += date[d++];
-        fdate += ':';
-        fdate += date[d++]; fdate += date[d++];
+        //fdate += ':';
+        //fdate += date[d++]; fdate += date[d++];
     }
 }
+
+std::string Files11Base::FormatDirectory(const std::string& dir)
+{
+    std::string out(dir);
+    if (dir.length() == 6)
+    {
+        int count = 0;
+        for (auto it = dir.begin(); it != dir.end(); ++it) {
+            if (*it >= '0' && *it <= '7') {
+                count++;
+                continue;
+            }
+            break;
+        }
+        if (count == 6) {
+            out = "[" + dir.substr(0, 3) + "," + dir.substr(3) + "]";
+        }
+    }
+    return out;
+}
+
 
 void Files11Base::MakeUIC(uint8_t* uic, std::string& strUIC)
 {

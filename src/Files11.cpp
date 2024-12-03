@@ -63,11 +63,40 @@ void putstring(const char* str)
         _putch(str[i]);
 }
 
+std::string stripWhitespaces(std::string str)
+{
+    auto pos = str.find_first_not_of(' ');
+    if (pos != std::string::npos)
+        return str.substr(pos);
+    return str;
+}
+
+typedef std::vector<std::string> Words_t;
+size_t parseCommand(std::string& command, Words_t& words)
+{
+    command = stripWhitespaces(command);
+    do {
+        auto pos = command.find_first_of(' ');
+        if (pos != std::string::npos)
+        {
+            words.push_back(command.substr(0, pos));
+            command = stripWhitespaces(command.substr(pos));
+        }
+        else
+        {
+            words.push_back(command);
+            command.clear();
+        }
+    } while (command.length() > 0);
+    return words.size();
+}
+
 void RunCLI(Files11FileSystem &fs)
 {
     std::string command;
-    std::cout << PROMPT;
     size_t currCommand = 0;
+    std::cout << PROMPT;
+
     for (;;)
     {
         size_t nbCommands = commandQueue.size();
@@ -109,6 +138,7 @@ void RunCLI(Files11FileSystem &fs)
         }
         else
         {
+            std::cout << std::endl;
             if (command.length() > 0)
             {
                 // Quit
@@ -117,11 +147,37 @@ void RunCLI(Files11FileSystem &fs)
 
                 commandQueue.push_back(command);
                 currCommand = commandQueue.size();
-
-                std::cout << "\nUnknown command: " << command;
+                Words_t words;
+                size_t nbWords = 0;
+                if ((nbWords = parseCommand(command, words)) > 0)
+                {
+                    if (words[0] == "PWD") 
+                    {
+                        std::cout << "Print current working directory\n";
+                    }
+                    else if (words[0] == "CD")
+                    {
+                        if (nbWords == 2)
+                            std::cout << "change working directory to " << words[1] << std::endl;
+                        else
+                            std::cout << "CD error: missing argument\n";
+                    }
+                    else if (words[0] == "DIR")
+                    {
+                        if (nbWords == 2)
+                            fs.ListDirs(words[1].c_str());
+                        else
+                            fs.ListDirs(NULL);
+                    }
+                    else
+                    {
+                        std::cout << "Unknown command: " << words[0] << std::endl;
+                    }
+                }
                 command.clear();
             }
-            std::cout << std::endl << PROMPT;
+            std::cout << PROMPT;
+
         }
     }
 }

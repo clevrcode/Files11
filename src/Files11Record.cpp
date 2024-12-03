@@ -22,8 +22,9 @@ Files11Record::Files11Record(const Files11Record& frec) :
 	fileNumber(frec.fileNumber), fileSeq(frec.fileSeq), fileVersion(frec.fileVersion), fileRevision(frec.fileRevision),
 	ownerUIC(frec.ownerUIC), fileProtection(frec.fileProtection), headerLBN(frec.headerLBN),
 	sysCharacteristics(frec.sysCharacteristics), userCharacteristics(frec.userCharacteristics),
-	blockCount(frec.blockCount), bDirectory(frec.bDirectory)
+	blockCount(frec.blockCount), bDirectory(frec.bDirectory), fileFCS(frec.fileFCS)
 {
+	//memcpy((void*)&fileFCS, (void*)(&frec.fileFCS), sizeof(ODS1_UserAttrArea_t));
 }
 
 // Initialization
@@ -45,6 +46,7 @@ int Files11Record::Initialize(int lbn, std::ifstream &istrm)
 		fileProtection = pHdr->fh1_w_fileprot;
 		sysCharacteristics = pHdr->fh1_b_syschar;
 		userCharacteristics = pHdr->fh1_b_userchar;
+		memcpy((void*)&fileFCS, (void*)(&pHdr->fh1_w_ufat), sizeof(ODS1_UserAttrArea_t));
 
 		F11_IdentArea_t* pIdent = GetIdentArea();
 		if (pIdent)
@@ -73,10 +75,6 @@ int Files11Record::Initialize(int lbn, std::ifstream &istrm)
 
 const char* Files11Record::GetFileCreation(bool no_seconds /*=true*/) const
 {
-	// If no seconds wanted, give a substring
-	if (no_seconds)
-		return fileCreationDate.substr(0, 17).c_str();
-	// Otherwise, give the full string
 	return fileCreationDate.c_str(); 
 };
 

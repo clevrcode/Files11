@@ -18,6 +18,10 @@ public:
 	uint16_t GetFileRevision(void) const        { return fileRevision; };
 	uint32_t GetHeaderLBN(void) const           { return headerLBN; };
 	int      GetBlockCount(void) const          { return blockCount; };
+	int      GetUsedBlockCount(void) { 
+		int usedBlks = (fileFCS.ufcs_eofblck_hi << 16) + fileFCS.ufcs_eofblck_lo;
+		return fileFCS.ufcs_ffbyte == 0 ? usedBlks - 1 : usedBlks;
+	};
 	bool	 IsDirectory(void) const            { return bDirectory; };
 	const char* GetFileName(void) const         { return fileName.c_str(); };
 	const char* GetBlockCountString(void) const;
@@ -37,7 +41,7 @@ private:
 	uint16_t    fileProtection;
 	uint8_t		sysCharacteristics;
 	uint8_t		userCharacteristics;
-	//ODS1_UserAttrArea_t	fileFCS;
+	ODS1_UserAttrArea_t	fileFCS;
 	std::string	fileExt;
 	std::string fileCreationDate;
 	std::string fileRevisionDate;

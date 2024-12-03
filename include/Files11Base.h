@@ -35,11 +35,12 @@ public:
 protected:
 	
 	static uint16_t CalcChecksum(uint16_t* buffer, size_t wordCount);
-	static void     MakeString(char* str, size_t len, std::string &outstr);
+	static void     MakeString(char* str, size_t len, std::string &outstr, bool strip=false);
 	static void     MakeDate(uint8_t* date, std::string& fdate, bool time);
 	static void     MakeUIC(uint8_t* uic, std::string& strUIC);
 	static void     Radix50ToAscii(uint16_t* pR50, int len, std::string& str, bool strip=false);
 	static uint8_t *readBlock(int lbn, std::ifstream& istrm, uint8_t*blk);
+	static std::string FormatDirectory(const std::string &dir);
 
 private:
 	uint8_t m_block[F11_BLOCK_SIZE];

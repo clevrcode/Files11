@@ -17,6 +17,7 @@ public:
 	int  GetDiskSize(void) { return bValid ? iDiskSize : 0;  };
 	int  CountTotalFiles(std::ifstream& istrm);
 	int  CountUsedHeaders(std::ifstream& istrm);
+	const char* GetOwnerUIC(void) const { return strVolumeOwner.c_str(); };
 
 private:
 	bool bValid;

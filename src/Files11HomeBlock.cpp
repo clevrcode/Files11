@@ -65,9 +65,9 @@ bool Files11HomeBlock::Initialize(std::ifstream& istrm)
 		iCountHomeBlockRevision     = pHome->hm1_w_modifcnt;
 		iPackSerialNumber           = pHome->hm1_l_serialnum;
 			
-		MakeString((char *)pHome->hm1_t_volname, sizeof(pHome->hm1_t_volname), strVolumeName);
-		MakeString((char *)pHome->hm1_t_format, sizeof(pHome->hm1_t_format), strFormatType);
-		MakeString((char *)pHome->hm1_t_ownername, sizeof(pHome->hm1_t_ownername), strVolumeOwner);
+		MakeString((char *)pHome->hm1_t_volname, sizeof(pHome->hm1_t_volname), strVolumeName, true);
+		MakeString((char *)pHome->hm1_t_format, sizeof(pHome->hm1_t_format), strFormatType, true);
+		MakeString((char *)pHome->hm1_t_ownername, sizeof(pHome->hm1_t_ownername), strVolumeOwner, true);
 		MakeDate(pHome->hm1_t_lastrev, strLastRevision, false);
 		MakeDate(pHome->hm1_t_credate, strVolumeCreationDate, true);
 
