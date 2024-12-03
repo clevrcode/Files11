@@ -19,6 +19,8 @@
     </ProjectConfiguration>
   </ItemGroup>
   <ItemGroup>
+    <ClCompile Include="src\DirDatabase.cpp" />
+    <ClCompile Include="src\FileDatabase.cpp" />
     <ClCompile Include="src\Files11.cpp" />
     <ClCompile Include="src\Files11Base.cpp" />
     <ClCompile Include="src\Files11FCS.cpp" />
@@ -29,6 +31,8 @@
     <ClCompile Include="src\ProductInfo.cpp" />
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="include\DirDatabase.h" />
+    <ClInclude Include="include\FileDatabase.h" />
     <ClInclude Include="include\Files11Base.h" />
     <ClInclude Include="include\Files11FCS.h" />
     <ClInclude Include="include\Files11FileSystem.h" />

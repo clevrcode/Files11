@@ -33,10 +33,8 @@ int main(int argc, char *argv[])
         F11_fs.PrintVolumeInfo();
         std::cout << "----------------------------------------------------\n";
 
-        //F11_fs.ListFiles("*.*");
-        //F11_fs.ListDirs("IPLISP");
+        // Enter CLI interactive mode, user enter Q[uit] to exit
         RunCLI(F11_fs);
-
     }
     else
         std::cout << "Failed to open " << argv[1] << std::endl;

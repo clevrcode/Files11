@@ -29,7 +29,7 @@ public:
 	const char* GetFileExt(void) const          { return fileExt.c_str(); };
 	const char* GetFullName(void) const         { return fullName.c_str(); };
 	const char* GetFileRevisionDate(void) const {	return fileRevisionDate.c_str(); };
-	const BlockList_t& getBlockList(void) const { return blockList; };
+	const BlockList_t& GetBlockList(void) const { return blockList; };
 	std::string	fileName;
 
 private:

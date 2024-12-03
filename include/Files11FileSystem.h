@@ -6,6 +6,8 @@
 #include "Files11Base.h"
 #include "Files11Record.h"
 #include "Files11HomeBlock.h"
+#include "FileDatabase.h"
+#include "DirDatabase.h"
 
 class Files11FileSystem : public Files11Base
 {
@@ -27,7 +29,7 @@ public:
 	void ChangeWorkingDirectory(const char*);
 	const char* GetErrorMessage(void) const { return m_strErrorMsg.c_str(); };
 	const std::string GetCurrentDate(void);
-	int FindDirectory(const char* dirname) const;
+	//int FindFile(const char* path_name, std::vector<int> &flist) const;
 
 private:
 	std::ifstream    m_dskStream;
@@ -37,8 +39,7 @@ private:
 	std::string      m_DiskFileName;
 	std::string      m_CurrentDirectory;
 	std::string      m_CurrentDate;
-	typedef std::map<int, Files11Record> FileDatabase_t;
-	FileDatabase_t FileDatabase;
-
+	FileDatabase     FileDatabase;
+	DirDatabase      DirDatabase;
 };
 

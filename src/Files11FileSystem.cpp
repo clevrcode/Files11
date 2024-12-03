@@ -1,3 +1,4 @@
+#include <regex>
 #include "Files11FileSystem.h"
 #include "Files11_defs.h"
 #include "Files11Record.h"
@@ -32,15 +33,12 @@ bool Files11FileSystem::Open(const char *dskName)
             int fileNumber = record.Initialize(lbn, m_dskStream);
             if (fileNumber > 0)
             {
-                //FileDatabase_t::iterator it = FileDatabase.find(fileNumber);
-                auto it = FileDatabase.find(fileNumber);
-                if (it != FileDatabase.end()) {
-                    std::cerr << "File number [" << fileNumber << "] duplicated\n";
-                }
-                else
+                if (FileDatabase.Add(fileNumber, record))
                 {
-                    // Add a new entry for this file
-                    FileDatabase[fileNumber] = record;
+                    // If a directory, add to the directory database (key: dir name)
+                    if (record.IsDirectory()) {
+                        DirDatabase.Add(record.fileName, fileNumber);
+                    }
                 }
             }
         }
@@ -62,40 +60,130 @@ const std::string Files11FileSystem::GetCurrentDate(void)
     errno_t err = localtime_s(&tinfo, &rawtime);
     if (err == 0) {
         const char* months[] = {"JAN", "FEB", "MAR", "APR", "MAY", "JUN", "JUL", "AUG", "SEP", "OCT", "NOV", "DEC"};
-        m_CurrentDate = std::to_string(tinfo.tm_mday) + "-" + months[tinfo.tm_mon] + "-" + std::to_string(tinfo.tm_year + 1900) + " " + std::to_string(tinfo.tm_hour) + ":" + std::to_string(tinfo.tm_min);
+        char buf[8];
+        snprintf(buf, sizeof(buf), "%02d:%02d\n", tinfo.tm_hour, tinfo.tm_min); 
+        m_CurrentDate = std::to_string(tinfo.tm_mday) + "-" + months[tinfo.tm_mon] + "-" + std::to_string(tinfo.tm_year + 1900) + " " + buf;
     }
     return m_CurrentDate;
 }
 
-// Returns the directory file number (0 if not found)
-int Files11FileSystem::FindDirectory(const char* dirname) const
+#if 0
+int Files11FileSystem::FindFile(const char* path_name, std::vector<int> &flist) const
 {
-    int fileNumber = 0;
-    for (auto cit = FileDatabase.cbegin(); cit != FileDatabase.cend(); ++cit)
+    if (path_name && (strlen(path_name) > 0))
     {
-        if (cit->second.IsDirectory())
-        {
-            std::string directory = FormatDirectory(cit->second.fileName);
-            if (directory.compare(dirname) == 0)
-            {
-                fileNumber = cit->second.GetFileNumber();
-                break;
+        std::string dir(m_CurrentDirectory);
+        std::string fileName(path_name);
+        // Check if path is specified
+        if (fileName.front() == '[') {
+            // Yes
+            auto pos = fileName.find(']');
+            if (pos != std::string::npos) {
+                dir = DirDatabase::FormatDirectory(fileName.substr(0, pos + 1));
+                fileName = fileName.substr(pos);
             }
         }
+        // split name and extension
+        if (fileName.length() > 0)
+        {
+        }
     }
-    return fileNumber;
+    return (int)flist.size();
 }
+#endif
 
 void Files11FileSystem::TypeFile(const char* arg)
 {
-    
+#if 0
+    if (!blklist.empty())
+    {
+        int last_block = blklist.back().lba_end;
+        int last_vbn = (pFCS->ufcs_eofblck_hi << 16) + pFCS->ufcs_eofblck_lo;
+        int high_vbn = (pFCS->ufcs_highvbn_hi << 16) + pFCS->ufcs_highvbn_lo;
+        int last_block_length = ((last_vbn > high_vbn) && (pFCS->ufcs_ffbyte == 0)) ? BLOCK_SIZE : pFCS->ufcs_ffbyte;
+        int data_written = 0;
+        Files11_Record_t Record;
+        size_t rec_index = 0;
 
+        int x = 0;
+        uint8_t* pLine = NULL;
+        int vbn = 0;
+        for (BlockList_t::iterator it = blklist.begin(); it != blklist.end(); ++it)
+        {
+            t_lba start = it->lba_start;
+            t_lba end = it->lba_end;
+            for (t_lba _lba = start; (_lba <= end) && (vbn <= last_vbn); _lba++, vbn++)
+            {
+                t_seccnt sects_read = 0;
+                uint8_t buffer[BLOCK_SIZE];
+                if ((_DEC_rdsect(uptr, _lba, buffer, &sects_read, 1, 0)) || (sects_read != 1)) {
+                    fprintf(stderr, "Failed to read sector %d\n", _lba);
+                    fclose(fd);
+                    return false;
+                }
 
+                // number of valid bytes in this block
+                size_t nbbytes = ((_lba == last_block) || (vbn == last_vbn)) ? last_block_length : BLOCK_SIZE;
+                uint8_t* pbuf = buffer;
+                uint8_t* plast = (buffer + nbbytes);
 
+                for (;;)
+                {
+                    size_t last_recidx = rec_index;
+                    void* p = ((uint8_t*)&Record) + rec_index;
+                    size_t bytes2read = (plast < (pbuf + rec_index)) ? nbbytes : (plast - (pbuf + rec_index));
+                    assert((bytes2read >= 0) && (bytes2read <= nbbytes));
+                    if (bytes2read == 0)
+                        break;
+                    memcpy(p, pbuf, bytes2read);
+                    rec_index = rec_index + bytes2read;
+                    if (rec_index < sizeof(uint16_t))
+                        break; // get another block
+                    if (rec_index < (Record.rec_length + 2))
+                        break; // get another block
+
+                    // If record length > 0x0100 (256 char) consider bad record
+                    if (Record.rec_length >= 0x0100)
+                    {
+                        fclose(fd);
+                        return false;
+                    }
+                    // We have a complete record, 
+                    // write the record to file
+                    if (Record.rec_length > 0) {
+                        WriteBufferToFile(fd, (void*)Record.data, Record.rec_length, true);
+                        data_written += Record.rec_length;
+                    }
+
+                    pbuf += (Record.rec_length + 2) - last_recidx;
+                    rec_index = 0;
+
+                    if (_DEBUG)
+                        memset(Record.data, 0, sizeof(Record.data));
+
+                    // If record length is odd, align on even boundary
+                    if (Record.rec_length & 0x01)
+                        pbuf++;
+
+                }
+                if (data_written == 0) {
+                    fclose(fd);
+                    return false;
+                }
+
+                if (Record.rec_length == 0xffff) {
+                    fclose(fd);
+                    return true;
+                }
+            }
+        }
+    }
+#endif    
 }
 
 void Files11FileSystem::ListFiles(const BlockList_t& blks, const Files11FCS& fileFCS)
 {
+#if 0
     int usedBlocks = 0;
     int totalBlocks = 0;
     int totalFiles = 0;
@@ -143,7 +231,7 @@ void Files11FileSystem::ListFiles(const BlockList_t& blks, const Files11FCS& fil
         }
     }
     std::cout << "\nTotal of " << usedBlocks << "./" << totalBlocks << ". blocks in " << totalFiles << ". files\n\n";
-
+#endif
 }
 
 void Files11FileSystem::ListDirs(const char *dirname)
@@ -152,45 +240,48 @@ void Files11FileSystem::ListDirs(const char *dirname)
     if (dirname == NULL)
         cwd = m_CurrentDirectory;
     else
-        cwd = FormatDirectory(dirname);
+        cwd = DirDatabase::FormatDirectory(dirname);
 
     bool found = false;
     if (cwd.length() > 0)
     {
-        int dirFile = FindDirectory(cwd.c_str());
-        if (dirFile != 0)
+        DirList_t dlist;
+        int nb_dir = DirDatabase.Find(cwd.c_str(), dlist);
+        if (nb_dir > 0)
         {
-            std::cout << "\nDirectory DU0:" << cwd << std::endl;
-            std::cout << GetCurrentDate() << "\n\n";
+            for (auto cit = dlist.cbegin(); cit != dlist.cend(); ++cit)
+            {
+                Files11Record rec;
+                if (FileDatabase.Get(*cit, rec))
+                {
+                    found = true;
+                    std::cout << "\nDirectory DU0:" << DirDatabase::FormatDirectory(rec.fileName) << std::endl;
+                    std::cout << GetCurrentDate() << "\n\n";
 
-            ListFiles(FileDatabase[dirFile].getBlockList(), FileDatabase[dirFile].GetFileFCS());
-            found = true;
+                    //ListFiles(FileDatabase[dirFile].GetBlockList(), FileDatabase[dirFile].GetFileFCS());
+                }
+            }
         }
         if (!found)
-            std::cout << "Directory '" << cwd << "' not found!\n";
-    }
-    if (!found)
-    {
-        std::cout << "DIR -- No such file(s)\n\n";
+            std::cout << "DIR -- No such file(s)\n\n";
     }
 }
 
 void Files11FileSystem::ChangeWorkingDirectory(const char* dir)
 {
-    std::string newdir(FormatDirectory(dir));
+    std::string newdir(DirDatabase::FormatDirectory(dir));
     bool found = false;
     if (newdir.length() > 0)
     {
-        for (auto cit = FileDatabase.cbegin(); cit != FileDatabase.cend(); ++cit)
+        // No wildcard allowed for this command
+        auto pos = newdir.find('*');
+        if (pos == std::string::npos)
         {
-            if (cit->second.IsDirectory())
+            std::vector<int> dlist;
+            if (DirDatabase.Exist(newdir.c_str()))
             {
-                std::string directory = FormatDirectory(cit->second.fileName);
-                if (directory.compare(newdir) == 0)
-                {
-                    m_CurrentDirectory = newdir;
-                    found = true;
-                }
+                m_CurrentDirectory = newdir;
+                found = true;
             }
         }
     }
