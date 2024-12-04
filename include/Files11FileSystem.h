@@ -21,11 +21,20 @@ public:
 	int  GetDiskSize(void);
 	bool BuildHeaderDatabase(void);
 	bool BuildFileDatabase(void);
+	void PrintFile(int fileNumber, std::ostream& strm);
+	void DumpFile(int fileNumber, std::ostream& strm);
+
+	typedef enum _Cmds {
+		LIST = 1000,
+		TYPE,
+		EXPORT,
+		IMPORT
+	} Cmds_e;
 
 	// Commands
 	void ListFiles(const BlockList_t& dirblks, const Files11FCS& dirFCS, const char* filename);
-	void ListDirs(const char* dir, const char *file);
-	void TypeFile(const char* arg);
+	void ListDirs(Cmds_e cmd, const char* dir, const char *file);
+	void TypeFile(const BlockList_t& dirblks, const Files11FCS& dirFCS, const char* filename);
 	void ChangeWorkingDirectory(const char*);
 	const char* GetErrorMessage(void) const { return m_strErrorMsg.c_str(); };
 	const std::string GetCurrentDate(void);

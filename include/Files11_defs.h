@@ -86,6 +86,12 @@ typedef struct _ODS1_FileHeader
 #define sc_bad	(0x40)
 #define sc_mdl	(0x80)
 
+// Record Type
+#define rt_fix  (0x01)
+#define rt_vlr  (0x02)
+#define rt_seq  (0x04)
+
+
 typedef struct _ODS1_UserAttrArea {
 	uint8_t		ufcs_rectype;
 	uint8_t		ufcs_recattr;

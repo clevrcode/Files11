@@ -18,11 +18,21 @@ bool FileDatabase::Add(int nb, const Files11Record &frec)
     return true;
 }
 
-bool FileDatabase::Get(int nb, Files11Record& frec, const char *filter)
+bool FileDatabase::Get(int nb, Files11Record& frec)
 {
     auto cit = m_Database.find(nb);
     if (cit != m_Database.end()) {
-        if (Filter(frec, filter))
+        frec = cit->second;
+        return true;
+    }
+    return false;
+}
+
+bool FileDatabase::Get(int nb, Files11Record& frec, int version, const char *filter)
+{
+    auto cit = m_Database.find(nb);
+    if (cit != m_Database.end()) {
+        if (Filter(cit->second, filter, version))
         {
             frec = cit->second;
             return true;
@@ -31,11 +41,33 @@ bool FileDatabase::Get(int nb, Files11Record& frec, const char *filter)
     return false;
 }
 
-bool FileDatabase::Filter(const Files11Record& rec, const char* name) const
+bool FileDatabase::Filter(const Files11Record& rec, const char* name, int version) const
 {
     if (name)
     {
-        // TODO
+        std::string fname(name);
+        // split file name
+        auto pos = fname.find('.');
+        if (pos == std::string::npos)
+        {
+            // no extension
+            return (fname == rec.GetFileName()) && (rec.GetFileExt() == "");
+        }
+        std::string ext(fname.substr(pos + 1));
+        fname = fname.substr(0, pos);
+        pos = fname.find(";");
+        if (pos == std::string::npos)
+        {
+            // no version specified
+            return (fname == rec.GetFileName()) && (ext == rec.GetFileExt());
+        }
+        std::string strVersion(ext.substr(pos + 1));
+        if (strVersion == "*") {
+            // any version
+            return (fname == rec.GetFileName()) && (ext == rec.GetFileExt());
+        }
+        int nVersion = strtol(strVersion.c_str(), NULL, 10);
+        return (fname == rec.GetFileName()) && (ext == rec.GetFileExt()) && (nVersion == version);
     }
     return true;
 }

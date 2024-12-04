@@ -16,7 +16,6 @@ std::vector<std::string> commandQueue;
 void RunCLI(Files11FileSystem &fs);
 void ProcessCommand(std::string& command, Files11FileSystem& fs);
 
-
 int main(int argc, char *argv[])
 {
     ProductInfo product;
@@ -167,6 +166,23 @@ void RunCLI(Files11FileSystem &fs)
     }
 }
 
+void SplitFilePath(const std::string &path, std::string &dir, std::string &file)
+{
+    // split dir and file
+    auto pos = path.find(']');
+    if (pos != std::string::npos)
+    {
+        dir = path.substr(0, pos + 1);
+        file = ((pos + 1) < path.length()) ? path.substr(pos + 1) : "*.*;*";
+    }
+    else
+    {
+        dir = "";
+        file = path;
+    }
+}
+
+
 void ProcessCommand(std::string &command, Files11FileSystem& fs)
 {
     Words_t words;
@@ -188,28 +204,20 @@ void ProcessCommand(std::string &command, Files11FileSystem& fs)
         else if (words[0] == "DIR")
         {
             if (nbWords == 2) {
-                // split dir and file
                 std::string dir, file;
-                auto pos = words[1].find(']');
-                if (pos != std::string::npos)
-                {
-                    dir = words[1].substr(0, pos + 1);
-                    file = ((pos + 1) < words[1].length()) ? words[1].substr(pos + 1) : "*.*;*";
-                }
-                else
-                {
-                    dir = "";
-                    file = words[1];
-                }
-                fs.ListDirs(dir.c_str(), file.c_str());
+                SplitFilePath(words[1], dir, file);
+                fs.ListDirs(Files11FileSystem::LIST, dir.c_str(), file.c_str());
             }
             else
-                fs.ListDirs(NULL, NULL);
+                fs.ListDirs(Files11FileSystem::LIST, NULL, NULL);
         }
         else if ((words[0] == "CAT") || (words[0] == "TYPE"))
         {
-            if (nbWords == 2)
-                fs.TypeFile(words[1].c_str());
+            if (nbWords == 2) {
+                std::string dir, file;
+                SplitFilePath(words[1], dir, file);
+                fs.ListDirs(Files11FileSystem::TYPE, dir.c_str(), file.c_str());
+            }
             else
                 std::cout << "ERROR -- missing argument\n";
         }
