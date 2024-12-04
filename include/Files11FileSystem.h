@@ -36,6 +36,7 @@ public:
 	void ListDirs(Cmds_e cmd, const char* dir, const char *file);
 	void TypeFile(const BlockList_t& dirblks, const Files11FCS& dirFCS, const char* filename);
 	void ChangeWorkingDirectory(const char*);
+	const char* GetCurrentWorkingDirectory(void) const { return m_CurrentDirectory.c_str(); };
 	const char* GetErrorMessage(void) const { return m_strErrorMsg.c_str(); };
 	const std::string GetCurrentDate(void);
 	//int FindFile(const char* path_name, std::vector<int> &flist) const;

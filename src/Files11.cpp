@@ -191,7 +191,7 @@ void ProcessCommand(std::string &command, Files11FileSystem& fs)
     {
         if (words[0] == "PWD")
         {
-            std::cout << "Print current working directory\n";
+            std::cout << fs.GetCurrentWorkingDirectory() << std::endl;
         }
         else if (words[0] == "CD")
         {

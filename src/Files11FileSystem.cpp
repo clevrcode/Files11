@@ -176,9 +176,7 @@ void Files11FileSystem::PrintFile(int fileNumber, std::ostream& strm)
         for (auto cit = blklist.cbegin(); cit != blklist.cend(); ++cit)
         {
             for (auto lbn = cit->lbn_start; (lbn <= cit->lbn_end) && (vbn <= last_vbn); lbn++, vbn++)
-            {
                 blocks.push_back(lbn);
-            }
         }
 
         bool first_block = true;
@@ -230,25 +228,79 @@ void Files11FileSystem::PrintFile(int fileNumber, std::ostream& strm)
 
 void Files11FileSystem::DumpFile(int fileNumber, std::ostream& strm)
 {
+    Files11Record fileRec;
+    FileDatabase.Get(fileNumber, fileRec);
 
+    const Files11FCS& fileFCS = fileRec.GetFileFCS();
+    BlockList_t blklist = fileRec.GetBlockList();
+    if (!fileFCS.IsFixedLengthRecord())
+        return;
+
+    if (!blklist.empty())
+    {
+        int last_vbn = fileFCS.GetUsedBlockCount();
+        int high_vbn = fileFCS.GetHighVBN();
+        int last_block_length = fileFCS.GetFirstFreeByte();
+        int vbn = 1;
+
+        std::vector<int> blocks;
+        for (auto cit = blklist.cbegin(); cit != blklist.cend(); ++cit)
+        {
+            for (auto lbn = cit->lbn_start; (lbn <= cit->lbn_end) && (vbn <= last_vbn); lbn++, vbn++)
+            {
+                uint8_t buffer[F11_BLOCK_SIZE];
+                if (readBlock(lbn, m_dskStream, buffer) == NULL)
+                {
+                    std::cerr << "Failed to read block\n";
+                    break;
+                }
+                int nbBytes = F11_BLOCK_SIZE;
+                if (vbn == last_vbn) {
+                    nbBytes = last_block_length;
+                }
+
+                char header[128];
+                snprintf(header, sizeof(header), "\n\n\n\nDump of DU0:%s;%d - File ID %d,%d,%d\n", fileRec.GetFullName(), 1, fileNumber, fileRec.GetFileSeq(), 0);
+                strm << header;
+                snprintf(header, sizeof(header), "                  Virtual block 0,%06d - Size %d. bytes\n\n", vbn, nbBytes);
+                strm << header;
+
+                uint16_t* ptr = (uint16_t*)buffer;
+                for (int i = 0; i < (nbBytes / 16); i++)
+                {
+                    // 000000    054523 000000 054523 000000 054523 000000 054523 000000
+                    snprintf(header, sizeof(header), "%06o   ", i * 16);
+                    std::string output(header);
+                    for (int j = 0; j < 8; j++, ptr++)
+                    {
+                        char buf[16];
+                        snprintf(buf, sizeof(buf), " %06o", *ptr);
+                        output += buf;
+                    }
+                    strm << output << std::endl;
+                }
+            }
+        }
+        strm << "\n*** EOF ***\n\n\n";
+    }
 }
 
 void Files11FileSystem::TypeFile(const BlockList_t& dirblks, const Files11FCS& dirFCS, const char* filename)
 {
-    int usedBlocks = 0;
-    int totalBlocks = 0;
-    int totalFiles = 0;
-    int vbn = 1;
-    int last_vbn = dirFCS.GetUsedBlockCount();
-    int eof_bytes = dirFCS.GetFirstFreeByte();
-    int highestVersion = -1;
-    int highFileNumber = -1;
-    
+   
     // If no version is specified, only process the last version
     std::string strFileName(filename);
+    int highestVersion = -1;
+    int highFileNumber = -1;
+    uint8_t highRecordType = 0;
+
     auto pos = strFileName.find(";");
     if (pos == std::string::npos)
         highestVersion = 0;
+
+    int vbn = 1;
+    int last_vbn = dirFCS.GetUsedBlockCount();
+    int eof_bytes = dirFCS.GetFirstFreeByte();
 
     for (BlockList_t::const_iterator it = dirblks.cbegin(); it != dirblks.cend(); ++it)
     {
@@ -271,6 +323,7 @@ void Files11FileSystem::TypeFile(const BlockList_t& dirblks, const Files11FCS& d
                             if (pRec[idx].version > highestVersion) {
                                 highestVersion = pRec[idx].version;
                                 highFileNumber = pRec[idx].fileNumber;
+                                highRecordType = fileRec.GetFileFCS().GetRecordType();
                             }
                         }
                         else
@@ -288,7 +341,10 @@ void Files11FileSystem::TypeFile(const BlockList_t& dirblks, const Files11FCS& d
     // If we only process the highest version, do it here...
     if (highestVersion > 0)
     {
-        PrintFile(highFileNumber, std::cout);
+        if (highRecordType & rt_vlr)
+            PrintFile(highFileNumber, std::cout);
+        else
+            DumpFile(highFileNumber, std::cout);
     }
 }
 

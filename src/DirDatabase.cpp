@@ -18,7 +18,9 @@ bool DirDatabase::Add(std::string& name, int fnumber)
 
 bool DirDatabase::Exist(const char* dname) const
 {
-    auto pos = m_Database.find(dname);
+    
+    std::string strDirName(makeKey(dname));
+    auto pos = m_Database.find(strDirName);
     return pos != m_Database.end();
 }
 

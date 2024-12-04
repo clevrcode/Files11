@@ -55,13 +55,14 @@ bool FileDatabase::Filter(const Files11Record& rec, const char* name, int versio
         }
         std::string ext(fname.substr(pos + 1));
         fname = fname.substr(0, pos);
-        pos = fname.find(";");
+        pos = ext.find(";");
         if (pos == std::string::npos)
         {
             // no version specified
             return (fname == rec.GetFileName()) && (ext == rec.GetFileExt());
         }
         std::string strVersion(ext.substr(pos + 1));
+        ext = ext.substr(0, pos);
         if (strVersion == "*") {
             // any version
             return (fname == rec.GetFileName()) && (ext == rec.GetFileExt());
