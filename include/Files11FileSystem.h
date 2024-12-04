@@ -23,8 +23,8 @@ public:
 	bool BuildFileDatabase(void);
 
 	// Commands
-	void ListFiles(const BlockList_t& blks, const Files11FCS& fileFCS);
-	void ListDirs(const char* arg);
+	void ListFiles(const BlockList_t& dirblks, const Files11FCS& dirFCS, const char* filename);
+	void ListDirs(const char* dir, const char *file);
 	void TypeFile(const char* arg);
 	void ChangeWorkingDirectory(const char*);
 	const char* GetErrorMessage(void) const { return m_strErrorMsg.c_str(); };

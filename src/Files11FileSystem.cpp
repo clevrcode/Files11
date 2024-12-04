@@ -181,17 +181,16 @@ void Files11FileSystem::TypeFile(const char* arg)
 #endif    
 }
 
-void Files11FileSystem::ListFiles(const BlockList_t& blks, const Files11FCS& fileFCS)
+void Files11FileSystem::ListFiles(const BlockList_t& dirblks, const Files11FCS& dirFCS, const char *filename)
 {
-#if 0
     int usedBlocks = 0;
     int totalBlocks = 0;
     int totalFiles = 0;
     int vbn = 1;
-    int last_vbn = fileFCS.GetUsedBlockCount();
-    int eof_bytes = fileFCS.GetFirstFreeByte();
+    int last_vbn = dirFCS.GetUsedBlockCount();
+    int eof_bytes = dirFCS.GetFirstFreeByte();
 
-    for (BlockList_t::const_iterator it = blks.cbegin(); it != blks.cend(); ++it)
+    for (BlockList_t::const_iterator it = dirblks.cbegin(); it != dirblks.cend(); ++it)
     {
         for (auto lbn = it->lbn_start; (lbn <= it->lbn_end) && (vbn <= last_vbn); ++lbn, ++vbn)
         {
@@ -203,41 +202,44 @@ void Files11FileSystem::ListFiles(const BlockList_t& blks, const Files11FCS& fil
             {
                 if (pRec[idx].fileNumber != 0)
                 {
-                    std::string fileName, fileExt, strBlocks;
-                    Radix50ToAscii(pRec[idx].fileName, 3, fileName, true);
-                    Radix50ToAscii(pRec[idx].fileType, 1, fileExt, true);
-                    fileName += "." + fileExt + ";" + std::to_string(pRec[idx].version);
-
                     // Get other file info
                     // BATCH.BAT;1         1.      C  18-DEC-1998 02:46
-                    auto it = FileDatabase.find(pRec[idx].fileNumber);
-                    if (it != FileDatabase.end()) {
+                    Files11Record fileRec;
+                    if (FileDatabase.Get(pRec[idx].fileNumber, fileRec, filename))
+                    {
+                        // Check that file matches 'filename' criteria
+                            
+                        //
+                        std::string fileName(fileRec.GetFullName());
+                        fileName += ";";
+                        fileName += std::to_string(pRec[idx].version);
+                        char contiguous = fileRec.IsContiguous() ? 'C' : ' ';
                         std::string strBlocks;
-                        std::string creationDate(it->second.GetFileCreation());
-                        char contiguous = it->second.IsContiguous() ? 'C' : ' ';
-                        strBlocks = std::to_string(it->second.GetUsedBlockCount()) + ".";
-                        printf("%-20s%-8s%c  %s\n", fileName.c_str(), strBlocks.c_str(), contiguous, creationDate.c_str());
-                        usedBlocks += it->second.GetUsedBlockCount();
-                        totalBlocks += it->second.GetBlockCount();
+                        strBlocks = std::to_string(fileRec.GetUsedBlockCount()) + ".";
+                        printf("%-20s%-8s%c  %s\n", fileName.c_str(), strBlocks.c_str(), contiguous, fileRec.GetFileCreation());
+                        usedBlocks += fileRec.GetUsedBlockCount();
+                        totalBlocks += fileRec.GetBlockCount();
                         totalFiles++;
                     }
                     else
                     {
-                        std::cerr << "ERROR: missing file #" << std::to_string(pRec[idx].fileNumber) << " " << fileName << std::endl;
+                        std::cerr << "ERROR: missing file #" << std::to_string(pRec[idx].fileNumber) << std::endl;
                         continue;
                     }
                 }
             }           
         }
     }
-    std::cout << "\nTotal of " << usedBlocks << "./" << totalBlocks << ". blocks in " << totalFiles << ". files\n\n";
-#endif
+    std::cout << "\nTotal of " << usedBlocks << "./" << totalBlocks << ". blocks in " << totalFiles << ". file";
+    if (totalFiles > 1)
+        std::cout << "s";
+    std::cout << "\n\n";
 }
 
-void Files11FileSystem::ListDirs(const char *dirname)
+void Files11FileSystem::ListDirs(const char *dirname, const char *filename)
 {
     std::string cwd;
-    if (dirname == NULL)
+    if ((dirname == NULL) || (dirname[0] == '\0'))
         cwd = m_CurrentDirectory;
     else
         cwd = DirDatabase::FormatDirectory(dirname);
@@ -252,13 +254,14 @@ void Files11FileSystem::ListDirs(const char *dirname)
             for (auto cit = dlist.cbegin(); cit != dlist.cend(); ++cit)
             {
                 Files11Record rec;
-                if (FileDatabase.Get(*cit, rec))
+                if (FileDatabase.Get(*cit, rec, NULL))
                 {
                     found = true;
                     std::cout << "\nDirectory DU0:" << DirDatabase::FormatDirectory(rec.fileName) << std::endl;
                     std::cout << GetCurrentDate() << "\n\n";
 
-                    //ListFiles(FileDatabase[dirFile].GetBlockList(), FileDatabase[dirFile].GetFileFCS());
+                    // List files in this directory that matches filename
+                    ListFiles(rec.GetBlockList(), rec.GetFileFCS(), filename);
                 }
             }
         }

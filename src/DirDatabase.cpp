@@ -83,7 +83,7 @@ int DirDatabase::Find(const char *dname, DirList_t& dlist) const
     return (int) dlist.size();;
 }
 
-std::string DirDatabase::FormatDirectory(const std::string& dir)
+std::string DirDatabase:: FormatDirectory(const std::string& dir)
 {
     std::string out(dir);
     if ((dir.length() == 6) && (dir.front() != '['))

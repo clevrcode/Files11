@@ -14,6 +14,8 @@ const char DEL = 0x08;
 const char* PROMPT = ">";
 std::vector<std::string> commandQueue;
 void RunCLI(Files11FileSystem &fs);
+void ProcessCommand(std::string& command, Files11FileSystem& fs);
+
 
 int main(int argc, char *argv[])
 {
@@ -26,6 +28,8 @@ int main(int argc, char *argv[])
     }
 
     std::cout << "Opening disk file " << argv[1] << std::endl;
+
+    // Files-11 File System object
     Files11FileSystem F11_fs;
     if (F11_fs.Open(argv[1]))
     {
@@ -154,45 +158,64 @@ void RunCLI(Files11FileSystem &fs)
 
                 commandQueue.push_back(command);
                 currCommand = commandQueue.size();
-                Words_t words;
-                size_t nbWords = 0;
-                if ((nbWords = parseCommand(command, words)) > 0)
-                {
-                    if (words[0] == "PWD") 
-                    {
-                        std::cout << "Print current working directory\n";
-                    }
-                    else if (words[0] == "CD")
-                    {
-                        if (nbWords == 2) {
-                            fs.ChangeWorkingDirectory(words[1].c_str());
-                        }
-                        else
-                            std::cout << "ERROR -- missing argument\n";
-                    }
-                    else if (words[0] == "DIR")
-                    {
-                        if (nbWords == 2)
-                            fs.ListDirs(words[1].c_str());
-                        else
-                            fs.ListDirs(NULL);
-                    }
-                    else if ((words[0] == "CAT")|| (words[0] == "TYPE"))
-                    {
-                        if (nbWords == 2)
-                            fs.TypeFile(words[1].c_str());
-                        else
-                            std::cout << "ERROR -- missing argument\n";
-                    }
-                    else
-                    {
-                        std::cout << "Unknown command: " << words[0] << std::endl;
-                    }
-                }
+                ProcessCommand(command, fs);
                 command.clear();
             }
             std::cout << PROMPT;
 
+        }
+    }
+}
+
+void ProcessCommand(std::string &command, Files11FileSystem& fs)
+{
+    Words_t words;
+    size_t nbWords = 0;
+    if ((nbWords = parseCommand(command, words)) > 0)
+    {
+        if (words[0] == "PWD")
+        {
+            std::cout << "Print current working directory\n";
+        }
+        else if (words[0] == "CD")
+        {
+            if (nbWords == 2) {
+                fs.ChangeWorkingDirectory(words[1].c_str());
+            }
+            else
+                std::cout << "ERROR -- missing argument\n";
+        }
+        else if (words[0] == "DIR")
+        {
+            if (nbWords == 2) {
+                // split dir and file
+                std::string dir, file;
+                auto pos = words[1].find(']');
+                if (pos != std::string::npos)
+                {
+                    dir = words[1].substr(0, pos + 1);
+                    file = ((pos + 1) < words[1].length()) ? words[1].substr(pos + 1) : "*.*;*";
+                }
+                else
+                {
+                    dir = "";
+                    file = words[1];
+                }
+                fs.ListDirs(dir.c_str(), file.c_str());
+            }
+            else
+                fs.ListDirs(NULL, NULL);
+        }
+        else if ((words[0] == "CAT") || (words[0] == "TYPE"))
+        {
+            if (nbWords == 2)
+                fs.TypeFile(words[1].c_str());
+            else
+                std::cout << "ERROR -- missing argument\n";
+        }
+        else
+        {
+            std::cout << "Unknown command: " << words[0] << std::endl;
         }
     }
 }
