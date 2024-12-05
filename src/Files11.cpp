@@ -221,6 +221,10 @@ void ProcessCommand(std::string &command, Files11FileSystem& fs)
             else
                 std::cout << "ERROR -- missing argument\n";
         }
+        else if (words[0] == "FREE")
+        {
+            fs.PrintFreeBlocks();
+        }
         else
         {
             std::cout << "Unknown command: " << words[0] << std::endl;

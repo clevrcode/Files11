@@ -13,6 +13,15 @@
 #define HM1_C_LEVEL1    (0401)
 #define HM1_C_LEVEL2    (0402)
 
+//--------------------------------
+// Known file number
+#define F11_INDEX_SYS  (1)
+#define F11_BITMAP_SYS (2)
+#define F11_BADBLK_SYS (3)
+#define F11_000000_SYS (4)
+#define F11_CORIMG_SYS (5)
+
+//--------------------------------
 #pragma pack(push, 1)
 
 typedef struct _ODS1_HomeBlock

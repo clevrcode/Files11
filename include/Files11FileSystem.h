@@ -39,6 +39,7 @@ public:
 	const char* GetCurrentWorkingDirectory(void) const { return m_CurrentDirectory.c_str(); };
 	const char* GetErrorMessage(void) const { return m_strErrorMsg.c_str(); };
 	const std::string GetCurrentDate(void);
+	void PrintFreeBlocks(void);
 	//int FindFile(const char* path_name, std::vector<int> &flist) const;
 
 private:

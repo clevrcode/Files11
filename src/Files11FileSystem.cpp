@@ -155,7 +155,6 @@ void Files11FileSystem::DumpFile(int fileNumber, std::ostream& strm)
         int last_block_length = fileFCS.GetFirstFreeByte();
         int vbn = 1;
 
-        std::vector<int> blocks;
         for (auto cit = blklist.cbegin(); cit != blklist.cend(); ++cit)
         {
             for (auto lbn = cit->lbn_start; (lbn <= cit->lbn_end) && (vbn <= last_vbn); lbn++, vbn++)
@@ -194,6 +193,86 @@ void Files11FileSystem::DumpFile(int fileNumber, std::ostream& strm)
             }
         }
         strm << "\n*** EOF ***\n\n\n";
+    }
+}
+
+void Files11FileSystem::PrintFreeBlocks(void)
+{
+    Files11Record fileRec;
+    if (!FileDatabase.Get(F11_BITMAP_SYS, fileRec))
+    {
+        std::cout << "Invalid Disk Image\n";
+        return;
+    }
+
+    const Files11FCS& fileFCS = fileRec.GetFileFCS();
+    BlockList_t blklist = fileRec.GetBlockList();
+    if (fileFCS.GetRecordType() != 0)
+        return;
+
+    if (!blklist.empty())
+    {
+        int totalBlocks = m_HomeBlock.GetNumberOfBlocks();
+        int vbn = 1;
+        int nb_FreeBlocks = 0;
+        int nb_UsedBlocks = 0;
+        int largestContiguousBlock = 0;
+        int contiguousBlocks = 0;
+        bool bContiguous = false;
+        bool bFirstBlock = true;
+        int countBlocks = 0;
+
+        for (auto cit = blklist.cbegin(); cit != blklist.cend(); ++cit)
+        {
+            for (auto lbn = cit->lbn_start; lbn <= cit->lbn_end; lbn++, vbn++)
+            {
+                // Skip first block, Storage Control Block)
+                if (bFirstBlock) {
+                    bFirstBlock = false;
+                    continue;
+                }
+                uint8_t buffer[F11_BLOCK_SIZE];
+                if (readBlock(lbn, m_dskStream, buffer) == NULL)
+                {
+                    std::cerr << "Failed to read block\n";
+                    break;
+                }
+                int nbBytes = F11_BLOCK_SIZE;
+                for (int i = 0; i < nbBytes; i++)
+                {
+                    uint8_t b = buffer[i];
+                    for (int j = 0; j < 8; j++)
+                    {
+                        if (countBlocks++ < totalBlocks)
+                        {
+                            if (b & 0x01)
+                            {
+                                // block is free
+                                nb_FreeBlocks++;
+                                contiguousBlocks++;
+                            }
+                            else
+                            {
+                                // block is used
+                                nb_UsedBlocks++;
+                                bContiguous = false;
+                                if (contiguousBlocks > largestContiguousBlock)
+                                    largestContiguousBlock = contiguousBlocks;
+                                contiguousBlocks = 0;
+                            }
+                        }
+                        b >>= 1;
+                    }
+                }
+            }
+        }
+        // Write report
+        // DU0: has 327878. blocks free, 287122. blocks used out of 615000.
+        // Largest contiguous space = 277326. blocks
+        // 22025. file headers are free, 7975. headers used out of 30000.
+        std::cout << "DU0: has " << nb_FreeBlocks << ". blocks free, " << nb_UsedBlocks << ". blocks used out of " << nb_FreeBlocks + nb_UsedBlocks << ".\n";
+        std::cout << "Largest contiguous space = " << largestContiguousBlock << ". blocks\n";
+        std::cout << m_HomeBlock.GetFreeHeaders() << ". file headers are free, " << m_HomeBlock.GetUsedHeaders() << ". headers used out of " << m_HomeBlock.GetMaxFiles() << ".\n\n";
     }
 }
 
