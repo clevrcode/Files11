@@ -33,9 +33,6 @@
     <ClCompile Include="src\Files11Base.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="src\Files11Header.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
     <ClCompile Include="src\Files11FCS.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
@@ -43,6 +40,9 @@
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="src\DirDatabase.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="src\BitCounter.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
   </ItemGroup>
@@ -68,9 +68,6 @@
     <ClInclude Include="include\Files11Base.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="include\Files11Header.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
     <ClInclude Include="include\Files11FCS.h">
       <Filter>Header Files</Filter>
     </ClInclude>
@@ -78,6 +75,9 @@
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="include\DirDatabase.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="include\BitCounter.h">
       <Filter>Header Files</Filter>
     </ClInclude>
   </ItemGroup>

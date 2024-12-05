@@ -209,7 +209,7 @@ void ProcessCommand(std::string &command, Files11FileSystem& fs)
                 fs.ListDirs(Files11FileSystem::LIST, dir.c_str(), file.c_str());
             }
             else
-                fs.ListDirs(Files11FileSystem::LIST, NULL, NULL);
+                fs.ListDirs(Files11FileSystem::LIST, nullptr, nullptr);
         }
         else if ((words[0] == "CAT") || (words[0] == "TYPE"))
         {

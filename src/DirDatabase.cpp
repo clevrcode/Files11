@@ -44,7 +44,7 @@ int DirDatabase::Find(const char *dname, DirList_t& dlist) const
             std::regex_match(dirname, sm, std::regex("\\[\\*,([0-7]+)\\]"));
             if (sm.size() == 2)
             {
-                int a = strtol(sm.str(1).c_str(), NULL, 8);
+                int a = strtol(sm.str(1).c_str(), nullptr, 8);
                 // return all directories
                 for (auto cit = m_Database.cbegin(); cit != m_Database.cend(); ++cit)
                 {
@@ -58,7 +58,7 @@ int DirDatabase::Find(const char *dname, DirList_t& dlist) const
                 std::regex_match(dirname, sm, std::regex("\\[([0-7]+),\\*\\]"));
                 if (sm.size() == 2)
                 {
-                    int a = strtol(sm.str(1).c_str(), NULL, 8);
+                    int a = strtol(sm.str(1).c_str(), nullptr, 8);
                     // return all directories
                     for (auto cit = m_Database.cbegin(); cit != m_Database.cend(); ++cit)
                     {
@@ -106,8 +106,8 @@ std::string DirDatabase:: FormatDirectory(const std::string& dir)
         if (sm.size() == 3)
         {
             char buf[16];
-            int a = strtol(sm.str(1).c_str(), NULL, 8);
-            int b = strtol(sm.str(2).c_str(), NULL, 8);
+            int a = strtol(sm.str(1).c_str(), nullptr, 8);
+            int b = strtol(sm.str(2).c_str(), nullptr, 8);
             sprintf_s(buf, sizeof(buf), "[%03o,%03o]", a, b);
             out = buf;
         }
@@ -135,7 +135,7 @@ int DirDatabase::getUIC_hi(const std::string& in)
             allnum = ((*cit) >= '0') && ((*cit) <= '7');
         if (allnum)
         {
-            uic = strtol(in.substr(0, 3).c_str(), NULL, 8);
+            uic = strtol(in.substr(0, 3).c_str(), nullptr, 8);
         }
     }
     return uic;
@@ -151,7 +151,7 @@ int DirDatabase::getUIC_lo(const std::string& in)
             allnum = ((*cit) >= '0') && ((*cit) <= '7');
         if (allnum)
         {
-            uic = strtol(in.substr(3).c_str(), NULL, 8);
+            uic = strtol(in.substr(3).c_str(), nullptr, 8);
         }
     }
     return uic;

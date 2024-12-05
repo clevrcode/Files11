@@ -52,5 +52,8 @@ private:
 	std::string      m_CurrentDate;
 	FileDatabase     FileDatabase;
 	DirDatabase      DirDatabase;
+
+	static void CountBits(uint8_t* blks, size_t nbBytes, int nbBlks, uint8_t lastByte, int& nbTrue, int& nbFalse, int& nbContiguous, int& largestContiguousBlock);
+
 };
 

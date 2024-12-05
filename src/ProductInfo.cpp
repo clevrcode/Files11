@@ -8,7 +8,7 @@ ProductInfo::ProductInfo()
 {
     // get the filename of the executable containing the version resource
     TCHAR szFilename[MAX_PATH + 1] = { 0 };
-    if (GetModuleFileName(NULL, szFilename, MAX_PATH) == 0)
+    if (GetModuleFileName(nullptr, szFilename, MAX_PATH) == 0)
     {
         //TRACE("GetModuleFileName failed with error %d\n", GetLastError());
     }
@@ -23,15 +23,15 @@ ProductInfo::ProductInfo()
 
     std::vector<BYTE> data(dwSize);
     // load the version info
-    if (!GetFileVersionInfo(szFilename, NULL, dwSize, &data[0]))
+    if (!GetFileVersionInfo(szFilename, 0, dwSize, &data[0]))
     {
         //TRACE("GetFileVersionInfo failed with error %d\n", GetLastError());
     }
 
     // get the name and version strings
-    LPVOID pvProductName = NULL;
+    LPVOID pvProductName = nullptr;
     unsigned int iProductNameLen = 0;
-    LPVOID pvProductVersion = NULL;
+    LPVOID pvProductVersion = nullptr;
     unsigned int iProductVersionLen = 0;
 
     struct LANGANDCODEPAGE {
@@ -54,9 +54,9 @@ ProductInfo::ProductInfo()
             break;
         }
     }
-    if (pvProductName != NULL)
+    if (pvProductName != nullptr)
         strProductName = (const char*)pvProductName;       // , iProductNameLen);
-    if (pvProductVersion != NULL)
+    if (pvProductVersion != nullptr)
         strProductVersion = (const char*)pvProductVersion; // , iProductVersionLen);
 }
 

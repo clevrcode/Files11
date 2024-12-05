@@ -51,6 +51,8 @@ bool FileDatabase::Filter(const Files11Record& rec, const char* name, int versio
         if (pos == std::string::npos)
         {
             // no extension
+            if (fname == "*")
+                fname == rec.GetFileName();
             return (fname == rec.GetFileName()) && (rec.GetFileExt() == "");
         }
         std::string ext(fname.substr(pos + 1));
@@ -59,15 +61,23 @@ bool FileDatabase::Filter(const Files11Record& rec, const char* name, int versio
         if (pos == std::string::npos)
         {
             // no version specified
+            if (fname == "*")
+                fname = rec.GetFileName();
+            if (ext == "*")
+                ext = rec.GetFileExt();
             return (fname == rec.GetFileName()) && (ext == rec.GetFileExt());
         }
         std::string strVersion(ext.substr(pos + 1));
         ext = ext.substr(0, pos);
+        // any version
+        if (fname == "*")
+            fname = rec.GetFileName();
+        if (ext == "*")
+            ext = rec.GetFileExt();
         if (strVersion == "*") {
-            // any version
             return (fname == rec.GetFileName()) && (ext == rec.GetFileExt());
         }
-        int nVersion = strtol(strVersion.c_str(), NULL, 10);
+        int nVersion = strtol(strVersion.c_str(), nullptr, 10);
         return (fname == rec.GetFileName()) && (ext == rec.GetFileExt()) && (nVersion == version);
     }
     return true;

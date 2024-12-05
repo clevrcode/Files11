@@ -46,7 +46,7 @@ bool Files11HomeBlock::Initialize(std::ifstream& istrm)
 	istrm.seekg(0, istrm.beg);
 
 	ODS1_HomeBlock_t* pHome = ReadHomeBlock(istrm);
-	if (pHome != NULL)
+	if (pHome != nullptr)
 	{
 		// home block is valid
 		iIndexBitmapSize            = pHome->hm1_w_ibmapsize;
@@ -71,8 +71,8 @@ bool Files11HomeBlock::Initialize(std::ifstream& istrm)
 		MakeDate(pHome->hm1_t_lastrev, strLastRevision, false);
 		MakeDate(pHome->hm1_t_credate, strVolumeCreationDate, true);
 
-		ODS1_FileHeader_t* pBitmapSysHeader = ReadFileHeader(iBitmapSysLBN, istrm);
-		if (pBitmapSysHeader != NULL)
+		auto pBitmapSysHeader = (ODS1_FileHeader_t*)ReadBlock(iBitmapSysLBN, istrm);
+		if (pBitmapSysHeader != nullptr)
 		{
 			int scb_lbn = 0;
 			F11_MapArea_t* pMap = GetMapArea();
@@ -88,8 +88,8 @@ bool Files11HomeBlock::Initialize(std::ifstream& istrm)
 			if (scb_lbn != 0)
 			{
 				// Read Storage Control Block
-				SCB_t* Scb = (SCB_t*)ReadBlock(scb_lbn, istrm);
-				if (Scb != NULL)
+				auto Scb = (SCB_t*)ReadBlock(scb_lbn, istrm);
+				if (Scb != nullptr)
 				{
 					iScbNbBlocks = Scb->nbBitmapBlks;
 					if (iScbNbBlocks < 127) {
@@ -110,6 +110,32 @@ bool Files11HomeBlock::Initialize(std::ifstream& istrm)
 	return bValid;
 }
 
+bool Files11HomeBlock::ValidateHomeBlock(ODS1_HomeBlock_t* pHome)
+{
+	uint16_t checksum1 = CalcChecksum((uint16_t*)pHome, (((char*)&pHome->hm1_w_checksum1 - (char*)&pHome->hm1_w_ibmapsize) / 2));
+	uint16_t checksum2 = CalcChecksum((uint16_t*)pHome, (((char*)&pHome->hm1_w_checksum2 - (char*)&pHome->hm1_w_ibmapsize) / 2));
+	bool bValid = (pHome->hm1_w_checksum1 == checksum1) && (pHome->hm1_w_checksum2 == checksum2);
+
+	bValid &= ((pHome->hm1_w_ibmapsize != 0) && !((pHome->hm1_w_ibmaplbn_hi == 0) && (pHome->hm1_w_ibmaplbn_lo == 0))) &&
+		((pHome->hm1_w_structlev == HM1_C_LEVEL1) || (pHome->hm1_w_structlev == HM1_C_LEVEL2)) &&
+		(pHome->hm1_w_maxfiles != 0) && (pHome->hm1_w_cluster == 1);
+	return bValid;
+}
+
+ODS1_HomeBlock_t* Files11HomeBlock::ReadHomeBlock(std::ifstream& istrm)
+{
+	//ODS1_HomeBlock_t* pHome = (ODS1_HomeBlock_t*)ReadBlock(F11_HOME_LBN, istrm);
+	auto pHome = (ODS1_HomeBlock_t*)ReadBlock(F11_HOME_LBN, istrm);
+	if (pHome)
+	{
+		//----------------------
+		// Validate home block
+		if (!ValidateHomeBlock(pHome))
+			pHome = nullptr;
+	}
+	return pHome;
+}
+
 int Files11HomeBlock::CountUsedHeaders(std::ifstream& istrm)
 {
 	int count = 0;
@@ -117,7 +143,8 @@ int Files11HomeBlock::CountUsedHeaders(std::ifstream& istrm)
 	int end_lbn = start_lbn + iMaxFiles;
 	for (int lbn = start_lbn; lbn < end_lbn; lbn++)
 	{
-		ODS1_FileHeader_t* pHeader = ReadFileHeader(lbn, istrm);
+		//ODS1_FileHeader_t* pHeader = (ODS1_FileHeader_t*)ReadBlock(lbn, istrm);
+		auto pHeader = (ODS1_FileHeader_t*)ReadBlock(lbn, istrm);
 		if (pHeader)
 		{
 			if (pHeader->fh1_w_fid_num != 0)
@@ -126,7 +153,6 @@ int Files11HomeBlock::CountUsedHeaders(std::ifstream& istrm)
 	}
 	return count;
 }
-
 
 int Files11HomeBlock::CountTotalFiles(std::ifstream& istrm)
 {

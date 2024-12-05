@@ -2,6 +2,7 @@
 #include "Files11FileSystem.h"
 #include "Files11_defs.h"
 #include "Files11Record.h"
+#include "BitCounter.h"
 
 // Constructor
 Files11FileSystem::Files11FileSystem()
@@ -18,29 +19,48 @@ bool Files11FileSystem::Open(const char *dskName)
 {
     m_DiskFileName = dskName;
     m_dskStream.open(dskName, std::ifstream::binary);
-    if (m_dskStream.is_open()) {
+    if (m_dskStream.is_open()) 
+    {
         // Read the Home Block
         m_bValid = m_HomeBlock.Initialize(m_dskStream);
 
         // Build File Header Database
-        int firstLBN = m_HomeBlock.GetIndexLBN();
+        const int IndexLBN = m_HomeBlock.GetIndexLBN();
         int nbFiles = m_HomeBlock.GetMaxFiles();
-        m_CurrentDirectory = m_HomeBlock.GetOwnerUIC();
-        for (int i= 0; i < nbFiles; i++)
+
+        Files11Record IndexFileRecord(m_HomeBlock.GetIndexLBN());
+        IndexFileRecord.Initialize(IndexLBN, m_dskStream);
+        auto BlkList = IndexFileRecord.GetBlockList();
+        if (!BlkList.empty())
         {
-            int lbn = firstLBN + i;
-            Files11Record record;
-            int fileNumber = record.Initialize(lbn, m_dskStream);
-            if (fileNumber > 0)
+            const Files11FCS &indexFCS = IndexFileRecord.GetFileFCS();
+            int last_vbn = indexFCS.GetUsedBlockCount();
+            int eof_bytes = indexFCS.GetFirstFreeByte();
+            int vbn = 1;
+
+            for (auto cit = BlkList.cbegin(); cit != BlkList.cend(); ++cit)
             {
-                if (FileDatabase.Add(fileNumber, record))
+                for (auto lbn = cit->lbn_start; lbn <= cit->lbn_end; ++lbn)
                 {
-                    // If a directory, add to the directory database (key: dir name)
-                    if (record.IsDirectory()) {
-                        DirDatabase.Add(record.fileName, fileNumber);
+                    if (lbn > IndexLBN)
+                    {
+                        Files11Record fileRecord;
+                        int fileNumber = fileRecord.Initialize(lbn, m_dskStream);
+                        if (fileNumber > 0)
+                        {
+                            if (FileDatabase.Add(fileNumber, fileRecord))
+                            {
+                                // If a directory, add to the directory database (key: dir name)
+                                if (fileRecord.IsDirectory()) {
+                                    DirDatabase.Add(fileRecord.fileName, fileNumber);
+                                }
+                            }
+                        }
                     }
                 }
             }
+            // set current working directory to the user UIC
+            m_CurrentDirectory = m_HomeBlock.GetOwnerUIC();
         }
     }
     else
@@ -101,7 +121,7 @@ void Files11FileSystem::PrintFile(int fileNumber, std::ostream& strm)
         {
             if (first_block)
             {
-                if (readBlock(*lbn, m_dskStream, buffer[1]) == NULL)
+                if (readBlock(*lbn, m_dskStream, buffer[1]) == nullptr)
                 {
                     std::cerr << "Failed to read block\n";
                     break;
@@ -160,7 +180,7 @@ void Files11FileSystem::DumpFile(int fileNumber, std::ostream& strm)
             for (auto lbn = cit->lbn_start; (lbn <= cit->lbn_end) && (vbn <= last_vbn); lbn++, vbn++)
             {
                 uint8_t buffer[F11_BLOCK_SIZE];
-                if (readBlock(lbn, m_dskStream, buffer) == NULL)
+                if (readBlock(lbn, m_dskStream, buffer) == nullptr)
                 {
                     std::cerr << "Failed to read block\n";
                     break;
@@ -212,67 +232,47 @@ void Files11FileSystem::PrintFreeBlocks(void)
 
     if (!blklist.empty())
     {
-        int totalBlocks = m_HomeBlock.GetNumberOfBlocks();
-        int vbn = 1;
-        int nb_FreeBlocks = 0;
-        int nb_UsedBlocks = 0;
-        int largestContiguousBlock = 0;
-        int contiguousBlocks = 0;
-        bool bContiguous = false;
+        int vbn = 0;
         bool bFirstBlock = true;
-        int countBlocks = 0;
+        bool error = false;
+        int totalBlocks = m_HomeBlock.GetNumberOfBlocks();
+        int largestContiguousFreeBlock = 0;
+        BitCounter counter;
 
         for (auto cit = blklist.cbegin(); cit != blklist.cend(); ++cit)
         {
-            for (auto lbn = cit->lbn_start; lbn <= cit->lbn_end; lbn++, vbn++)
+            for (auto lbn = cit->lbn_start; lbn <= cit->lbn_end; lbn++)
             {
                 // Skip first block, Storage Control Block)
                 if (bFirstBlock) {
                     bFirstBlock = false;
                     continue;
                 }
+                vbn++;
                 uint8_t buffer[F11_BLOCK_SIZE];
-                if (readBlock(lbn, m_dskStream, buffer) == NULL)
+                if (readBlock(lbn, m_dskStream, buffer) == nullptr)
                 {
+                    error = true;
                     std::cerr << "Failed to read block\n";
                     break;
                 }
-                int nbBytes = F11_BLOCK_SIZE;
-                for (int i = 0; i < nbBytes; i++)
-                {
-                    uint8_t b = buffer[i];
-                    for (int j = 0; j < 8; j++)
-                    {
-                        if (countBlocks++ < totalBlocks)
-                        {
-                            if (b & 0x01)
-                            {
-                                // block is free
-                                nb_FreeBlocks++;
-                                contiguousBlocks++;
-                            }
-                            else
-                            {
-                                // block is used
-                                nb_UsedBlocks++;
-                                bContiguous = false;
-                                if (contiguousBlocks > largestContiguousBlock)
-                                    largestContiguousBlock = contiguousBlocks;
-                                contiguousBlocks = 0;
-                            }
-                        }
-                        b >>= 1;
-                    }
+                int nbBits = F11_BLOCK_SIZE * 8;
+                if (totalBlocks < (vbn * (F11_BLOCK_SIZE * 8))) {
+                    nbBits = totalBlocks % (F11_BLOCK_SIZE * 8);
                 }
+                counter.Count(buffer, nbBits);
             }
         }
-        // Write report
-        // DU0: has 327878. blocks free, 287122. blocks used out of 615000.
-        // Largest contiguous space = 277326. blocks
-        // 22025. file headers are free, 7975. headers used out of 30000.
-        std::cout << "DU0: has " << nb_FreeBlocks << ". blocks free, " << nb_UsedBlocks << ". blocks used out of " << nb_FreeBlocks + nb_UsedBlocks << ".\n";
-        std::cout << "Largest contiguous space = " << largestContiguousBlock << ". blocks\n";
-        std::cout << m_HomeBlock.GetFreeHeaders() << ". file headers are free, " << m_HomeBlock.GetUsedHeaders() << ". headers used out of " << m_HomeBlock.GetMaxFiles() << ".\n\n";
+        if (!error)
+        {
+            // Write report
+            // DU0: has 327878. blocks free, 287122. blocks used out of 615000.
+            // Largest contiguous space = 277326. blocks
+            // 22025. file headers are free, 7975. headers used out of 30000.
+            std::cout << "DU0: has " << counter.GetNbHi() << ". blocks free, " << counter.GetNbLo() << ". blocks used out of " << totalBlocks << ".\n";
+            std::cout << "Largest contiguous space = " << counter.GetLargestContiguousHi() << ". blocks\n";
+            std::cout << m_HomeBlock.GetFreeHeaders() << ". file headers are free, " << m_HomeBlock.GetUsedHeaders() << ". headers used out of " << m_HomeBlock.GetMaxFiles() << ".\n\n";
+        }
     }
 }
 
@@ -378,7 +378,7 @@ void Files11FileSystem::ListFiles(const BlockList_t& dirblks, const Files11FCS& 
                     }
                     else
                     {
-                        std::cerr << "ERROR: missing file #" << std::to_string(pRec[idx].fileNumber) << std::endl;
+                        //std::cerr << "ERROR: missing file #" << std::to_string(pRec[idx].fileNumber) << std::endl;
                         continue;
                     }
                 }
@@ -394,7 +394,7 @@ void Files11FileSystem::ListFiles(const BlockList_t& dirblks, const Files11FCS& 
 void Files11FileSystem::ListDirs(Cmds_e cmd, const char *dirname, const char *filename)
 {
     std::string cwd;
-    if ((dirname == NULL) || (dirname[0] == '\0'))
+    if ((dirname == nullptr) || (dirname[0] == '\0'))
         cwd = m_CurrentDirectory;
     else
         cwd = DirDatabase::FormatDirectory(dirname);

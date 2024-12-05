@@ -10,7 +10,7 @@
 class Files11Record : public Files11Base 
 {
 public:
-	Files11Record(void);
+	Files11Record(int bitmapLBN=0);
 	Files11Record(const Files11Record&);
 
 	int Initialize(int lbn, std::ifstream& istrm);
@@ -30,9 +30,13 @@ public:
 	const char* GetFullName(void) const         { return fullName.c_str(); };
 	const char* GetFileRevisionDate(void) const {	return fileRevisionDate.c_str(); };
 	const BlockList_t& GetBlockList(void) const { return blockList; };
+	bool ValidateHeader(ODS1_FileHeader_t* pHeader);
+	ODS1_FileHeader_t* ReadFileHeader(int lbn, std::ifstream& istrm);
+
 	std::string	fileName;
 
 private:
+	int         firstLBN;
 	uint16_t	fileNumber;
 	uint16_t	fileSeq;
 	uint16_t	fileVersion;

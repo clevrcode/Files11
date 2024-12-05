@@ -12,8 +12,9 @@ public:
 	bool Initialize(const char *diskName);
 	bool Initialize(std::ifstream& istrm);
 	void PrintInfo(void);
-	int  GetMaxFiles(void) { return iMaxFiles; };
-	int  GetIndexLBN(void) { return iIndexFileLBN; };
+	const int  GetMaxFiles(void) const { return iMaxFiles; };
+	const int  GetBitmapLBN(void) const { return iIndexBitmapLBN; };
+	const int  GetIndexLBN(void) const { return iIndexFileLBN; };
 	int  GetDiskSize(void) { return bValid ? iDiskSize : 0;  };
 	int  CountTotalFiles(std::ifstream& istrm);
 	int  CountUsedHeaders(std::ifstream& istrm);
@@ -21,6 +22,8 @@ public:
 	int  GetFreeHeaders(void) const { return iMaxFiles - iUsedHeaders; };
 	int  GetNumberOfBlocks(void) const { return iScbUnitSizeBlk; };
 	const char* GetOwnerUIC(void) const { return strVolumeOwner.c_str(); };
+	bool ValidateHomeBlock(ODS1_HomeBlock_t* pHome);
+	ODS1_HomeBlock_t* ReadHomeBlock(std::ifstream& istrm);
 
 private:
 	bool bValid;

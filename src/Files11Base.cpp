@@ -5,74 +5,23 @@ Files11Base::Files11Base()
     memset(m_block, 0, sizeof(m_block));
 }
 
-Files11Base::~Files11Base()
-{
-}
-
 uint8_t* Files11Base::ReadBlock(int lbn, std::ifstream& istrm)
 {
     return readBlock(lbn, istrm, m_block);
 }
 
-bool Files11Base::ValidateHomeBlock(ODS1_HomeBlock_t* pHome)
+F11_MapArea_t* Files11Base::GetMapArea(void) const
 {
-    uint16_t checksum1 = CalcChecksum((uint16_t*)pHome, (((char*)&pHome->hm1_w_checksum1 - (char*)&pHome->hm1_w_ibmapsize) / 2));
-    uint16_t checksum2 = CalcChecksum((uint16_t*)pHome, (((char*)&pHome->hm1_w_checksum2 - (char*)&pHome->hm1_w_ibmapsize) / 2));
-    bool bValid = (pHome->hm1_w_checksum1 == checksum1) && (pHome->hm1_w_checksum2 == checksum2);
-
-    bValid &= ((pHome->hm1_w_ibmapsize != 0) && !((pHome->hm1_w_ibmaplbn_hi == 0) && (pHome->hm1_w_ibmaplbn_lo == 0))) &&
-        ((pHome->hm1_w_structlev == HM1_C_LEVEL1) || (pHome->hm1_w_structlev == HM1_C_LEVEL2)) &&
-        (pHome->hm1_w_maxfiles != 0) && (pHome->hm1_w_cluster == 1);
-    return bValid;
-}
-
-ODS1_HomeBlock_t* Files11Base::ReadHomeBlock(std::ifstream& istrm)
-{
-    ODS1_HomeBlock_t* pHome = (ODS1_HomeBlock_t*) ReadBlock(F11_HOME_LBN, istrm);
-    if (pHome)
-    {
-        //----------------------
-        // Validate home block
-        if (!ValidateHomeBlock(pHome))
-            pHome = NULL;
-    }
-    return pHome;
-}
-
-bool Files11Base::ValidateHeader(ODS1_FileHeader_t* pHeader)
-{
-    uint16_t checksum = CalcChecksum((uint16_t*)pHeader, 255);
-    return (checksum == pHeader->fh1_w_checksum);
-}
-
-
-ODS1_FileHeader_t* Files11Base::ReadFileHeader(int lbn, std::ifstream& istrm)
-{
-    ODS1_FileHeader_t* pHeader = NULL;
-    if (ReadBlock(lbn, istrm))
-    {
-        if (ValidateHeader((ODS1_FileHeader_t*)m_block))
-            pHeader = (ODS1_FileHeader_t*)m_block;
-    }
-    return pHeader;
-}
-
-F11_MapArea_t* Files11Base::GetMapArea(void)
-{
-    F11_MapArea_t* pMap = NULL;
+    F11_MapArea_t* pMap = nullptr;
     ODS1_FileHeader_t* pHeader = (ODS1_FileHeader_t*)m_block;
-    if (ValidateHeader(pHeader))
-        pMap = (F11_MapArea_t*)((uint16_t*)pHeader + pHeader->fh1_b_mpoffset);
-    return pMap;
+    return (F11_MapArea_t*)((uint16_t*)pHeader + pHeader->fh1_b_mpoffset);
 }
 
-F11_IdentArea_t* Files11Base::GetIdentArea(void)
+F11_IdentArea_t* Files11Base::GetIdentArea(void) const
 {
-    F11_IdentArea_t* pIdent = NULL;
+    F11_IdentArea_t* pIdent = nullptr;
     ODS1_FileHeader_t* pHeader = (ODS1_FileHeader_t*)m_block;
-    if (ValidateHeader(pHeader))
-        pIdent = (F11_IdentArea_t*)((uint16_t*)pHeader + pHeader->fh1_b_idoffset);
-    return pIdent;
+    return (F11_IdentArea_t*)((uint16_t*)pHeader + pHeader->fh1_b_idoffset);
 }
 
 uint16_t Files11Base::CalcChecksum(uint16_t *buffer, size_t wordCount)
@@ -162,25 +111,26 @@ int Files11Base::BuildBlockList(int lbn, BlockList_t& blk_list, std::ifstream& i
     int count = 0;
     uint8_t expected_segment = 0;
     int current_lbn = lbn;
+    if (lbn == 0x2f)
+        printf("lbn 2F\n");
 
     // Clear the plock list
     blk_list.clear();
 
     do {
         ODS1_FileHeader_t Header;
-        if (readBlock(current_lbn, istrm, (uint8_t*)&Header) && ValidateHeader(&Header))
+        if (readBlock(current_lbn, istrm, (uint8_t*)&Header))
         {
             F11_MapArea_t* pMap = (F11_MapArea_t*)((uint16_t*)&Header + Header.fh1_b_mpoffset);
             if (pMap->ext_SegNumber != expected_segment)
             {
-                fprintf(stderr, "Invalid segment: expected %d, read %d\n", expected_segment, pMap->ext_SegNumber);
-                break;
+                fprintf(stderr, "WARNING: Invalid segment (lbn: %d): expected %d, read %d\n", lbn, expected_segment, pMap->ext_SegNumber);
             }
             count += GetBlockCount(pMap, &blk_list);
 
             if (pMap->ext_FileNumber > 0)
             {
-                current_lbn += (pMap->ext_FileNumber - 1);
+                current_lbn = pMap->ext_FileNumber + 2; //???? TODO
                 expected_segment++;
             }
             else
@@ -195,7 +145,7 @@ int Files11Base::BuildBlockList(int lbn, BlockList_t& blk_list, std::ifstream& i
     return count;
 }
 
-int Files11Base::GetBlockCount(F11_MapArea_t * pMap, BlockList_t * pBlkList/*=NULL*/)
+int Files11Base::GetBlockCount(F11_MapArea_t * pMap, BlockList_t * pBlkList/*=nullptr*/)
 {
         int count = 0;
         int ptr_size = 0;
@@ -254,6 +204,6 @@ uint8_t *Files11Base::readBlock(int lbn, std::ifstream& istrm, uint8_t* blk)
     int ofs = lbn * F11_BLOCK_SIZE;
     istrm.seekg(ofs, istrm.beg);
     istrm.read((char*)blk, F11_BLOCK_SIZE);
-    return istrm.good() ? blk : NULL;
+    return istrm.good() ? blk : nullptr;
 }
 
