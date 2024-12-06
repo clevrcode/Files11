@@ -15,9 +15,13 @@ public:
 	const int  GetMaxFiles(void) const { return iMaxFiles; };
 	const int  GetBitmapLBN(void) const { return iIndexBitmapLBN; };
 	const int  GetIndexLBN(void) const { return iIndexFileLBN; };
+	const int GetBitmapSysLBN(void) const { return iBitmapSysLBN; };
+	const int GetBadblkSysLBN(void) const { return iBadblkSysLBN; };
+	const int Get000000SysLBN(void) const { return i000000SysLBN; };
+	const int GetCorimgSysLBN(void) const { return iCorimgSysLBN; };
+
 	int  GetDiskSize(void) { return bValid ? iDiskSize : 0;  };
-	int  CountTotalFiles(std::ifstream& istrm);
-	int  CountUsedHeaders(std::ifstream& istrm);
+	int  CountFreeHeaders(std::ifstream& istrm);
 	int  GetUsedHeaders(void) const { return iUsedHeaders; };
 	int  GetFreeHeaders(void) const { return iMaxFiles - iUsedHeaders; };
 	int  GetNumberOfBlocks(void) const { return iScbUnitSizeBlk; };
@@ -34,8 +38,10 @@ private:
 	int iIndexBitmapLBN;
 	int iIndexFileLBN;
 	int iBitmapSysLBN;
+	int iBadblkSysLBN;
+	int i000000SysLBN;
+	int iCorimgSysLBN;
 	int iMaxFiles;
-	int iTotalFiles;
 	int iUsedHeaders;
 	int iStorageBitmapClusterFactor;
 	// DeviceType;

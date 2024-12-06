@@ -52,7 +52,7 @@ bool FileDatabase::Filter(const Files11Record& rec, const char* name, int versio
         {
             // no extension
             if (fname == "*")
-                fname == rec.GetFileName();
+                fname = rec.GetFileName();
             return (fname == rec.GetFileName()) && (rec.GetFileExt() == "");
         }
         std::string ext(fname.substr(pos + 1));

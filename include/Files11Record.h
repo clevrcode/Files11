@@ -10,7 +10,7 @@
 class Files11Record : public Files11Base 
 {
 public:
-	Files11Record(int bitmapLBN=0);
+	Files11Record(int IndexLBN=0);
 	Files11Record(const Files11Record&);
 
 	int Initialize(int lbn, std::ifstream& istrm);
@@ -32,6 +32,9 @@ public:
 	const BlockList_t& GetBlockList(void) const { return blockList; };
 	bool ValidateHeader(ODS1_FileHeader_t* pHeader);
 	ODS1_FileHeader_t* ReadFileHeader(int lbn, std::ifstream& istrm);
+	int BuildBlockList(int lbn, BlockList_t& blk_list, std::ifstream& istrm);
+	int GetBlockCount(F11_MapArea_t* pMap, BlockList_t* pBlkList = nullptr);
+
 
 	std::string	fileName;
 

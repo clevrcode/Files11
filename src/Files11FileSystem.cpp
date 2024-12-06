@@ -25,26 +25,21 @@ bool Files11FileSystem::Open(const char *dskName)
         m_bValid = m_HomeBlock.Initialize(m_dskStream);
 
         // Build File Header Database
-        const int IndexLBN = m_HomeBlock.GetIndexLBN();
+        const uint32_t IndexLBN = (uint32_t) m_HomeBlock.GetIndexLBN();
         int nbFiles = m_HomeBlock.GetMaxFiles();
 
-        Files11Record IndexFileRecord(m_HomeBlock.GetIndexLBN());
+        Files11Record IndexFileRecord(IndexLBN);
         IndexFileRecord.Initialize(IndexLBN, m_dskStream);
         auto BlkList = IndexFileRecord.GetBlockList();
         if (!BlkList.empty())
         {
-            const Files11FCS &indexFCS = IndexFileRecord.GetFileFCS();
-            int last_vbn = indexFCS.GetUsedBlockCount();
-            int eof_bytes = indexFCS.GetFirstFreeByte();
-            int vbn = 1;
-
             for (auto cit = BlkList.cbegin(); cit != BlkList.cend(); ++cit)
             {
                 for (auto lbn = cit->lbn_start; lbn <= cit->lbn_end; ++lbn)
                 {
                     if (lbn > IndexLBN)
                     {
-                        Files11Record fileRecord;
+                        Files11Record fileRecord(IndexLBN);
                         int fileNumber = fileRecord.Initialize(lbn, m_dskStream);
                         if (fileNumber > 0)
                         {
@@ -62,10 +57,14 @@ bool Files11FileSystem::Open(const char *dskName)
             // set current working directory to the user UIC
             m_CurrentDirectory = m_HomeBlock.GetOwnerUIC();
         }
+        else
+        {
+            std::cerr << "ERROR -- Invalid INDEXF.SYS file: Block pointers empty\n";
+        }
     }
     else
     {
-        std::cerr << "Failed to open disk image file\n";
+        std::cerr << "ERROR -- Failed to open disk image file\n";
     }
 	return m_bValid;
 }
@@ -227,8 +226,10 @@ void Files11FileSystem::PrintFreeBlocks(void)
 
     const Files11FCS& fileFCS = fileRec.GetFileFCS();
     BlockList_t blklist = fileRec.GetBlockList();
-    if (fileFCS.GetRecordType() != 0)
-        return;
+
+    printf("Record Type : 0x%02x\n", fileFCS.GetRecordType());
+    //if (fileFCS.GetRecordType() != 0)
+    //    return;
 
     if (!blklist.empty())
     {

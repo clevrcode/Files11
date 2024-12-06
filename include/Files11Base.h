@@ -24,9 +24,6 @@ public:
 	typedef struct BlockPtrs BlockPtrs_t;
 	typedef std::vector<BlockPtrs_t> BlockList_t;
 
-	int BuildBlockList(int lbn, BlockList_t& blk_list, std::ifstream& istrm);
-	int GetBlockCount(F11_MapArea_t* pMap, BlockList_t* pBlkList = nullptr);
-
 protected:
 	
 	static uint16_t CalcChecksum(uint16_t* buffer, size_t wordCount);
