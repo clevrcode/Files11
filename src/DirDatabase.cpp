@@ -1,11 +1,6 @@
 #include <regex>
 #include "DirDatabase.h"
 
-DirDatabase::DirDatabase(void)
-{
-
-}
-
 bool DirDatabase::Add(std::string& name, int fnumber)
 {
     auto dit = m_Database.find(name);
@@ -35,8 +30,9 @@ int DirDatabase::Find(const char *dname, DirList_t& dlist) const
         if ((dirname == "[*]")||(dirname == "[*,*]"))
         {
             // return all directories
-            for (auto cit = m_Database.cbegin(); cit != m_Database.cend(); ++cit)
-                dlist.push_back(cit->second);
+            //for (auto cit = m_Database.cbegin(); cit != m_Database.cend(); ++cit)
+            for (auto & cit : m_Database)
+                dlist.push_back(cit.second);
         }
         else
         {
@@ -46,11 +42,12 @@ int DirDatabase::Find(const char *dname, DirList_t& dlist) const
             {
                 int a = strtol(sm.str(1).c_str(), nullptr, 8);
                 // return all directories
-                for (auto cit = m_Database.cbegin(); cit != m_Database.cend(); ++cit)
+                //for (auto cit = m_Database.cbegin(); cit != m_Database.cend(); ++cit)
+                for (auto & cit : m_Database)
                 {
-                    int b = getUIC_lo(cit->first);
+                    int b = getUIC_lo(cit.first);
                     if (a == b)
-                        dlist.push_back(cit->second);
+                        dlist.push_back(cit.second);
                 }
             }
             else
@@ -60,11 +57,12 @@ int DirDatabase::Find(const char *dname, DirList_t& dlist) const
                 {
                     int a = strtol(sm.str(1).c_str(), nullptr, 8);
                     // return all directories
-                    for (auto cit = m_Database.cbegin(); cit != m_Database.cend(); ++cit)
+                    //for (auto cit = m_Database.cbegin(); cit != m_Database.cend(); ++cit)
+                    for (auto & cit : m_Database)
                     {
-                        int b = getUIC_hi(cit->first);
+                        int b = getUIC_hi(cit.first);
                         if (a == b)
-                            dlist.push_back(cit->second);
+                            dlist.push_back(cit.second);
                     }
                 }
                 else
@@ -131,8 +129,9 @@ int DirDatabase::getUIC_hi(const std::string& in)
     if (in.length() == 6)
     {
         bool allnum = true;
-        for (auto cit = in.cbegin(); allnum && (cit != in.cend()); ++cit)
-            allnum = ((*cit) >= '0') && ((*cit) <= '7');
+        //for (auto cit = in.cbegin(); allnum && (cit != in.cend()); ++cit)
+        for (const auto & cit : in)
+            allnum = (cit >= '0') && (cit <= '7');
         if (allnum)
         {
             uic = strtol(in.substr(0, 3).c_str(), nullptr, 8);
@@ -147,8 +146,9 @@ int DirDatabase::getUIC_lo(const std::string& in)
     if (in.length() == 6)
     {
         bool allnum = true;
-        for (auto cit = in.cbegin(); allnum && (cit != in.cend()); ++cit)
-            allnum = ((*cit) >= '0') && ((*cit) <= '7');
+        //for (auto cit = in.cbegin(); allnum && (cit != in.cend()); ++cit)
+        for (const auto & cit : in)
+            allnum = (cit >= '0') && (cit <= '7');
         if (allnum)
         {
             uic = strtol(in.substr(3).c_str(), nullptr, 8);
@@ -160,9 +160,10 @@ int DirDatabase::getUIC_lo(const std::string& in)
 std::string DirDatabase::makeKey(const std::string& dir)
 {
     std::string key;
-    for (auto cit = dir.cbegin(); cit != dir.cend(); ++cit) {
-        if (((*cit) != '[') && ((*cit) != ']') && ((*cit) != ','))
-            key += *cit;
+    //for (auto cit = dir.cbegin(); cit != dir.cend(); ++cit) {
+    for (const auto & cit : dir) {
+        if ((cit != '[') && (cit != ']') && (cit != ','))
+            key += cit;
     }
     return key;
 }

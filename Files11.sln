@@ -7,6 +7,8 @@ Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "Files11", "Files11.vcxproj"
 EndProject
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "BitCounterTest", "BitCounterTest\BitCounterTest.vcxproj", "{6A28446F-A12D-49A6-ABD8-8E783DA85AF6}"
 EndProject
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "VarLengthRecordTest", "VarLengthRecordTest\VarLengthRecordTest.vcxproj", "{E6D3D33C-60D5-4D4D-8E1F-51AFD7C90152}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|x64 = Debug|x64
@@ -31,6 +33,14 @@ Global
 		{6A28446F-A12D-49A6-ABD8-8E783DA85AF6}.Release|x64.Build.0 = Release|x64
 		{6A28446F-A12D-49A6-ABD8-8E783DA85AF6}.Release|x86.ActiveCfg = Release|Win32
 		{6A28446F-A12D-49A6-ABD8-8E783DA85AF6}.Release|x86.Build.0 = Release|Win32
+		{E6D3D33C-60D5-4D4D-8E1F-51AFD7C90152}.Debug|x64.ActiveCfg = Debug|x64
+		{E6D3D33C-60D5-4D4D-8E1F-51AFD7C90152}.Debug|x64.Build.0 = Debug|x64
+		{E6D3D33C-60D5-4D4D-8E1F-51AFD7C90152}.Debug|x86.ActiveCfg = Debug|Win32
+		{E6D3D33C-60D5-4D4D-8E1F-51AFD7C90152}.Debug|x86.Build.0 = Debug|Win32
+		{E6D3D33C-60D5-4D4D-8E1F-51AFD7C90152}.Release|x64.ActiveCfg = Release|x64
+		{E6D3D33C-60D5-4D4D-8E1F-51AFD7C90152}.Release|x64.Build.0 = Release|x64
+		{E6D3D33C-60D5-4D4D-8E1F-51AFD7C90152}.Release|x86.ActiveCfg = Release|Win32
+		{E6D3D33C-60D5-4D4D-8E1F-51AFD7C90152}.Release|x86.Build.0 = Release|Win32
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

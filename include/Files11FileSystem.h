@@ -42,6 +42,9 @@ public:
 	void PrintFreeBlocks(void);
 	//int FindFile(const char* path_name, std::vector<int> &flist) const;
 
+	bool AddFile(const char* nativeName, const char *pdp11Dir, const char* pdp1Name);
+	int  FindFreeBlocks(int nbBlocks);
+
 private:
 	std::ifstream    m_dskStream;
 	bool             m_bValid;

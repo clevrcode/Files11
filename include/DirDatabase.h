@@ -8,7 +8,7 @@ typedef std::vector<int> DirList_t;
 class DirDatabase
 {
 public:
-	DirDatabase(void);
+	DirDatabase(void) {};
 	bool Add(std::string& name, int fnumber);
 	bool Exist(const char* dname) const;
 	int  Find(const char *dname, DirList_t& dlist) const;

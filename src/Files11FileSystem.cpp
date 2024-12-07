@@ -2,6 +2,7 @@
 #include "Files11FileSystem.h"
 #include "Files11_defs.h"
 #include "Files11Record.h"
+#include "VarLengthRecord.h"
 #include "BitCounter.h"
 
 // Constructor
@@ -294,7 +295,7 @@ void Files11FileSystem::TypeFile(const BlockList_t& dirblks, const Files11FCS& d
     int last_vbn = dirFCS.GetUsedBlockCount();
     int eof_bytes = dirFCS.GetFirstFreeByte();
 
-    for (BlockList_t::const_iterator it = dirblks.cbegin(); it != dirblks.cend(); ++it)
+    for (auto it = dirblks.cbegin(); it != dirblks.cend(); ++it)
     {
         for (auto lbn = it->lbn_start; (lbn <= it->lbn_end) && (vbn <= last_vbn); ++lbn, ++vbn)
         {
@@ -349,9 +350,9 @@ void Files11FileSystem::ListFiles(const BlockList_t& dirblks, const Files11FCS& 
     int last_vbn = dirFCS.GetUsedBlockCount();
     int eof_bytes = dirFCS.GetFirstFreeByte();
 
-    for (BlockList_t::const_iterator it = dirblks.cbegin(); it != dirblks.cend(); ++it)
+    for (const BlockPtrs_t & cit : dirblks)
     {
-        for (auto lbn = it->lbn_start; (lbn <= it->lbn_end) && (vbn <= last_vbn); ++lbn, ++vbn)
+        for (auto lbn = cit.lbn_start; (lbn <= cit.lbn_end) && (vbn <= last_vbn); ++lbn, ++vbn)
         {
             int nbrecs = (vbn == last_vbn) ? eof_bytes : F11_BLOCK_SIZE;
             nbrecs /= sizeof(DirectoryRecord_t);
@@ -492,4 +493,97 @@ void Files11FileSystem::PrintVolumeInfo(void)
         m_HomeBlock.PrintInfo();
     else
         printf("Invalid Files11 Volume\n");
+}
+
+//========================================================
+//
+// Add a new file in the PDP-11 file system
+//
+// 1) Determine if text or binary content
+// 2) From the type, determine the number of blocks requied
+// 3) Find/assign free blocks for the file content
+// 4) Find/assign a free file header for the file metadata
+// 5) Create a file header for the file metadata (set the block pointers)
+// 6) Create a directory entry
+// 7) Transfer file content to the allocated blocks
+// 8) Complete
+
+bool Files11FileSystem::AddFile(const char* nativeName, const char* pdp11Dir, const char* pdp1Name)
+{
+    // 1) Determine content type
+    std::ifstream ifs;
+    ifs.open(nativeName, std::ifstream::binary);
+    // get length of file:
+    ifs.seekg(0, ifs.end);
+    int dataSize = static_cast<int>(ifs.tellg());
+    ifs.seekg(0, ifs.beg);
+
+    // 1) Determine if text or binary content
+    bool typeText = VarLengthRecord::IsVariableLengthrecordFile(ifs);
+
+    // 2) From the type, determine the number of blocks requied
+    if (typeText) {
+        dataSize = VarLengthRecord::CalculateFileLength(ifs);
+    }
+    int nbBlocks = (dataSize / F11_BLOCK_SIZE) + 1;
+    int eofBytes = dataSize % F11_BLOCK_SIZE;
+
+    // 3) Find/assign free blocks for the file content
+    
+    // 4) Find/assign a free file header for the file metadata
+
+
+
+    // Return true if successful
+    return true;
+}
+
+// Input number of free blocks needed
+// Output: LBN of first free block
+
+int Files11FileSystem::FindFreeBlocks(int nbBlocks)
+{
+    Files11Record fileRec;
+    if (!FileDatabase.Get(F11_BITMAP_SYS, fileRec))
+    {
+        std::cout << "Invalid Disk Image\n";
+        return -1;
+    }
+
+    const Files11FCS& fileFCS = fileRec.GetFileFCS();
+    BlockList_t blklist = fileRec.GetBlockList();
+    if (!blklist.empty())
+    {
+        int vbn = 0;
+        bool bFirstBlock = true;
+        bool error = false;
+        int totalBlocks = m_HomeBlock.GetNumberOfBlocks();
+        int largestContiguousFreeBlock = 0;
+        BitCounter counter;
+
+        for (auto cit = blklist.cbegin(); cit != blklist.cend(); ++cit)
+        {
+            for (auto lbn = cit->lbn_start; lbn <= cit->lbn_end; lbn++)
+            {
+                // Skip first block, Storage Control Block)
+                if (bFirstBlock) {
+                    bFirstBlock = false;
+                    continue;
+                }
+                vbn++;
+                uint8_t buffer[F11_BLOCK_SIZE];
+                if (readBlock(lbn, m_dskStream, buffer) == nullptr)
+                {
+                    error = true;
+                    std::cerr << "Failed to read block\n";
+                    break;
+                }
+                int nbBits = F11_BLOCK_SIZE * 8;
+                if (totalBlocks < (vbn * (F11_BLOCK_SIZE * 8))) {
+                    nbBits = totalBlocks % (F11_BLOCK_SIZE * 8);
+                }
+                counter.Count(buffer, nbBits);
+            }
+        }
+    }
 }

@@ -6,12 +6,14 @@
 class FileDatabase
 {
 public:
-	FileDatabase(void);
+	FileDatabase(void) {};
 	bool Add(int nb, const Files11Record& frec);
 	bool Get(int nb, Files11Record& frec);
 	bool Get(int nb, Files11Record& frec, int version, const char *filter);
-	bool Filter(const Files11Record& rec, const char* name, int version) const;
+	bool Filter(const Files11Record& rec, const char* name, int version);
 	int  GetNbHeaders(void) const { return (int)m_Database.size(); };
+	void SplitName(const std::string &fullname, std::string& name, std::string& ext, std::string& version);
+
 private:
 	typedef std::map<int, Files11Record> FileDatabase_t;
 	FileDatabase_t m_Database;

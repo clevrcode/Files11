@@ -1,9 +1,5 @@
 #include "FileDatabase.h"
 
-FileDatabase::FileDatabase(void)
-{
-}
-
 bool FileDatabase::Add(int nb, const Files11Record &frec)
 {
     auto it = m_Database.find(nb);
@@ -41,44 +37,56 @@ bool FileDatabase::Get(int nb, Files11Record& frec, int version, const char *fil
     return false;
 }
 
-bool FileDatabase::Filter(const Files11Record& rec, const char* name, int version) const
+void FileDatabase::SplitName(const std::string &fullname, std::string& name, std::string& ext, std::string& version)
 {
-    if (name)
+    auto pos = fullname.find(".");
+    if (pos == std::string::npos) {
+        name = fullname;
+        return;
+    }
+    name = fullname.substr(0,pos);
+    ext = fullname.substr(pos + 1);
+    pos = ext.find(";");
+    if (pos == std::string::npos) {
+        return;
+    }
+    version = ext.substr(pos + 1);
+    ext = ext.substr(0, pos);
+    return;
+}
+
+
+bool FileDatabase::Filter(const Files11Record& rec, const char* fullname, int version)
+{
+    if (fullname)
     {
-        std::string fname(name);
-        // split file name
-        auto pos = fname.find('.');
-        if (pos == std::string::npos)
+        int iVersion = 0;
+        const std::string strFullName(fullname);
+        std::string name, ext, fversion;
+        SplitName(strFullName, name, ext, fversion);
+
+        auto pos = name.find("*");
+        if (pos != std::string::npos)
         {
-            // no extension
-            if (fname == "*")
-                fname = rec.GetFileName();
-            return (fname == rec.GetFileName()) && (rec.GetFileExt() == "");
+            std::string tmp(rec.GetFileName());
+            if (name.substr(0, pos) == tmp.substr(0, pos))
+                name = tmp;
         }
-        std::string ext(fname.substr(pos + 1));
-        fname = fname.substr(0, pos);
-        pos = ext.find(";");
-        if (pos == std::string::npos)
+        pos = ext.find("*");
+        if (pos != std::string::npos)
         {
-            // no version specified
-            if (fname == "*")
-                fname = rec.GetFileName();
-            if (ext == "*")
-                ext = rec.GetFileExt();
-            return (fname == rec.GetFileName()) && (ext == rec.GetFileExt());
+            std::string tmp(rec.GetFileExt());
+            if (ext.substr(0, pos) == tmp.substr(0, pos))
+                ext = tmp;
         }
-        std::string strVersion(ext.substr(pos + 1));
-        ext = ext.substr(0, pos);
-        // any version
-        if (fname == "*")
-            fname = rec.GetFileName();
-        if (ext == "*")
-            ext = rec.GetFileExt();
-        if (strVersion == "*") {
-            return (fname == rec.GetFileName()) && (ext == rec.GetFileExt());
+        if (fversion.length() > 0) {
+            if (fversion == "*")
+                iVersion = version;
+            else
+                iVersion = strtol(fversion.c_str(), nullptr, 10);
+            return (name == rec.GetFileName()) && (ext == rec.GetFileExt()) && (iVersion == version);
         }
-        int nVersion = strtol(strVersion.c_str(), nullptr, 10);
-        return (fname == rec.GetFileName()) && (ext == rec.GetFileExt()) && (nVersion == version);
+        return (name == rec.GetFileName()) && (ext == rec.GetFileExt());
     }
     return true;
 }
