@@ -529,13 +529,31 @@ bool Files11FileSystem::AddFile(const char* nativeName, const char* pdp11Dir, co
     int eofBytes = dataSize % F11_BLOCK_SIZE;
 
     // 3) Find/assign free blocks for the file content
+    //    Make sure there is room on disk prior to assign a file number
     
-    // 4) Find/assign a free file header for the file metadata
 
+    // 4) Find/assign a free file header/number for the file metadata
+
+    // 5) Create a file header for the file metadata (set the block pointers)
+    
+    // 6) Create a directory entry
+    
+    // 7) Transfer file content to the allocated blocks
+    
+    // 8) Complete
 
 
     // Return true if successful
     return true;
+}
+
+
+//
+// Returns the first available file number (hence Index File Header)
+//
+int Files11FileSystem::FindFreeFile(void)
+{
+    return 0;
 }
 
 // Input number of free blocks needed
@@ -586,4 +604,5 @@ int Files11FileSystem::FindFreeBlocks(int nbBlocks)
             }
         }
     }
+    return 0;
 }

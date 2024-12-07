@@ -122,6 +122,10 @@ bool Files11HomeBlock::Initialize(std::ifstream& istrm)
 					}
 					counter.Count(pBmp, nbBits);
 				}
+				//------------------------------------------
+				// NOTE: The Index File Bitmap (Ref: 5.1.3)
+				//       - bit 1 = header is used
+				//       - bit 0 = file number is free
 				iUsedHeaders = counter.GetNbHi();
 				bValid = true;
 			}

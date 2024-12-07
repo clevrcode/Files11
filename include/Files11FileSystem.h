@@ -43,6 +43,7 @@ public:
 	//int FindFile(const char* path_name, std::vector<int> &flist) const;
 
 	bool AddFile(const char* nativeName, const char *pdp11Dir, const char* pdp1Name);
+	int  FindFreeFile(void);
 	int  FindFreeBlocks(int nbBlocks);
 
 private:
