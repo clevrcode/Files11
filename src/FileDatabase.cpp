@@ -14,6 +14,17 @@ bool FileDatabase::Add(int nb, const Files11Record &frec)
     return true;
 }
 
+int  FileDatabase::FindFirstFreeFile(int maxFileNumber)
+{
+    int fileNumber = -1;
+    for (int fnb = 6; (fnb < maxFileNumber) && (fileNumber <= 0); ++fnb) {
+        auto cit = m_Database.find(fnb);
+        if (cit == m_Database.end())
+            fileNumber = fnb;
+    }
+    return fileNumber;
+}
+
 bool FileDatabase::Get(int nb, Files11Record& frec)
 {
     auto cit = m_Database.find(nb);

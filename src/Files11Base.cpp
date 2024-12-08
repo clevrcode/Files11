@@ -1,3 +1,4 @@
+#include <assert.h>
 #include "Files11Base.h"
 
 Files11Base::Files11Base()
@@ -93,9 +94,9 @@ void Files11Base::Radix50ToAscii(uint16_t *pR50, int len, std::string &str, bool
     for (int i = 0; i < len; i++)
     {
         // Extract the individual characters from the Radix-50 value
-        str += radix50Chars[(pR50[i] / 40) / 40];
-        str += radix50Chars[(pR50[i] / 40) % 40];
-        str += radix50Chars[pR50[i] % 40];
+        str += radix50Chars[(pR50[i] / 050) / 050];
+        str += radix50Chars[(pR50[i] / 050) % 050];
+        str += radix50Chars[pR50[i] % 050];
     }
     // strip trailing whitespaces
     if (strip && (str.length() > 0))
@@ -106,11 +107,47 @@ void Files11Base::Radix50ToAscii(uint16_t *pR50, int len, std::string &str, bool
     }
 }
 
+int Files11Base::GetRadix50Char(char c)
+{
+    std::string radix50Chars(" ABCDEFGHIJKLMNOPQRSTUVWXYZ$.%0123456789");
+    auto pos = radix50Chars.find(c);
+    if (pos == std::string::npos)
+        return -1;
+    assert((pos >= 0) && (pos < 050));
+    return (int) pos;
+}
+
+// For each 3 src chars -> 1 16 bits word
+void Files11Base::AsciiToRadix50(const char* src, size_t srclen, uint16_t* dest)
+{
+    // Radix-50 character set
+    std::string radix50Chars(" ABCDEFGHIJKLMNOPQRSTUVWXYZ$.%0123456789");
+    for (int i = 0; i < srclen; i += 3)
+    {
+        uint16_t tmp = 0;
+        for (int j = 0; j < 3; ++j) {
+            tmp *= 050;
+            char ctmp = ((i + j) < srclen) ? src[i + j] : ' ';
+            tmp += GetRadix50Char(ctmp);
+        }
+        *dest = tmp;
+        dest++;
+    }
+}
+
 uint8_t *Files11Base::readBlock(int lbn, std::fstream& istrm, uint8_t* blk)
 {
     int ofs = lbn * F11_BLOCK_SIZE;
     istrm.seekg(ofs, istrm.beg);
     istrm.read((char*)blk, F11_BLOCK_SIZE);
+    return istrm.good() ? blk : nullptr;
+}
+
+uint8_t* Files11Base::writeBlock(int lbn, std::fstream & istrm, uint8_t * blk)
+{
+    int ofs = lbn * F11_BLOCK_SIZE;
+    istrm.seekg(ofs, istrm.beg);
+    istrm.write((char*)blk, F11_BLOCK_SIZE);
     return istrm.good() ? blk : nullptr;
 }
 

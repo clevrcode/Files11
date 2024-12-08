@@ -91,6 +91,8 @@ void Files11FileSystem::PrintFile(int fileNumber, std::ostream& strm)
 {
     Files11Record fileRec;
     FileDatabase.Get(fileNumber, fileRec);
+    if (fileRec.IsFileExtension())
+        return;
 
     const Files11FCS &fileFCS = fileRec.GetFileFCS();
     BlockList_t blklist = fileRec.GetBlockList();
@@ -162,6 +164,8 @@ void Files11FileSystem::DumpFile(int fileNumber, std::ostream& strm)
 {
     Files11Record fileRec;
     FileDatabase.Get(fileNumber, fileRec);
+    if (fileRec.IsFileExtension())
+        return;
 
     const Files11FCS& fileFCS = fileRec.GetFileFCS();
     BlockList_t blklist = fileRec.GetBlockList();
@@ -413,6 +417,9 @@ void Files11FileSystem::ListDirs(Cmds_e cmd, const char *dirname, const char *fi
                 Files11Record rec;
                 if (FileDatabase.Get(*cit, rec))
                 {
+                    if (rec.IsFileExtension())
+                        continue;
+
                     found = true;
                     switch (cmd)
                     {
@@ -510,6 +517,15 @@ void Files11FileSystem::PrintVolumeInfo(void)
 
 bool Files11FileSystem::AddFile(const char* nativeName, const char* pdp11Dir, const char* pdp1Name)
 {
+    // Validate file name name max 9 chars, extension max 3 chars
+    std::string name, ext, version;
+    FileDatabase::SplitName(nativeName, name, ext, version);
+    if ((name.length() > 9) || (ext.length() > 9))
+    {
+        std::cerr << "ERROR -- Invalid file name\n";
+        return false;
+    }
+
     // 1) Determine content type
     std::ifstream ifs;
     ifs.open(nativeName, std::ifstream::binary);
@@ -531,16 +547,50 @@ bool Files11FileSystem::AddFile(const char* nativeName, const char* pdp11Dir, co
     // 3) Find/assign free blocks for the file content
     //    Make sure there is room on disk prior to assign a file number
     BlockList_t BlkList;
-    if (FindFreeBlocks(nbBlocks, BlkList))
+    if (FindFreeBlocks(nbBlocks, BlkList) <= 0)
     {
-
+        std::cerr << "ERROR -- Not enough free space\n";
+        return false;
     }
 
     // 4) Find/assign a free file header/number for the file metadata
-    
+    int newFileNumber = FileDatabase.FindFirstFreeFile(m_HomeBlock.GetMaxFiles());
+    if (newFileNumber <= 0) {
+        std::cerr << "ERROR -- File system full\n";
+        return false;
+    }
+
+    // Convert file number to LBN
+    int lbn = FileNumberToLBN(newFileNumber);
 
     // 5) Create a file header for the file metadata (set the block pointers)
-    
+    ODS1_FileHeader_t *pHeader = (ODS1_FileHeader_t*) ReadBlock(lbn, m_dskStream);
+    pHeader->fh1_b_idoffset  = 0x17;
+    pHeader->fh1_b_mpoffset  = 0x2e;
+    pHeader->fh1_w_fid_num   = newFileNumber;
+    pHeader->fh1_w_fid_seq  += 1; // Increase the sequence number when file is reused (Ref: 3.1)
+    pHeader->fh1_w_struclev  = 0x0101; // (Ref 3.4.1.5)
+    pHeader->fh1_w_fileowner = 0; // TODO
+    pHeader->fh1_w_fileprot  = 0; // TODO
+    pHeader->fh1_b_userchar  = 0; // TODO
+    pHeader->fh1_b_syschar   = 0; // TODO
+    pHeader->fh1_w_ufat      = 0; // TODO
+
+    // Fill Ident Area
+    F11_IdentArea_t* pIdent = (F11_IdentArea_t*)((uint16_t*)pHeader + pHeader->fh1_b_idoffset);
+    // Encode file name, ext
+    AsciiToRadix50(name.c_str(), 9, pIdent->filename);
+    AsciiToRadix50(ext.c_str(),  3, pIdent->filename);
+    pIdent->version = 0;
+    pIdent->revision = 0;
+    //pIdent->revision_date[7];
+    //pIdent->revision_time[6];
+    //pIdent->creation_date[7];
+    //pIdent->creation_time[6];
+    //pIdent->expiration_date[7];
+    //pIdent->reserved;
+    //pIdent->ident_size[46];
+
     // 6) Create a directory entry
     
     // 7) Transfer file content to the allocated blocks
@@ -550,15 +600,6 @@ bool Files11FileSystem::AddFile(const char* nativeName, const char* pdp11Dir, co
 
     // Return true if successful
     return true;
-}
-
-
-//
-// Returns the first available file number (hence Index File Header)
-//
-int Files11FileSystem::FindFreeFile(void)
-{
-    return 0;
 }
 
 // Input number of free blocks needed
@@ -625,9 +666,4 @@ int Files11FileSystem::FindFreeBlocks(int nbBlocks, BlockList_t &foundBlkList)
         }
     }
     return (int)foundBlkList.size();
-}
-
-int Files11FileSystem::FindFreeFileNumber(void)
-{
-    return 0;
 }

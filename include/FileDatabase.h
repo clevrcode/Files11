@@ -12,7 +12,8 @@ public:
 	bool Get(int nb, Files11Record& frec, int version, const char *filter);
 	bool Filter(const Files11Record& rec, const char* name, int version);
 	int  GetNbHeaders(void) const { return (int)m_Database.size(); };
-	void SplitName(const std::string &fullname, std::string& name, std::string& ext, std::string& version);
+	static void SplitName(const std::string &fullname, std::string& name, std::string& ext, std::string& version);
+	int  FindFirstFreeFile(int maxFileNumber);
 
 private:
 	typedef std::map<int, Files11Record> FileDatabase_t;

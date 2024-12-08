@@ -16,6 +16,7 @@ Files11Record::Files11Record(int IndexLBN/*=0*/)
 	bDirectory = false;
 	headerLBN  = 0;
 	blockCount = 0;
+    fileExtensionSegment = 0;
 }
 
 // Copy constructor
@@ -25,7 +26,7 @@ Files11Record::Files11Record(const Files11Record& frec) :
 	fileNumber(frec.fileNumber), fileSeq(frec.fileSeq), fileVersion(frec.fileVersion), fileRevision(frec.fileRevision),
 	ownerUIC(frec.ownerUIC), fileProtection(frec.fileProtection), headerLBN(frec.headerLBN),
 	sysCharacteristics(frec.sysCharacteristics), userCharacteristics(frec.userCharacteristics),
-	blockCount(frec.blockCount), bDirectory(frec.bDirectory), fileFCS(frec.fileFCS)
+	blockCount(frec.blockCount), bDirectory(frec.bDirectory), fileFCS(frec.fileFCS), fileExtensionSegment(frec.fileExtensionSegment)
 {
 }
 
@@ -46,8 +47,7 @@ int Files11Record::Initialize(int lbn, std::fstream &istrm)
 
 			// If the header is a continuation segment, skip it
 			F11_MapArea_t* pMap = GetMapArea();
-			if (pMap->ext_SegNumber != 0)
-				return 0;
+            fileExtensionSegment = pMap->ext_SegNumber;
 
 			fileSeq    = pHdr->fh1_w_fid_seq;
 			ownerUIC   = pHdr->fh1_w_fileowner;

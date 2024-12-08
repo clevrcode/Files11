@@ -19,16 +19,17 @@ public:
 	uint16_t GetFileRevision(void) const        { return fileRevision; };
 	uint32_t GetHeaderLBN(void) const           { return headerLBN; };
 	int      GetBlockCount(void) const          { return blockCount; };
-	int      GetUsedBlockCount(void) {	return fileFCS.GetUsedBlockCount();	};
+	int      GetUsedBlockCount(void)            { return fileFCS.GetUsedBlockCount(); };
 	bool	 IsDirectory(void) const            { return bDirectory; };
-	bool     IsContiguous(void) const { return (userCharacteristics & uc_con) != 0; };
+	bool     IsFileExtension(void) const        { return fileExtensionSegment != 0; };
+	bool     IsContiguous(void) const           { return (userCharacteristics & uc_con) != 0; };
 	const Files11FCS& GetFileFCS(void) const    { return fileFCS; };
 	const char* GetFileName(void) const         { return fileName.c_str(); };
 	const char* GetBlockCountString(void) const;
 	const char* GetFileCreation(bool no_seconds = true) const;
 	const char* GetFileExt(void) const          { return fileExt.c_str(); };
 	const char* GetFullName(void) const         { return fullName.c_str(); };
-	const char* GetFileRevisionDate(void) const {	return fileRevisionDate.c_str(); };
+	const char* GetFileRevisionDate(void) const { return fileRevisionDate.c_str(); };
 	const BlockList_t& GetBlockList(void) const { return blockList; };
 	bool ValidateHeader(ODS1_FileHeader_t* pHeader);
 	ODS1_FileHeader_t* ReadFileHeader(int lbn, std::fstream& istrm);
@@ -40,6 +41,7 @@ public:
 
 private:
 	int         firstLBN;
+	int         fileExtensionSegment;
 	uint16_t	fileNumber;
 	uint16_t	fileSeq;
 	uint16_t	fileVersion;

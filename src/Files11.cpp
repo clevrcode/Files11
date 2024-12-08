@@ -1,7 +1,6 @@
 // Files11.cpp : This file contains the 'main' function. Program execution begins and ends there.
 //
 
-
 #include <Windows.h>
 #include <conio.h>
 #include <iostream>
@@ -224,6 +223,14 @@ void ProcessCommand(std::string &command, Files11FileSystem& fs)
         else if (words[0] == "FREE")
         {
             fs.PrintFreeBlocks();
+        }
+        else if (words[0] == "IMPORT")
+        {
+            if (nbWords == 3) {
+                std::string dir, file;
+                SplitFilePath(words[2], dir, file);
+                fs.AddFile(words[1].c_str(), dir.c_str(), file.c_str());
+            }
         }
         else
         {

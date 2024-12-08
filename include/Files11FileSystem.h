@@ -41,11 +41,12 @@ public:
 	const std::string GetCurrentDate(void);
 	void PrintFreeBlocks(void);
 	//int FindFile(const char* path_name, std::vector<int> &flist) const;
+	int FileNumberToLBN(int fnumber) const {
+		return (fnumber > 0) ? (fnumber - 1) + m_HomeBlock.GetIndexLBN() : 0;
+	}
 
 	bool AddFile(const char* nativeName, const char *pdp11Dir, const char* pdp1Name);
-	int  FindFreeFile(void);
 	int  FindFreeBlocks(int nbBlocks, BlockList_t &blkList);
-	int  FindFreeFileNumber(void);
 
 private:
 	std::fstream     m_dskStream;
