@@ -530,9 +530,14 @@ bool Files11FileSystem::AddFile(const char* nativeName, const char* pdp11Dir, co
 
     // 3) Find/assign free blocks for the file content
     //    Make sure there is room on disk prior to assign a file number
-    
+    BlockList_t BlkList;
+    if (FindFreeBlocks(nbBlocks, BlkList))
+    {
+
+    }
 
     // 4) Find/assign a free file header/number for the file metadata
+    
 
     // 5) Create a file header for the file metadata (set the block pointers)
     
@@ -559,7 +564,7 @@ int Files11FileSystem::FindFreeFile(void)
 // Input number of free blocks needed
 // Output: LBN of first free block
 
-int Files11FileSystem::FindFreeBlocks(int nbBlocks)
+int Files11FileSystem::FindFreeBlocks(int nbBlocks, BlockList_t &foundBlkList)
 {
     Files11Record fileRec;
     if (!FileDatabase.Get(F11_BITMAP_SYS, fileRec))
@@ -568,15 +573,13 @@ int Files11FileSystem::FindFreeBlocks(int nbBlocks)
         return -1;
     }
 
-    const Files11FCS& fileFCS = fileRec.GetFileFCS();
     BlockList_t blklist = fileRec.GetBlockList();
     if (!blklist.empty())
     {
-        int vbn = 0;
-        bool bFirstBlock = true;
-        bool error = false;
-        int totalBlocks = m_HomeBlock.GetNumberOfBlocks();
-        int largestContiguousFreeBlock = 0;
+        int        vbn = 0;
+        bool       bFirstBlock = true;
+        bool       error = false;
+        int        totalBlocks = m_HomeBlock.GetNumberOfBlocks();
         BitCounter counter;
 
         for (auto cit = blklist.cbegin(); cit != blklist.cend(); ++cit)
@@ -600,9 +603,31 @@ int Files11FileSystem::FindFreeBlocks(int nbBlocks)
                 if (totalBlocks < (vbn * (F11_BLOCK_SIZE * 8))) {
                     nbBits = totalBlocks % (F11_BLOCK_SIZE * 8);
                 }
-                counter.Count(buffer, nbBits);
+                counter.FindSmallestBlock(buffer, nbBits, nbBlocks);
             }
         }
+        // 
+        int firstFreeBlock = counter.GetSmallestBlockHi();
+        if (firstFreeBlock < 0)
+        {
+            return -1;
+        }
+        BlockPtrs_t ptrs;
+        while (nbBlocks > 0) {
+            int nb = nbBlocks / 256;
+            ptrs.lbn_start = firstFreeBlock;
+            if (nb >= 1)
+                ptrs.lbn_end = firstFreeBlock + 255;
+            else
+                ptrs.lbn_end = firstFreeBlock + (nbBlocks - 1);
+            foundBlkList.push_back(ptrs);
+            nbBlocks -= 256;
+        }
     }
+    return (int)foundBlkList.size();
+}
+
+int Files11FileSystem::FindFreeFileNumber(void)
+{
     return 0;
 }

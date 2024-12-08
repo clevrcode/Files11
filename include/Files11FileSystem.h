@@ -44,7 +44,8 @@ public:
 
 	bool AddFile(const char* nativeName, const char *pdp11Dir, const char* pdp1Name);
 	int  FindFreeFile(void);
-	int  FindFreeBlocks(int nbBlocks);
+	int  FindFreeBlocks(int nbBlocks, BlockList_t &blkList);
+	int  FindFreeFileNumber(void);
 
 private:
 	std::fstream     m_dskStream;

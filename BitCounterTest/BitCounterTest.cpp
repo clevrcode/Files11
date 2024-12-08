@@ -10,7 +10,7 @@ namespace BitCounterTest
 	{
 	public:
 		
-		TEST_METHOD(TestMethod1)
+		TEST_METHOD(CountContiguous1)
 		{
 			BitCounter counter;
 			uint8_t data[8] = { 0x0f, 0xf0, 0xff, 0xff, 0xff, 0xc0, 0x01, 0x80 };
@@ -36,7 +36,7 @@ namespace BitCounterTest
 			Assert::AreEqual(14, counter.GetLargestContiguousLo());
 		}
 
-		TEST_METHOD(TestMethod2)
+		TEST_METHOD(CountContiguous2)
 		{
 			BitCounter counter;
 			uint8_t data[8] = { 0x0f, 0xf0, 0xff, 0xff, 0xff, 0xc0, 0x01, 0x80 };
@@ -54,7 +54,7 @@ namespace BitCounterTest
 			Assert::AreEqual(0, counter.GetLargestContiguousLo());
 		}
 
-		TEST_METHOD(TestMethod3)
+		TEST_METHOD(CountContiguous3)
 		{
 			BitCounter counter;
 			uint8_t data1[8] = { 0x0f, 0xf0, 0xff, 0xff, 0xff, 0xc0, 0x01, 0x80 };
@@ -78,6 +78,25 @@ namespace BitCounterTest
 			Assert::AreEqual(0, counter.GetLargestContiguousHi());
 			Assert::AreEqual(0, counter.GetLargestContiguousLo());
 		}
-
+		//
+		// Find smallest HI block
+		//
+		TEST_METHOD(TestFindSmallestBlockHi)
+		{
+			BitCounter counter;
+			uint8_t data[8] = { 0x0f, 0xf0, 0xff, 0xff, 0xff, 0xc0, 0x01, 0x80 };
+			counter.FindSmallestBlock(data, 64, 6);
+			Assert::AreEqual(12, counter.GetSmallestBlockHi());
+		}
+		//
+		// Find smallest LO block
+		//
+		TEST_METHOD(TestFindSmallestBlockLo)
+		{
+			BitCounter counter;
+			uint8_t data[8] = { 0x0f, 0xf0, 0xff, 0xff, 0xff, 0xc0, 0x01, 0x80 };
+			counter.FindSmallestBlock(data, 64, 6);
+			Assert::AreEqual(40, counter.GetSmallestBlockLo());
+		}
 	};
 }
