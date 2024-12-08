@@ -47,7 +47,7 @@ public:
 	int  FindFreeBlocks(int nbBlocks);
 
 private:
-	std::ifstream    m_dskStream;
+	std::fstream     m_dskStream;
 	bool             m_bValid;
 	Files11HomeBlock m_HomeBlock;
 	std::string      m_strErrorMsg;

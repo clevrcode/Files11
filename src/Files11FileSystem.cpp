@@ -19,7 +19,7 @@ Files11FileSystem::~Files11FileSystem()
 bool Files11FileSystem::Open(const char *dskName)
 {
     m_DiskFileName = dskName;
-    m_dskStream.open(dskName, std::ifstream::binary);
+    m_dskStream.open(dskName, std::fstream::in | std::fstream::out | std::ifstream::binary);
     if (m_dskStream.is_open()) 
     {
         // Read the Home Block

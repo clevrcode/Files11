@@ -10,7 +10,7 @@ class Files11HomeBlock : public Files11Base
 public:
 	Files11HomeBlock();
 	bool Initialize(const char *diskName);
-	bool Initialize(std::ifstream& istrm);
+	bool Initialize(std::fstream& istrm);
 	void PrintInfo(void);
 	const int  GetMaxFiles(void) const { return iMaxFiles; };
 	const int  GetBitmapLBN(void) const { return iIndexBitmapLBN; };
@@ -21,13 +21,13 @@ public:
 	const int GetCorimgSysLBN(void) const { return iCorimgSysLBN; };
 
 	int  GetDiskSize(void) { return bValid ? iDiskSize : 0;  };
-	int  CountFreeHeaders(std::ifstream& istrm);
+	int  CountFreeHeaders(std::fstream& istrm);
 	int  GetUsedHeaders(void) const { return iUsedHeaders; };
 	int  GetFreeHeaders(void) const { return iMaxFiles - iUsedHeaders; };
 	int  GetNumberOfBlocks(void) const { return iScbUnitSizeBlk; };
 	const char* GetOwnerUIC(void) const { return strVolumeOwner.c_str(); };
 	bool ValidateHomeBlock(ODS1_HomeBlock_t* pHome);
-	ODS1_HomeBlock_t* ReadHomeBlock(std::ifstream& istrm);
+	ODS1_HomeBlock_t* ReadHomeBlock(std::fstream& istrm);
 
 private:
 	bool bValid;

@@ -5,7 +5,7 @@ Files11Base::Files11Base()
     memset(m_block, 0, sizeof(m_block));
 }
 
-uint8_t* Files11Base::ReadBlock(int lbn, std::ifstream& istrm)
+uint8_t* Files11Base::ReadBlock(int lbn, std::fstream& istrm)
 {
     return readBlock(lbn, istrm, m_block);
 }
@@ -106,7 +106,7 @@ void Files11Base::Radix50ToAscii(uint16_t *pR50, int len, std::string &str, bool
     }
 }
 
-uint8_t *Files11Base::readBlock(int lbn, std::ifstream& istrm, uint8_t* blk)
+uint8_t *Files11Base::readBlock(int lbn, std::fstream& istrm, uint8_t* blk)
 {
     int ofs = lbn * F11_BLOCK_SIZE;
     istrm.seekg(ofs, istrm.beg);

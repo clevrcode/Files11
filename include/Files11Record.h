@@ -13,7 +13,7 @@ public:
 	Files11Record(int IndexLBN=0);
 	Files11Record(const Files11Record&);
 
-	int Initialize(int lbn, std::ifstream& istrm);
+	int Initialize(int lbn, std::fstream& istrm);
 	uint16_t GetFileNumber(void) const          { return fileNumber; };
 	uint16_t GetFileSeq(void) const             { return fileSeq; };
 	uint16_t GetFileRevision(void) const        { return fileRevision; };
@@ -31,8 +31,8 @@ public:
 	const char* GetFileRevisionDate(void) const {	return fileRevisionDate.c_str(); };
 	const BlockList_t& GetBlockList(void) const { return blockList; };
 	bool ValidateHeader(ODS1_FileHeader_t* pHeader);
-	ODS1_FileHeader_t* ReadFileHeader(int lbn, std::ifstream& istrm);
-	int BuildBlockList(int lbn, BlockList_t& blk_list, std::ifstream& istrm);
+	ODS1_FileHeader_t* ReadFileHeader(int lbn, std::fstream& istrm);
+	int BuildBlockList(int lbn, BlockList_t& blk_list, std::fstream& istrm);
 	int GetBlockCount(F11_MapArea_t* pMap, BlockList_t* pBlkList = nullptr);
 
 

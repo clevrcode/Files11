@@ -16,7 +16,7 @@ namespace VarLengthRecordTest
 			VarLengthRecord vlr;
 			std::ifstream ifs;
 			std::string fpath("BATCH.BAT");
-			ifs.open(fpath.c_str(), std::ifstream::binary);
+			ifs.open(fpath.c_str(), std::fstream::binary);
 			Assert::IsTrue(ifs.good());
 			if (ifs.good())
 			{

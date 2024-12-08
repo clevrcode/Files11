@@ -34,7 +34,7 @@ Files11HomeBlock::Files11HomeBlock()
 
 bool Files11HomeBlock::Initialize(const char* diskName)
 {
-	std::ifstream is(diskName, std::ifstream::binary);
+	std::fstream is(diskName, std::fstream::binary);
 	if (is) {
 		Initialize(is);
 		is.close();
@@ -42,7 +42,7 @@ bool Files11HomeBlock::Initialize(const char* diskName)
 	return true;
 }
 
-bool Files11HomeBlock::Initialize(std::ifstream& istrm)
+bool Files11HomeBlock::Initialize(std::fstream& istrm)
 {
 	// get length of file:
 	istrm.seekg(0, istrm.end);
@@ -146,7 +146,7 @@ bool Files11HomeBlock::ValidateHomeBlock(ODS1_HomeBlock_t* pHome)
 	return bValid;
 }
 
-ODS1_HomeBlock_t* Files11HomeBlock::ReadHomeBlock(std::ifstream& istrm)
+ODS1_HomeBlock_t* Files11HomeBlock::ReadHomeBlock(std::fstream& istrm)
 {
 	//ODS1_HomeBlock_t* pHome = (ODS1_HomeBlock_t*)ReadBlock(F11_HOME_LBN, istrm);
 	auto pHome = (ODS1_HomeBlock_t*)ReadBlock(F11_HOME_LBN, istrm);
@@ -160,7 +160,7 @@ ODS1_HomeBlock_t* Files11HomeBlock::ReadHomeBlock(std::ifstream& istrm)
 	return pHome;
 }
 
-int Files11HomeBlock::CountFreeHeaders(std::ifstream& istrm)
+int Files11HomeBlock::CountFreeHeaders(std::fstream& istrm)
 {
 	int fileCount = 0;
 	for (int i = 0; i < iIndexBitmapSize; i++)

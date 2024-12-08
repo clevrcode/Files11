@@ -32,7 +32,7 @@ Files11Record::Files11Record(const Files11Record& frec) :
 // Initialization
 // Return the file number, 0 if header is not valid
 
-int Files11Record::Initialize(int lbn, std::ifstream &istrm)
+int Files11Record::Initialize(int lbn, std::fstream &istrm)
 {
 	auto pHdr = (ODS1_FileHeader_t*)ReadFileHeader(lbn, istrm);
 	if (pHdr != nullptr)
@@ -97,7 +97,7 @@ bool Files11Record::ValidateHeader(ODS1_FileHeader_t* pHeader)
 }
 
 
-ODS1_FileHeader_t* Files11Record::ReadFileHeader(int lbn, std::ifstream& istrm)
+ODS1_FileHeader_t* Files11Record::ReadFileHeader(int lbn, std::fstream& istrm)
 {
 	ODS1_FileHeader_t* pHeader = (ODS1_FileHeader_t*) ReadBlock(lbn, istrm);
 	if (pHeader)
@@ -108,7 +108,7 @@ ODS1_FileHeader_t* Files11Record::ReadFileHeader(int lbn, std::ifstream& istrm)
 	return pHeader;
 }
 
-int Files11Record::BuildBlockList(int lbn, BlockList_t& blk_list, std::ifstream& istrm)
+int Files11Record::BuildBlockList(int lbn, BlockList_t& blk_list, std::fstream& istrm)
 {
     int count = 0;
     uint8_t expected_segment = 0;

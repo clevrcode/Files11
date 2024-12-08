@@ -8,6 +8,9 @@ EndProject
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "BitCounterTest", "BitCounterTest\BitCounterTest.vcxproj", "{6A28446F-A12D-49A6-ABD8-8E783DA85AF6}"
 EndProject
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "VarLengthRecordTest", "VarLengthRecordTest\VarLengthRecordTest.vcxproj", "{E6D3D33C-60D5-4D4D-8E1F-51AFD7C90152}"
+	ProjectSection(ProjectDependencies) = postProject
+		{6728148C-A75A-4602-B4AB-644AFA63A27C} = {6728148C-A75A-4602-B4AB-644AFA63A27C}
+	EndProjectSection
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
