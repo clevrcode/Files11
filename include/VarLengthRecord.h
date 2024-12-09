@@ -9,6 +9,6 @@ public:
 
     static int CalculateFileLength(std::ifstream& strm);
     static bool IsVariableLengthrecordFile(std::ifstream& ifs);
-
+    static bool WriteFile(std::ifstream& inFile, std::fstream& outFile, BlockList_t& blkList);
 };
 

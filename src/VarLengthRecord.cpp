@@ -1,3 +1,4 @@
+#include <assert.h>
 #include "VarLengthRecord.h"
 
 bool VarLengthRecord::IsVariableLengthrecordFile(std::ifstream& ifs)
@@ -44,3 +45,50 @@ int VarLengthRecord::CalculateFileLength(std::ifstream& ifs)
 	return fsize;
 }
 
+bool VarLengthRecord::WriteFile(std::ifstream& inFile, std::fstream& outFile, BlockList_t& blkList)
+{
+    char data[2][F11_BLOCK_SIZE];
+    memset(data, 0, sizeof(data));
+    int ptr = 0;
+    std::string line;
+
+    // Rewind the input stream
+    inFile.seekg(0, inFile.beg);
+
+    for (auto blk : blkList)
+    {
+        for (uint32_t lbn = blk.lbn_start; lbn <= blk.lbn_end; ++lbn)
+        {
+            // Read one line (up to "\n" or eof
+            std::getline(inFile, line);
+            while (inFile.good())
+            {
+                uint16_t* szPtr = (uint16_t*) & data[0][ptr];
+                *szPtr = static_cast<uint16_t>(line.length());
+                ptr += 2;
+                if (line.length() > 0) {
+                    assert(line.length() < (F11_BLOCK_SIZE + (F11_BLOCK_SIZE - ptr)));
+                    memcpy(&data[0][ptr], line.c_str(), line.length());
+                }
+                ptr += static_cast<int>(line.length());
+                ptr += ptr % 2; // align on 16 bit word
+                if (ptr >= F11_BLOCK_SIZE)
+                {
+                    if (writeBlock(lbn, outFile, (uint8_t*)data[0]) == nullptr)
+                        return false;
+                    memcpy(data[0], data[1], F11_BLOCK_SIZE);
+                    memset(data[1], 0, F11_BLOCK_SIZE);
+                    ptr -= F11_BLOCK_SIZE;
+                    break; // Get the next lbn
+                }
+                std::getline(inFile, line);
+            }
+            if (inFile.eof())
+            {
+                if (writeBlock(lbn, outFile, (uint8_t*)data[0]) == nullptr)
+                    return false;
+            }
+        }
+    }
+    return true;
+}

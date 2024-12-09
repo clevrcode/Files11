@@ -40,7 +40,6 @@ public:
 	const char* GetErrorMessage(void) const { return m_strErrorMsg.c_str(); };
 	const std::string GetCurrentDate(void);
 	void PrintFreeBlocks(void);
-	//int FindFile(const char* path_name, std::vector<int> &flist) const;
 	int FileNumberToLBN(int fnumber) const {
 		return (fnumber > 0) ? (fnumber - 1) + m_HomeBlock.GetIndexLBN() : 0;
 	}
@@ -59,7 +58,7 @@ private:
 	FileDatabase     FileDatabase;
 	DirDatabase      DirDatabase;
 
-	static void CountBits(uint8_t* blks, size_t nbBytes, int nbBlks, uint8_t lastByte, int& nbTrue, int& nbFalse, int& nbContiguous, int& largestContiguousBlock);
+	//static void CountBits(uint8_t* blks, size_t nbBytes, int nbBlks, uint8_t lastByte, int& nbTrue, int& nbFalse, int& nbContiguous, int& largestContiguousBlock);
 
 };
 

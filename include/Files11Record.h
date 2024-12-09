@@ -31,6 +31,8 @@ public:
 	const char* GetFullName(void) const         { return fullName.c_str(); };
 	const char* GetFileRevisionDate(void) const { return fileRevisionDate.c_str(); };
 	const BlockList_t& GetBlockList(void) const { return blockList; };
+	const uint16_t GetOwnerUIC(void) const { return ownerUIC; };
+	const uint16_t GetFileProtection(void) { return fileProtection; };
 	bool ValidateHeader(ODS1_FileHeader_t* pHeader);
 	ODS1_FileHeader_t* ReadFileHeader(int lbn, std::fstream& istrm);
 	int BuildBlockList(int lbn, BlockList_t& blk_list, std::fstream& istrm);

@@ -41,9 +41,8 @@ int Files11Record::Initialize(int lbn, std::fstream &istrm)
 		fileNumber = pHdr->fh1_w_fid_num;
 		if (fileNumber != 0)
 		{
-
-			assert(pHdr->fh1_b_idoffset == 0x17);
-			assert(pHdr->fh1_b_mpoffset == 0x2e);
+			assert(pHdr->fh1_b_idoffset == F11_HEADER_FID_OFFSET);
+			assert(pHdr->fh1_b_mpoffset == F11_HEADER_MAP_OFFSET);
 
 			// If the header is a continuation segment, skip it
 			F11_MapArea_t* pMap = GetMapArea();

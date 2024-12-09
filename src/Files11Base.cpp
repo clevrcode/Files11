@@ -1,4 +1,5 @@
 #include <assert.h>
+#include <time.h>
 #include "Files11Base.h"
 
 Files11Base::Files11Base()
@@ -82,6 +83,29 @@ void Files11Base::MakeUIC(uint8_t* uic, std::string& strUIC)
     
 }
 
+void Files11Base::FillDate(char *pDate, char *pTime /* = nullptr */)
+{
+    const char* months[12] = { "JAN", "FEB", "MAR", "APR", "MAY", "JUN", "JUL", "AUG", "SEP", "OCT", "NOV", "DEC" };
+    time_t rawtime;
+    time(&rawtime);
+
+    struct tm tinfo;
+    localtime_s(&tinfo, &rawtime);
+    if (pDate != nullptr) {
+        // output format is "DDMMMYY"
+        char buffer[8];
+        sprintf_s(buffer, sizeof(buffer), "%02d%3s%02d", tinfo.tm_mday, months[tinfo.tm_mon], tinfo.tm_year % 100);
+        memcpy(pDate, buffer, 7);
+    }
+
+    if (pTime != nullptr) {
+        // Output format is "HHMMSS"
+        char buffer[8];
+        snprintf(buffer, sizeof(buffer), "%02d%02d%02d", tinfo.tm_hour, tinfo.tm_min, tinfo.tm_sec);
+        memcpy(pTime, buffer, 6);
+    }
+}
+
 // Convert a 16-bit Radix-50 value to ASCII
 void Files11Base::Radix50ToAscii(uint16_t *pR50, int len, std::string &str, bool strip) 
 {
@@ -149,5 +173,11 @@ uint8_t* Files11Base::writeBlock(int lbn, std::fstream & istrm, uint8_t * blk)
     istrm.seekg(ofs, istrm.beg);
     istrm.write((char*)blk, F11_BLOCK_SIZE);
     return istrm.good() ? blk : nullptr;
+}
+
+bool Files11Base::WriteHeader(int lbn, std::fstream& istrm, ODS1_FileHeader_t* pHeader)
+{
+    pHeader->fh1_w_checksum = CalcChecksum((uint16_t*)pHeader, sizeof(ODS1_FileHeader_t) - sizeof(uint16_t));
+    return writeBlock(lbn, istrm, (uint8_t*)pHeader) != nullptr;
 }
 

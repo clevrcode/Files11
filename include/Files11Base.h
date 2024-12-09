@@ -30,12 +30,13 @@ protected:
 	static void     MakeString(char* str, size_t len, std::string &outstr, bool strip=false);
 	static void     MakeDate(uint8_t* date, std::string& fdate, bool time);
 	static void     MakeUIC(uint8_t* uic, std::string& strUIC);
+	static void     FillDate(char *pDate, char *time=nullptr);
 	static void     Radix50ToAscii(uint16_t* pR50, int len, std::string& str, bool strip=false);
 	static int      GetRadix50Char(char c);
 	static void     AsciiToRadix50(const char* src, size_t srclen, uint16_t* dest); // For each 3 src chars -> 1 16 bits word
 	static uint8_t *readBlock(int lbn, std::fstream& istrm, uint8_t*blk);
 	static uint8_t *writeBlock(int lbn, std::fstream& istrm, uint8_t* blk);
-
+	static bool     WriteHeader(int lbn, std::fstream& istrm, ODS1_FileHeader_t* pHeader);
 private:
 	uint8_t m_block[F11_BLOCK_SIZE];
 };

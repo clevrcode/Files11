@@ -12,13 +12,14 @@ public:
 	bool Initialize(const char *diskName);
 	bool Initialize(std::fstream& istrm);
 	void PrintInfo(void);
-	const int  GetMaxFiles(void) const { return iMaxFiles; };
-	const int  GetBitmapLBN(void) const { return iIndexBitmapLBN; };
-	const int  GetIndexLBN(void) const { return iIndexFileLBN; };
+	const int GetMaxFiles(void)     const { return iMaxFiles; };
+	const int GetBitmapLBN(void)    const { return iIndexBitmapLBN; };
+	const int GetIndexLBN(void)     const { return iIndexFileLBN; };
 	const int GetBitmapSysLBN(void) const { return iBitmapSysLBN; };
 	const int GetBadblkSysLBN(void) const { return iBadblkSysLBN; };
 	const int Get000000SysLBN(void) const { return i000000SysLBN; };
 	const int GetCorimgSysLBN(void) const { return iCorimgSysLBN; };
+	const int GetVolumeOwner(void)  const { return iVolumeOwnerUIC; };
 
 	int  GetDiskSize(void) { return bValid ? iDiskSize : 0;  };
 	int  CountFreeHeaders(std::fstream& istrm);
@@ -31,36 +32,35 @@ public:
 
 private:
 	bool bValid;
+	int i000000SysLBN;
 	int iDiskSize; // size of disk in bytes
 	int iIndexBitmapSize;
-	int iScbNbBlocks;
-	int iScbUnitSizeBlk;
-	int iIndexBitmapLBN;
-	int iIndexFileLBN;
-	int iBitmapSysLBN;
 	int iBadblkSysLBN;
-	int i000000SysLBN;
+	int iBitmapSysLBN;
 	int iCorimgSysLBN;
-	int iMaxFiles;
-	int iUsedHeaders;
-	int iStorageBitmapClusterFactor;
-	// DeviceType;
-	int iVolumeStructureLevel;
-	std::string strVolumeName;
-	int iVolumeOwnerUIC;
-	int iVolumeProtectionCode;
-	// VolumeCharacteristics;
+	int iCountHomeBlockRevision;
+	int iDefaultFileExtend;
 	int iDefaultFileProtection;
 	int iDefaultWindowSize;
-	int iDefaultFileExtend;
 	int iDirectoryPreAccessLimit;
-	std::string strLastRevision;
-	int iCountHomeBlockRevision;
-	std::string strVolumeCreationDate;
+	int iIndexBitmapLBN;
+	int iIndexFileLBN;
+	int iMaxFiles;
 	int iPackSerialNumber;
+	int iScbNbBlocks;
+	int iScbUnitSizeBlk;
+	int iStorageBitmapClusterFactor;
+	int iUsedHeaders;
+	int iVolumeStructureLevel;
+	int iVolumeOwnerUIC;
+	int iVolumeProtectionCode;
+
+	// DeviceType;
+	std::string strVolumeName;
+	std::string strLastRevision;
+	std::string strVolumeCreationDate;
 	std::string strVolumeOwner;
 	std::string strFormatType;
 
-	int bitCount[16] = { 0, 1, 1, 2, 1, 2, 2, 3, 1, 2, 2, 3, 2, 3, 3, 4 };
+	const int bitCount[16] = { 0, 1, 1, 2, 1, 2, 2, 3, 1, 2, 2, 3, 2, 3, 3, 4 };
 };
-

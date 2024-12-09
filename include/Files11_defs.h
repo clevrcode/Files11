@@ -21,6 +21,11 @@
 #define F11_000000_SYS (4)
 #define F11_CORIMG_SYS (5)
 
+constexpr uint8_t F11_HEADER_FID_OFFSET = 0x17;
+constexpr uint8_t F11_HEADER_MAP_OFFSET = 0x2E;
+// World protection (Full access to everyone)
+constexpr uint16_t F11_DEFAULT_FILE_PROTECTION = 0xE000;
+
 //--------------------------------
 #pragma pack(push, 1)
 
@@ -113,7 +118,8 @@ typedef struct _ODS1_UserAttrArea {
 } ODS1_UserAttrArea_t;
 
 //--------------------------------
-// Ident Area
+// Ident Area (size: 46 bytes)
+// Ref: 3.4.2
 
 typedef struct f11_IdentArea {
 	uint16_t	filename[3];	// File name
@@ -126,7 +132,6 @@ typedef struct f11_IdentArea {
 	uint8_t		creation_time[6];
 	uint8_t		expiration_date[7];
 	uint8_t		reserved;
-	uint16_t	ident_size[46];
 } F11_IdentArea_t;
 
 
@@ -152,6 +157,7 @@ typedef struct F11_format3 {
 
 //--------------------------------
 // Map Area
+// Ref: 3.4.3
 
 typedef union PtrsFormat {
 	F11_Format1_t fm1;

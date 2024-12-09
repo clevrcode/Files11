@@ -44,11 +44,13 @@ bool Files11FileSystem::Open(const char *dskName)
                         int fileNumber = fileRecord.Initialize(lbn, m_dskStream);
                         if (fileNumber > 0)
                         {
+                            //printf("%-20sOwner: 0x%04x, Protection: 0x%04x\n", fileRecord.GetFullName(), fileRecord.GetOwnerUIC(), fileRecord.GetFileProtection());
                             if (FileDatabase.Add(fileNumber, fileRecord))
                             {
                                 // If a directory, add to the directory database (key: dir name)
                                 if (fileRecord.IsDirectory()) {
-                                    DirDatabase.Add(fileRecord.fileName, fileNumber);
+                                    DirDatabase::DirInfo_t info(fileNumber, FileNumberToLBN(fileNumber));
+                                    DirDatabase.Add(fileRecord.fileName, info);
                                 }
                             }
                         }
@@ -408,14 +410,14 @@ void Files11FileSystem::ListDirs(Cmds_e cmd, const char *dirname, const char *fi
     bool found = false;
     if (cwd.length() > 0)
     {
-        DirList_t dlist;
+        DirDatabase::DirList_t dlist;
         int nb_dir = DirDatabase.Find(cwd.c_str(), dlist);
         if (nb_dir > 0)
         {
-            for (auto cit = dlist.cbegin(); cit != dlist.cend(); ++cit)
+            for (auto cit : dlist)
             {
                 Files11Record rec;
-                if (FileDatabase.Get(*cit, rec))
+                if (FileDatabase.Get(cit.fnumber, rec))
                 {
                     if (rec.IsFileExtension())
                         continue;
@@ -447,8 +449,6 @@ void Files11FileSystem::ListDirs(Cmds_e cmd, const char *dirname, const char *fi
             std::cout << "DIR -- No such file(s)\n\n";
     }
 }
-
-
 
 void Files11FileSystem::ChangeWorkingDirectory(const char* dir)
 {
@@ -520,9 +520,24 @@ bool Files11FileSystem::AddFile(const char* nativeName, const char* pdp11Dir, co
     // Validate file name name max 9 chars, extension max 3 chars
     std::string name, ext, version;
     FileDatabase::SplitName(nativeName, name, ext, version);
-    if ((name.length() > 9) || (ext.length() > 9))
+    if ((name.length() > 9) || (ext.length() > 3))
     {
         std::cerr << "ERROR -- Invalid file name\n";
+        return false;
+    }
+
+
+    DirDatabase::DirInfo_t dirInfo;
+    if (pdp11Dir != nullptr)
+    {
+        DirDatabase::DirList_t dirList;
+        DirDatabase.Find(pdp11Dir, dirList);
+        if (dirList.size() == 1)
+            dirInfo = dirList[0];
+    }
+    if (dirInfo.fnumber == 0)
+    {
+        std::cerr << "ERROR -- Invalid directory\n";
         return false;
     }
 
@@ -553,6 +568,9 @@ bool Files11FileSystem::AddFile(const char* nativeName, const char* pdp11Dir, co
         return false;
     }
 
+    int MAX_Pointers = (F11_BLOCK_SIZE - (F11_HEADER_MAP_OFFSET * 2) - sizeof(uint16_t) - (sizeof(F11_MapArea_t) - sizeof(PtrsFormat_t))) / 2;
+    // TODO - CHECK IF EXTENSION(S) HEADER ARE REQUIRED
+
     // 4) Find/assign a free file header/number for the file metadata
     int newFileNumber = FileDatabase.FindFirstFreeFile(m_HomeBlock.GetMaxFiles());
     if (newFileNumber <= 0) {
@@ -561,39 +579,74 @@ bool Files11FileSystem::AddFile(const char* nativeName, const char* pdp11Dir, co
     }
 
     // Convert file number to LBN
-    int lbn = FileNumberToLBN(newFileNumber);
+    int header_lbn = FileNumberToLBN(newFileNumber); 
 
     // 5) Create a file header for the file metadata (set the block pointers)
-    ODS1_FileHeader_t *pHeader = (ODS1_FileHeader_t*) ReadBlock(lbn, m_dskStream);
-    pHeader->fh1_b_idoffset  = 0x17;
-    pHeader->fh1_b_mpoffset  = 0x2e;
+    ODS1_FileHeader_t *pHeader = (ODS1_FileHeader_t*) ReadBlock(header_lbn, m_dskStream);
+    pHeader->fh1_b_idoffset  = F11_HEADER_FID_OFFSET;
+    pHeader->fh1_b_mpoffset  = F11_HEADER_MAP_OFFSET;
     pHeader->fh1_w_fid_num   = newFileNumber;
     pHeader->fh1_w_fid_seq  += 1; // Increase the sequence number when file is reused (Ref: 3.1)
     pHeader->fh1_w_struclev  = 0x0101; // (Ref 3.4.1.5)
-    pHeader->fh1_w_fileowner = 0; // TODO
-    pHeader->fh1_w_fileprot  = 0; // TODO
-    pHeader->fh1_b_userchar  = 0; // TODO
-    pHeader->fh1_b_syschar   = 0; // TODO
-    pHeader->fh1_w_ufat      = 0; // TODO
+    pHeader->fh1_w_fileowner = m_HomeBlock.GetVolumeOwner();
+    pHeader->fh1_w_fileprot  = F11_DEFAULT_FILE_PROTECTION; // Full access
+    pHeader->fh1_b_userchar  = 0x80; // Set contiguous bit only (Ref:3.4.1.8)
+    pHeader->fh1_b_syschar   = 0; // 
+    pHeader->fh1_w_ufat      = 0; // 
+    memset(pHeader->fh1_b_fill_1, 0, sizeof(pHeader->fh1_b_fill_1));
+    pHeader->fh1_w_checksum  = 0; // Checksum will be computed when the header is complete
 
     // Fill Ident Area
     F11_IdentArea_t* pIdent = (F11_IdentArea_t*)((uint16_t*)pHeader + pHeader->fh1_b_idoffset);
     // Encode file name, ext
     AsciiToRadix50(name.c_str(), 9, pIdent->filename);
     AsciiToRadix50(ext.c_str(),  3, pIdent->filename);
-    pIdent->version = 0;
+    pIdent->version  = 1;
     pIdent->revision = 0;
-    //pIdent->revision_date[7];
-    //pIdent->revision_time[6];
-    //pIdent->creation_date[7];
-    //pIdent->creation_time[6];
-    //pIdent->expiration_date[7];
-    //pIdent->reserved;
-    //pIdent->ident_size[46];
+    memset(pIdent->revision_date, 0, sizeof(pIdent->revision_date));
+    memset(pIdent->revision_time, 0, sizeof(pIdent->revision_time));
+    FillDate((char *)pIdent->creation_date, (char *)pIdent->creation_time);
+    memset(pIdent->expiration_date, 0, sizeof(pIdent->expiration_date));
+    pIdent->reserved = 0;
+
+    // Fill the map area
+    F11_MapArea_t* pMap = (F11_MapArea_t*)((uint16_t*)pHeader + pHeader->fh1_b_mpoffset);
+    pMap->ext_SegNumber     = 0;
+    pMap->ext_RelVolNo      = 0;
+    pMap->ext_FileNumber    = 0;
+    pMap->ext_FileSeqNumber = 0;
+    pMap->CTSZ              = 1;
+    pMap->LBSZ              = 3;
+    pMap->USE               = 0;
+    pMap->MAX               = (uint8_t)MAX_Pointers;
+
+    if (BlkList.size() > pMap->MAX)
+    {
+        std::cerr << "ERROR -- File is too large\n";
+        return false;
+    }
+
+    // Fill the pointers
+    F11_Format1_t* Ptrs = (F11_Format1_t*)&pMap->pointers;
+    for (auto p : BlkList)
+    {
+        Ptrs->blk_count = p.lbn_end - p.lbn_start;
+        Ptrs->hi_lbn = p.lbn_start >> 16;
+        Ptrs->lo_lbn = p.lbn_start & 0xFFFF;
+        Ptrs++;
+    }
+    if (!WriteHeader(header_lbn, m_dskStream, pHeader))
+    {
+        std::cerr << "ERROR -- Failed to write file header\n";
+        return false;
+    }
 
     // 6) Create a directory entry
-    
+    ReadBlock(dirInfo.lbn, m_dskStream);
+        
+
     // 7) Transfer file content to the allocated blocks
+    VarLengthRecord::WriteFile(ifs, m_dskStream, BlkList);
     
     // 8) Complete
 

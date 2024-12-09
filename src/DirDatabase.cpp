@@ -1,13 +1,13 @@
 #include <regex>
 #include "DirDatabase.h"
 
-bool DirDatabase::Add(std::string& name, int fnumber)
+bool DirDatabase::Add(std::string& name, DirInfo_t &info)
 {
     auto dit = m_Database.find(name);
     if (dit != m_Database.end())
         return false;
 
-    m_Database[name] = fnumber;
+    m_Database[name] = info;
     return true;
 }
 
@@ -42,7 +42,6 @@ int DirDatabase::Find(const char *dname, DirList_t& dlist) const
             {
                 int a = strtol(sm.str(1).c_str(), nullptr, 8);
                 // return all directories
-                //for (auto cit = m_Database.cbegin(); cit != m_Database.cend(); ++cit)
                 for (auto & cit : m_Database)
                 {
                     int b = getUIC_lo(cit.first);
