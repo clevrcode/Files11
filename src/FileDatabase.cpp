@@ -35,6 +35,9 @@ bool FileDatabase::Get(int nb, Files11Record& frec)
     return false;
 }
 
+// -----------------------------------------------------------------------------
+// Return a file record in frec if file name and version passes the filter
+
 bool FileDatabase::Get(int nb, Files11Record& frec, int version, const char *filter)
 {
     auto cit = m_Database.find(nb);

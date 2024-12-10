@@ -15,6 +15,14 @@ public:
 	Files11FileSystem();
 	~Files11FileSystem();
 
+	typedef struct FileInfo {
+		FileInfo(void) : fnumber(0), version(0) {};
+		FileInfo(int nb, int vrs) : fnumber(nb), version(vrs) {};
+		int fnumber;
+		int version;
+	} FileInfo_t;
+	typedef std::vector<FileInfo_t> FileList_t;
+
 	bool Open(const char* diskFile);
 	void Close(void);
 	void PrintVolumeInfo(void);
@@ -23,6 +31,8 @@ public:
 	bool BuildFileDatabase(void);
 	void PrintFile(int fileNumber, std::ostream& strm);
 	void DumpFile(int fileNumber, std::ostream& strm);
+	int  GetHighestVersion(const char* dirname, const char* filename, Files11Record& fileRecord);
+	int  GetDirFileList(const char* dirname, FileList_t &fileList);
 
 	typedef enum _Cmds {
 		LIST = 1000,
@@ -32,9 +42,9 @@ public:
 	} Cmds_e;
 
 	// Commands
-	void ListFiles(const BlockList_t& dirblks, const Files11FCS& dirFCS, const char* filename);
+	void ListFiles(const Files11Record& dirRecord, const char* filename);
 	void ListDirs(Cmds_e cmd, const char* dir, const char *file);
-	void TypeFile(const BlockList_t& dirblks, const Files11FCS& dirFCS, const char* filename);
+	void TypeFile(const Files11Record& dirRecord, const char* filename);
 	void ChangeWorkingDirectory(const char*);
 	const char* GetCurrentWorkingDirectory(void) const { return m_CurrentDirectory.c_str(); };
 	const char* GetErrorMessage(void) const { return m_strErrorMsg.c_str(); };

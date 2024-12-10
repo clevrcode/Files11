@@ -61,7 +61,9 @@ int Files11Record::Initialize(int lbn, std::fstream &istrm)
 				//fileRev = pRecord->fileRVN;
 				Radix50ToAscii(pIdent->filename, 3, fileName, true);
 				Radix50ToAscii(pIdent->filetype, 1, fileExt, true);
-				fullName = fileName + "." + fileExt;
+                fullName = fileName;
+                if (fileExt.length() > 0)
+    				fullName = fileName + "." + fileExt;
 				MakeDate(pIdent->revision_date, fileRevisionDate, true);
 				MakeDate(pIdent->creation_date, fileCreationDate, true);
 				MakeDate(pIdent->expiration_date, fileExpirationDate, false);
