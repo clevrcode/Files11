@@ -14,6 +14,7 @@ public:
 	void PrintInfo(void);
 	const int GetMaxFiles(void)     const { return iMaxFiles; };
 	const int GetBitmapLBN(void)    const { return iIndexBitmapLBN; };
+	const int GetIndexSize(void)    const { return iIndexBitmapSize;};
 	const int GetIndexLBN(void)     const { return iIndexFileLBN; };
 	const int GetBitmapSysLBN(void) const { return iBitmapSysLBN; };
 	const int GetBadblkSysLBN(void) const { return iBadblkSysLBN; };

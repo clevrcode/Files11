@@ -9,13 +9,14 @@ public:
 	Files11FCS(ODS1_UserAttrArea_t* p);
 	Files11FCS(const Files11FCS& fcs);
 	void Initialize(ODS1_UserAttrArea_t* p);
-	uint8_t GetRecordType(void) const { return m_RecordType; };
+	uint8_t GetRecordType(void)       const { return m_RecordType; };
 	uint8_t GetRecordAttributes(void) const { return m_RecordAttributes; };
-	int GetUsedBlockCount(void) const { return m_EOF_Block; };
-	int GetHighVBN() const { return m_HighVBN; };
-	int GetFirstFreeByte(void) const { return m_FirstFreeByte; };
-	bool IsVarLengthRecord(void) const   { return (m_RecordType & rt_vlr) != 0; };
-	bool IsFixedLengthRecord(void) const { return (m_RecordType & rt_fix) != 0; };
+	int     GetRecordSize(void)       const { return m_RecordSize; };
+	int     GetUsedBlockCount(void)   const { return m_EOF_Block; };
+	int     GetHighVBN()              const { return m_HighVBN; };
+	int     GetFirstFreeByte(void)    const { return m_FirstFreeByte; };
+	bool    IsVarLengthRecord(void)   const { return (m_RecordType & rt_vlr) != 0; };
+	bool    IsFixedLengthRecord(void) const { return (m_RecordType & rt_fix) != 0; };
 
 private:
 	uint8_t m_RecordType;

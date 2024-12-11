@@ -111,7 +111,13 @@ std::string DirDatabase:: FormatDirectory(const std::string& dir)
     }
     else if ((dir.length() > 0) && (dir.front() != '[') && (dir.back() != ']'))
     {
-        out = "[" + dir + "]";
+        auto pos = dir.find(".");
+        if (pos != std::string::npos) {
+            if (dir.substr(pos + 1, 3) == "DIR")
+                out = "[" + dir.substr(0, pos) + "]";
+        }
+        else
+            out = "[" + dir + "]";
     }
     return out;
 }

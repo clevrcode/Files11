@@ -33,6 +33,9 @@ public:
 	void DumpFile(int fileNumber, std::ostream& strm);
 	int  GetHighestVersion(const char* dirname, const char* filename, Files11Record& fileRecord);
 	int  GetDirFileList(const char* dirname, FileList_t &fileList);
+	bool MarkDataBlock(BlockList_t blkList, bool used);
+	bool MarkHeaderBlock(int lbn, bool used);
+	bool AddDirectoryEntry(int lbn, DirectoryRecord_t* pDirEntry);
 
 	typedef enum _Cmds {
 		LIST = 1000,
@@ -54,7 +57,7 @@ public:
 		return (fnumber > 0) ? (fnumber - 1) + m_HomeBlock.GetIndexLBN() : 0;
 	}
 
-	bool AddFile(const char* nativeName, const char *pdp11Dir, const char* pdp1Name);
+	bool AddFile(const char* nativeName, const char *pdp11Dir, const char* pdp11Name=nullptr);
 	int  FindFreeBlocks(int nbBlocks, BlockList_t &blkList);
 
 private:

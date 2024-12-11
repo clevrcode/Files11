@@ -224,7 +224,7 @@ void ProcessCommand(std::string &command, Files11FileSystem& fs)
         {
             fs.PrintFreeBlocks();
         }
-        else if (words[0] == "IMPORT")
+        else if ((words[0] == "IMPORT")|| (words[0] == "GET"))
         {
             if (nbWords == 3) {
                 std::string dir, file;

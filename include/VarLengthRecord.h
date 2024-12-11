@@ -7,8 +7,8 @@ class VarLengthRecord :
 public:
     VarLengthRecord() {};
 
-    static int CalculateFileLength(std::ifstream& strm);
-    static bool IsVariableLengthrecordFile(std::ifstream& ifs);
-    static bool WriteFile(std::ifstream& inFile, std::fstream& outFile, BlockList_t& blkList);
+    static int CalculateFileLength(const char *fname);
+    static bool IsVariableLengthRecordFile(const char *fname);
+    static bool WriteFile(const char *fname, std::fstream& outFile, BlockList_t& blkList, ODS1_UserAttrArea_t* pUserAttr);
 };
 

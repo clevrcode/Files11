@@ -1,8 +1,9 @@
 #pragma once
 
 #include <stdint.h>
+#include <assert.h>
 
-#define F11_BLOCK_SIZE   (512)
+constexpr int F11_BLOCK_SIZE = 512;
 
 //--------------------------------
 // Home Block structure
@@ -15,16 +16,18 @@
 
 //--------------------------------
 // Known file number
-#define F11_INDEX_SYS  (1)
-#define F11_BITMAP_SYS (2)
-#define F11_BADBLK_SYS (3)
-#define F11_000000_SYS (4)
-#define F11_CORIMG_SYS (5)
+constexpr int F11_INDEX_SYS  = 1;
+constexpr int F11_BITMAP_SYS = 2;
+constexpr int F11_BADBLK_SYS = 3;
+constexpr int F11_000000_SYS = 4;
+constexpr int F11_CORIMG_SYS = 5;
 
 constexpr uint8_t F11_HEADER_FID_OFFSET = 0x17;
 constexpr uint8_t F11_HEADER_MAP_OFFSET = 0x2E;
 // World protection (Full access to everyone)
 constexpr uint16_t F11_DEFAULT_FILE_PROTECTION = 0xE000;
+
+#define EOL ("\r\n")
 
 //--------------------------------
 #pragma pack(push, 1)
