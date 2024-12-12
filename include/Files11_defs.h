@@ -7,6 +7,8 @@ constexpr int F11_BLOCK_SIZE = 512;
 
 //--------------------------------
 // Home Block structure
+// LBN 0 : Boot sector
+// LBN 1 : Home Block
 
 #define F11_HOME_VBN   (2)
 #define F11_HOME_LBN   (F11_HOME_VBN - 1)
@@ -16,7 +18,7 @@ constexpr int F11_BLOCK_SIZE = 512;
 
 //--------------------------------
 // Known file number
-constexpr int F11_INDEX_SYS  = 1;
+constexpr int F11_INDEXF_SYS = 1;
 constexpr int F11_BITMAP_SYS = 2;
 constexpr int F11_BADBLK_SYS = 3;
 constexpr int F11_000000_SYS = 4;

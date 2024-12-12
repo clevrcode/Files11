@@ -1,4 +1,5 @@
 #include <regex>
+#include <bitset>
 #include "Files11FileSystem.h"
 #include "Files11_defs.h"
 #include "Files11Record.h"
@@ -22,8 +23,12 @@ bool Files11FileSystem::Open(const char *dskName)
     m_dskStream.open(dskName, std::fstream::in | std::fstream::out | std::ifstream::binary);
     if (m_dskStream.is_open()) 
     {
+        m_FileNumberToLBN.clear();
+        m_FileNumberToLBN.push_back(0); // Exclude file number 0
+
         // Read the Home Block
         m_bValid = m_HomeBlock.Initialize(m_dskStream);
+
 
         // Build File Header Database
         const uint32_t IndexLBN = (uint32_t) m_HomeBlock.GetIndexLBN();
@@ -31,18 +36,24 @@ bool Files11FileSystem::Open(const char *dskName)
 
         Files11Record IndexFileRecord(IndexLBN);
         IndexFileRecord.Initialize(IndexLBN, m_dskStream);
+        std::string filename(IndexFileRecord.GetFullName());
+        if (filename == "INDEXF.SYS")
+            m_FileNumberToLBN.push_back(IndexLBN); // File number 1 is the INDEXF.SYS file
+        else
+        {
+            std::cerr << "Invalid File System\n";
+            return false;
+        }
         auto BlkList = IndexFileRecord.GetBlockList();
         if (!BlkList.empty())
         {
-            for (auto cit = BlkList.cbegin(); cit != BlkList.cend(); ++cit)
+            for (auto block : BlkList)
             {
-                for (auto lbn = cit->lbn_start; lbn <= cit->lbn_end; ++lbn)
+                for (auto lbn = block.lbn_start; lbn <= block.lbn_end; ++lbn)
                 {
                     if (lbn > IndexLBN)
                     {
-                        if (lbn == 0x4cb94)
-                            printf("BATCH.BAT;2\n");
-
+                        m_FileNumberToLBN.push_back(lbn);
                         Files11Record fileRecord(IndexLBN);
                         int fileNumber = fileRecord.Initialize(lbn, m_dskStream);
                         if (fileNumber > 0)
@@ -51,7 +62,7 @@ bool Files11FileSystem::Open(const char *dskName)
                             if (FileDatabase.Add(fileNumber, fileRecord))
                             {
                                 // If a directory, add to the directory database (key: dir name)
-                                if (fileRecord.IsDirectory() && !fileRecord.IsFileExtension()) {
+                                if (fileRecord.IsDirectory()) {
                                     DirDatabase::DirInfo_t info(fileNumber, FileNumberToLBN(fileNumber));
                                     DirDatabase.Add(fileRecord.fileName, info);
                                 }
@@ -91,6 +102,25 @@ const std::string Files11FileSystem::GetCurrentDate(void)
     }
     return m_CurrentDate;
 }
+
+const std::string Files11FileSystem::GetCurrentPDPTime(void)
+{
+    time_t rawtime;
+    struct tm tinfo;
+    m_CurrentTime.clear();
+    // get current timeinfo
+    time(&rawtime);
+    errno_t err = localtime_s(&tinfo, &rawtime);
+    if (err == 0) {
+        const char* months[] = { "JAN", "FEB", "MAR", "APR", "MAY", "JUN", "JUL", "AUG", "SEP", "OCT", "NOV", "DEC" };
+        char buf[16];
+        snprintf(buf, sizeof(buf), "%02d:%02d:%02d ", tinfo.tm_hour, tinfo.tm_min, tinfo.tm_sec);
+        //m_CurrentTime = buf;
+        m_CurrentTime = buf + std::to_string(tinfo.tm_mday) + "-" + months[tinfo.tm_mon] + "-" + std::to_string(tinfo.tm_year + 1900) + "\n";
+    }
+    return m_CurrentTime;
+}
+
 
 int Files11FileSystem::GetHighestVersion(const char *dirname, const char* filename, Files11Record &fileRecord)
 {
@@ -144,6 +174,167 @@ int Files11FileSystem::GetHighestVersion(const char *dirname, const char* filena
         }
     }
     return highVersion;
+}
+
+int Files11FileSystem::ValidateIndexBitmap(const BlockList_t& blkList)
+{
+    const int IndexBitmapLBN = m_HomeBlock.GetBitmapLBN();
+    const int nbIndexBlock = m_HomeBlock.GetIndexSize();
+    const int IndexLBN = m_HomeBlock.GetIndexLBN();
+    const int maxFiles = m_HomeBlock.GetMaxFiles();
+    int totalErrors = 0;
+
+
+    int fileNumber = 1;
+    for (int bmpIndexBlock = 0; bmpIndexBlock < nbIndexBlock; ++bmpIndexBlock)
+    {
+        uint8_t bitmap[F11_BLOCK_SIZE];
+        readBlock(IndexBitmapLBN + bmpIndexBlock, m_dskStream, bitmap);
+        for (int filebmp = 0; (filebmp < F11_BLOCK_SIZE) && (fileNumber < maxFiles); ++filebmp)
+        {
+            for (int i = 0; (i < 8) && (fileNumber < maxFiles); ++i, ++fileNumber)
+            {
+                //int fileNumber = (bmpIndexBlock * 4096) + (filebmp * 8) + i + 1;               
+                if (fileNumber < m_FileNumberToLBN.size())
+                {
+                    bool used = (bitmap[filebmp] & (1 << i)) != 0;
+                    Files11Record fileRecord(IndexLBN);
+                    int lbn = m_FileNumberToLBN[fileNumber];
+                    int fnb = fileRecord.Initialize(lbn, m_dskStream);
+                    if ((fnb > 0) && !used)
+                    {
+                        totalErrors++;
+                        std::cout << "File number " << fileNumber << " used but bitmap bit cleared: " << fileRecord.GetFullName() << std::endl;
+                    }
+                    else if ((fnb == 0) && used)
+                    {
+                        totalErrors++;
+                        std::cout << "File number " << fileNumber << " not used but bitmap bit set: " << fileRecord.GetFullName() << std::endl;
+                    }
+                }
+            }
+        }
+        if (fileNumber >= maxFiles)
+            break;
+    }
+    return totalErrors;
+}
+
+int Files11FileSystem::ValidateDirectory(const char *dirname, int* pTotalFilesChecked)
+{
+    int totalErrors = 0;
+    DirDatabase::DirList_t dirlist;
+    DirDatabase.Find(dirname, dirlist);
+    for (auto dir : dirlist)
+    {
+        Files11Record dirRecord;
+        if (FileDatabase.Get(dir.fnumber, dirRecord))
+        {
+            std::string strDirName;
+            strDirName = DirDatabase::FormatDirectory(dirRecord.GetFileName());
+            BlockList_t dirblks = dirRecord.GetBlockList();
+            Files11FCS  dirFCS = dirRecord.GetFileFCS();
+            int vbn = 1;
+            int last_vbn = dirFCS.GetUsedBlockCount();
+            int eof_bytes = dirFCS.GetFirstFreeByte();
+
+            for (auto block : dirblks)
+            {
+                for (auto lbn = block.lbn_start; (lbn <= block.lbn_end) && (vbn <= last_vbn); ++lbn, ++vbn)
+                {
+                    uint8_t data[F11_BLOCK_SIZE];
+                    int nbrecs = (vbn == last_vbn) ? eof_bytes : F11_BLOCK_SIZE;
+                    nbrecs /= sizeof(DirectoryRecord_t);
+                    DirectoryRecord_t* pRec = (DirectoryRecord_t*)readBlock(lbn, m_dskStream, data);
+                    for (int idx = 0; idx < nbrecs; idx++)
+                    {
+                        if (pRec[idx].fileNumber != 0)
+                        {
+                            DirectoryRecord_t* p = &pRec[idx];
+                            std::string name, ext;
+                            Radix50ToAscii(p->fileName, 3, name, true);
+                            Radix50ToAscii(p->fileType, 1, ext, true);
+                            (*pTotalFilesChecked)++;
+                            //std::cout << "checking file : " << name << "." << ext << ";" << pRec[idx].version << std::endl;
+                            // Ignore INDEXF.SYS
+                            if (p->fileNumber == F11_INDEXF_SYS)
+                                continue;
+
+                            if (p->fileRVN != 0)
+                            {
+                                totalErrors++;
+                                std::cout << strDirName << " FILE ID " << p->fileNumber << "," << p->fileSeq << "," << p->fileRVN << " " << name << "." << ext << ";" << p->version;
+                                std::cout << " - RESERVED FIELD WAS NON-ZERO\n";
+                            }
+                            if (p->version > 0777) // TODO
+                            {
+                                totalErrors++;
+                                std::cout << strDirName << " FILE ID " << p->fileNumber << "," << p->fileSeq << "," << p->fileRVN << " " << name << "." << ext << ";" << p->version;
+                                std::cout << " - INVALID VERSION NUMBER\n";
+                            }
+
+                            Files11Record frec;
+                            if (FileDatabase.Get(pRec[idx].fileNumber, frec))
+                            {
+                                if (frec.IsDirectory())
+                                {
+                                    std::string name(frec.GetFileName());
+                                    if (name != "000000")
+                                        totalErrors = ValidateDirectory(frec.GetFileName(), pTotalFilesChecked);
+                                }
+                            }
+                            else
+                            {
+                                totalErrors++;
+                                std::cout << strDirName << " FILE ID " << p->fileNumber << "," << p->fileSeq << "," << p->fileRVN << " " << name << "." << ext << ";" << p->version;
+                                std::cout << " - FILE NOT FOUND\n";
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+    return totalErrors;
+}
+
+void Files11FileSystem::VerifyFileSystem(Args_t args)
+{
+    // Verify that each file listed in the INDEXF.SYS file is allocated
+    int IndexLBN = m_HomeBlock.GetIndexLBN();
+    Files11Record IndexFileRecord(IndexLBN);
+    IndexFileRecord.Initialize(IndexLBN, m_dskStream);
+    auto BlkList = IndexFileRecord.GetBlockList();
+    if (!BlkList.empty())
+    {
+        if (args.size() == 1)
+        {
+            int nbErrors = ValidateIndexBitmap(BlkList);
+            if (nbErrors > 0) {
+                std::cout << "\n -- " << nbErrors << " error(s) found\n\n";
+            }
+            else
+                std::cout << "\n -- no error found\n\n";
+        }
+        else if ((args.size() >= 2) && (args[1] == "/DV"))
+        {
+            int totalFiles = 0;
+
+            if (args.size() == 2)
+                args.push_back("000000");
+
+            // Directory Validation
+            int nbErrors = ValidateDirectory(args[2].c_str(), &totalFiles);
+            if (nbErrors > 0)
+                std::cout << "\n -- validation found " << nbErrors << " error(s) on " << totalFiles << " files checked\n\n";
+            else
+                std::cout << "\n -- validation found no error on " << totalFiles << " file(s) checked\n\n";
+        }
+    }
+    else
+    {
+        std::cerr << "ERROR -- Invalid INDEXF.SYS file: pointers list empty\n";
+    }
 }
 
 // -----------------------------------------------------------

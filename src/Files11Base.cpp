@@ -145,11 +145,11 @@ int Files11Base::GetRadix50Char(char c)
 void Files11Base::AsciiToRadix50(const char* src, size_t srclen, uint16_t* dest)
 {
     // Radix-50 character set
-    int len = strlen(src);
-    for (int i = 0; i < srclen; i += 3)
+    size_t len = strlen(src);
+    for (auto i = 0; i < srclen; i += 3)
     {
         uint16_t tmp = 0;
-        for (int j = 0; j < 3; ++j) {
+        for (auto j = 0; j < 3; ++j) {
             tmp *= 050;
             char ctmp = ((i + j) < len) ? src[i + j] : ' ';
             tmp += GetRadix50Char(ctmp);

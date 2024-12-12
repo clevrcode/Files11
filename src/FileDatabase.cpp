@@ -25,6 +25,12 @@ int  FileDatabase::FindFirstFreeFile(int maxFileNumber)
     return fileNumber;
 }
 
+bool FileDatabase::Exist(int nb) const
+{
+    auto pos = m_Database.find(nb);
+    return pos != m_Database.end();
+}
+
 bool FileDatabase::Get(int nb, Files11Record& frec)
 {
     auto cit = m_Database.find(nb);

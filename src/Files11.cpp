@@ -185,13 +185,17 @@ void SplitFilePath(const std::string &path, std::string &dir, std::string &file)
 
 void ProcessCommand(std::string &command, Files11FileSystem& fs)
 {
-    Words_t words;
+    Files11FileSystem::Args_t words;
     size_t nbWords = 0;
     if ((nbWords = parseCommand(command, words)) > 0)
     {
         if (words[0] == "PWD")
         {
             std::cout << fs.GetCurrentWorkingDirectory() << std::endl;
+        }
+        if (words[0] == "VFY")
+        {
+            fs.VerifyFileSystem(words);
         }
         else if (words[0] == "CD")
         {
@@ -220,6 +224,10 @@ void ProcessCommand(std::string &command, Files11FileSystem& fs)
             }
             else
                 std::cout << "ERROR -- missing argument\n";
+        }
+        else if (words[0] == "TIME")
+        {
+            std::cout << fs.GetCurrentPDPTime();
         }
         else if (words[0] == "FREE")
         {

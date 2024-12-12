@@ -44,7 +44,10 @@ public:
 		IMPORT
 	} Cmds_e;
 
+	typedef std::vector<std::string> Args_t;
 	// Commands
+	void VerifyFileSystem(Args_t args);
+
 	void ListFiles(const Files11Record& dirRecord, const char* filename);
 	void ListDirs(Cmds_e cmd, const char* dir, const char *file);
 	void TypeFile(const Files11Record& dirRecord, const char* filename);
@@ -52,13 +55,19 @@ public:
 	const char* GetCurrentWorkingDirectory(void) const { return m_CurrentDirectory.c_str(); };
 	const char* GetErrorMessage(void) const { return m_strErrorMsg.c_str(); };
 	const std::string GetCurrentDate(void);
+	const std::string GetCurrentPDPTime(void);
 	void PrintFreeBlocks(void);
 	int FileNumberToLBN(int fnumber) const {
-		return (fnumber > 0) ? (fnumber - 1) + m_HomeBlock.GetIndexLBN() : 0;
+		if ((fnumber > 0) && (fnumber < m_FileNumberToLBN.size()))
+			return m_FileNumberToLBN[fnumber];
+		return -1;
 	}
 
 	bool AddFile(const char* nativeName, const char *pdp11Dir, const char* pdp11Name=nullptr);
 	int  FindFreeBlocks(int nbBlocks, BlockList_t &blkList);
+	int  ValidateIndexBitmap(const BlockList_t& blkList);
+	int  ValidateDirectory(const char* dirname, int *pTotalFilesChecked);
+
 
 private:
 	std::fstream     m_dskStream;
@@ -68,8 +77,10 @@ private:
 	std::string      m_DiskFileName;
 	std::string      m_CurrentDirectory;
 	std::string      m_CurrentDate;
+	std::string      m_CurrentTime;
 	FileDatabase     FileDatabase;
 	DirDatabase      DirDatabase;
+	std::vector<int> m_FileNumberToLBN;
 
 	//static void CountBits(uint8_t* blks, size_t nbBytes, int nbBlks, uint8_t lastByte, int& nbTrue, int& nbFalse, int& nbContiguous, int& largestContiguousBlock);
 
