@@ -145,13 +145,13 @@ int Files11Base::GetRadix50Char(char c)
 void Files11Base::AsciiToRadix50(const char* src, size_t srclen, uint16_t* dest)
 {
     // Radix-50 character set
-    std::string radix50Chars(" ABCDEFGHIJKLMNOPQRSTUVWXYZ$.%0123456789");
+    int len = strlen(src);
     for (int i = 0; i < srclen; i += 3)
     {
         uint16_t tmp = 0;
         for (int j = 0; j < 3; ++j) {
             tmp *= 050;
-            char ctmp = ((i + j) < srclen) ? src[i + j] : ' ';
+            char ctmp = ((i + j) < len) ? src[i + j] : ' ';
             tmp += GetRadix50Char(ctmp);
         }
         *dest = tmp;
@@ -177,7 +177,7 @@ uint8_t* Files11Base::writeBlock(int lbn, std::fstream & istrm, uint8_t * blk)
 
 bool Files11Base::WriteHeader(int lbn, std::fstream& istrm, ODS1_FileHeader_t* pHeader)
 {
-    pHeader->fh1_w_checksum = CalcChecksum((uint16_t*)pHeader, sizeof(ODS1_FileHeader_t) - sizeof(uint16_t));
+    pHeader->fh1_w_checksum = CalcChecksum((uint16_t*)pHeader, (sizeof(ODS1_FileHeader_t) - sizeof(uint16_t)) / 2);
     return writeBlock(lbn, istrm, (uint8_t*)pHeader) != nullptr;
 }
 

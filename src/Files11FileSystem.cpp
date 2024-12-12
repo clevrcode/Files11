@@ -40,15 +40,18 @@ bool Files11FileSystem::Open(const char *dskName)
                 {
                     if (lbn > IndexLBN)
                     {
+                        if (lbn == 0x4cb94)
+                            printf("BATCH.BAT;2\n");
+
                         Files11Record fileRecord(IndexLBN);
                         int fileNumber = fileRecord.Initialize(lbn, m_dskStream);
                         if (fileNumber > 0)
                         {
-                            //printf("%-20sOwner: 0x%04x, Protection: 0x%04x\n", fileRecord.GetFullName(), fileRecord.GetOwnerUIC(), fileRecord.GetFileProtection());
+                            //printf("%04x:%04x %-20sOwner: 0x%04x, Protection: 0x%04x\n", fileRecord.GetFileNumber(), fileRecord.GetFileSeq(), fileRecord.GetFullName(), fileRecord.GetOwnerUIC(), fileRecord.GetFileProtection());
                             if (FileDatabase.Add(fileNumber, fileRecord))
                             {
                                 // If a directory, add to the directory database (key: dir name)
-                                if (fileRecord.IsDirectory()) {
+                                if (fileRecord.IsDirectory() && !fileRecord.IsFileExtension()) {
                                     DirDatabase::DirInfo_t info(fileNumber, FileNumberToLBN(fileNumber));
                                     DirDatabase.Add(fileRecord.fileName, info);
                                 }
@@ -215,7 +218,7 @@ void Files11FileSystem::PrintFile(int fileNumber, std::ostream& strm)
 
         for (auto block : blklist)
         {
-            for (auto lbn = block.lbn_start; lbn <= block.lbn_end; ++lbn, ++vbn)
+            for (auto lbn = block.lbn_start; (lbn <= block.lbn_end) && (vbn <= last_vbn); ++lbn, ++vbn)
             {
                 if (vbn == 1) {
                     readBlock(lbn, m_dskStream, buffer[0]);
@@ -652,8 +655,7 @@ bool Files11FileSystem::MarkDataBlock(BlockList_t blkList, bool used)
                         }
                     }
                     writeBlock(lbn, m_dskStream, buffer);
-                    if (remainingBlks.size() > 0)
-                        dataBlkList = remainingBlks;
+                    dataBlkList = remainingBlks;
                 }
                 firstBlock = lastBlock;
                 lastBlock = firstBlock + (F11_BLOCK_SIZE * 8);
@@ -683,7 +685,7 @@ bool Files11FileSystem::AddDirectoryEntry(int filenb, DirectoryRecord_t* pDirEnt
     if (!dirBlklist.empty())
     {
         int freeEntryLBN = 0;
-        int freeEntryVBN = 0;
+        int freeEntryIDX = 0;
         int highVersion =  0;
         int lastLBN     =  0;
         int vbn = 1;
@@ -703,10 +705,10 @@ bool Files11FileSystem::AddDirectoryEntry(int filenb, DirectoryRecord_t* pDirEnt
                 {
                     if (pEntry[idx].fileNumber == 0) {
                         freeEntryLBN = lbn;
-                        freeEntryVBN = vbn;
+                        freeEntryIDX = idx;
                     }
 
-                    if (pEntry[idx].fileType == pDirEntry->fileType)
+                    if (pEntry[idx].fileType[0] == pDirEntry->fileType[0])
                     {
                         bool match = true;
                         for (int i = 0; (i < 3) && match; ++i)
@@ -721,15 +723,13 @@ bool Files11FileSystem::AddDirectoryEntry(int filenb, DirectoryRecord_t* pDirEnt
             }
         }
         pDirEntry->version = highVersion + 1;
-        if (freeEntryVBN != 0) {
+        if (freeEntryLBN != 0) {
             // update the free entry with the new directory entry
             uint8_t buffer[F11_BLOCK_SIZE];
             readBlock(freeEntryLBN, m_dskStream, buffer);
-            int vbn = freeEntryVBN % (F11_BLOCK_SIZE / recSize);
             DirectoryRecord_t* pEntry = (DirectoryRecord_t*)buffer;
-            int seq = pEntry[vbn].fileSeq + 1;
-            pEntry[vbn] = *pDirEntry;
-            pEntry[vbn].fileSeq = seq;
+            pDirEntry->fileSeq = pEntry[freeEntryIDX].fileSeq + 1;
+            pEntry[freeEntryIDX] = *pDirEntry;
             writeBlock(freeEntryLBN, m_dskStream, buffer);
         }
         else
@@ -772,7 +772,7 @@ bool Files11FileSystem::AddFile(const char* nativeName, const char* pdp11Dir, co
 {
     // Validate file name name max 9 chars, extension max 3 chars
     std::string name, ext, version;
-    FileDatabase::SplitName(nativeName, name, ext, version);
+    FileDatabase::SplitName(pdp11name, name, ext, version);
     if ((name.length() > 9) || (ext.length() > 3))
     {
         std::cerr << "ERROR -- Invalid file name\n";
@@ -846,7 +846,7 @@ bool Files11FileSystem::AddFile(const char* nativeName, const char* pdp11Dir, co
     pHeader->fh1_w_fid_num   = newFileNumber;
     pHeader->fh1_w_fid_seq  += 1; // Increase the sequence number when file is reused (Ref: 3.1)
     pHeader->fh1_w_struclev  = 0x0101; // (Ref 3.4.1.5)
-    pHeader->fh1_w_fileowner = m_HomeBlock.GetVolumeOwner();
+    pHeader->fh1_w_fileowner = 0x0102; // TODO m_HomeBlock.GetVolumeOwner();
     pHeader->fh1_w_fileprot  = F11_DEFAULT_FILE_PROTECTION; // Full access
     pHeader->fh1_b_userchar  = 0x80; // Set contiguous bit only (Ref:3.4.1.8)
     pHeader->fh1_b_syschar   = 0; // 
@@ -898,6 +898,7 @@ bool Files11FileSystem::AddFile(const char* nativeName, const char* pdp11Dir, co
     F11_Format1_t* Ptrs = (F11_Format1_t*)&pMap->pointers;
     for (auto p : BlkList)
     {
+        pMap->USE += ((pMap->CTSZ + pMap->LBSZ) / 2);
         Ptrs->blk_count = p.lbn_end - p.lbn_start;
         Ptrs->hi_lbn = p.lbn_start >> 16;
         Ptrs->lo_lbn = p.lbn_start & 0xFFFF;
@@ -915,7 +916,8 @@ bool Files11FileSystem::AddFile(const char* nativeName, const char* pdp11Dir, co
 
     // 9) Create a directory entry
     DirectoryRecord_t dirEntry;
-    dirEntry.fileNumber = newFileNumber;
+    dirEntry.fileNumber = pHeader->fh1_w_fid_num;
+    dirEntry.fileSeq    = pHeader->fh1_w_fid_seq;
     dirEntry.version    = 0;
     memcpy(dirEntry.fileName, pIdent->filename, 6);
     memcpy(dirEntry.fileType, pIdent->filetype, 2);
@@ -923,7 +925,19 @@ bool Files11FileSystem::AddFile(const char* nativeName, const char* pdp11Dir, co
 
     AddDirectoryEntry(dirInfo.fnumber, &dirEntry);
 
-    // 10) Complete
+    // 10) Add to the file database
+    Files11Record fileRecord(m_HomeBlock.GetIndexLBN());
+    int fileNumber = fileRecord.Initialize(header_lbn, m_dskStream);
+    if (FileDatabase.Add(fileNumber, fileRecord))
+    {
+        // If a directory, add to the directory database (key: dir name)
+        if (fileRecord.IsDirectory()) {
+            DirDatabase::DirInfo_t info(fileNumber, FileNumberToLBN(fileNumber));
+            DirDatabase.Add(fileRecord.fileName, info);
+        }
+    }
+
+    // 11) Complete
     // Return true if successful
     return true;
 }

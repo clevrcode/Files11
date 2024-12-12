@@ -24,7 +24,6 @@ public:
 	typedef struct BlockPtrs BlockPtrs_t;
 	typedef std::vector<BlockPtrs_t> BlockList_t;
 
-protected:
 	
 	static uint16_t CalcChecksum(uint16_t* buffer, size_t wordCount);
 	static void     MakeString(char* str, size_t len, std::string &outstr, bool strip=false);
@@ -34,9 +33,12 @@ protected:
 	static void     Radix50ToAscii(uint16_t* pR50, int len, std::string& str, bool strip=false);
 	static int      GetRadix50Char(char c);
 	static void     AsciiToRadix50(const char* src, size_t srclen, uint16_t* dest); // For each 3 src chars -> 1 16 bits word
+
+protected:
 	static uint8_t *readBlock(int lbn, std::fstream& istrm, uint8_t*blk);
 	static uint8_t *writeBlock(int lbn, std::fstream& istrm, uint8_t* blk);
 	static bool     WriteHeader(int lbn, std::fstream& istrm, ODS1_FileHeader_t* pHeader);
+
 private:
 	uint8_t m_block[F11_BLOCK_SIZE];
 };

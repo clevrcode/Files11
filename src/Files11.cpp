@@ -14,6 +14,7 @@ const char* PROMPT = ">";
 std::vector<std::string> commandQueue;
 void RunCLI(Files11FileSystem &fs);
 void ProcessCommand(std::string& command, Files11FileSystem& fs);
+void GetFileList(std::string search_path, std::vector<std::string>& list);
 
 int main(int argc, char *argv[])
 {
@@ -224,17 +225,54 @@ void ProcessCommand(std::string &command, Files11FileSystem& fs)
         {
             fs.PrintFreeBlocks();
         }
-        else if ((words[0] == "IMPORT")|| (words[0] == "GET"))
+        else if ((words[0].substr(0,3) == "IMP") || (words[0] == "GET"))
         {
-            if (nbWords == 3) {
-                std::string dir, file;
-                SplitFilePath(words[2], dir, file);
-                fs.AddFile(words[1].c_str(), dir.c_str(), file.c_str());
+            std::string dir;
+            if (nbWords == 2) {
+                // If destination is not specified, set it to current working dir
+                words.push_back(fs.GetCurrentWorkingDirectory());
+            }
+            if (words.size() == 3) {
+                dir = words[2];
+                std::vector<std::string> list;
+                GetFileList(words[1], list);
+                for (auto localfile : list)
+                {
+                    std::string pdpfile(localfile);
+                    auto pos = localfile.rfind("/");
+                    if (pos != std::string::npos)
+                        pdpfile = localfile.substr(pos + 1);
+                    fs.AddFile(localfile.c_str(), dir.c_str(), pdpfile.c_str());
+                }
+            }
+            else {
+                std::cout << "ERROR -- Missing argument\n";
             }
         }
         else
         {
             std::cout << "Unknown command: " << words[0] << std::endl;
         }
+    }
+}
+
+void GetFileList(std::string search_path, std::vector<std::string>& list)
+{
+    list.clear();
+    std::string dir;
+    auto pos = search_path.rfind("/");
+    if (pos != std::string::npos)
+        dir = search_path.substr(0, pos+1);
+
+    WIN32_FIND_DATA fd;
+    HANDLE hFind = ::FindFirstFile(search_path.c_str(), &fd);
+    if (hFind != INVALID_HANDLE_VALUE) {
+        do {
+            // read all (real) files in current folder
+            if (!(fd.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY)) {
+                list.push_back(dir + fd.cFileName);
+            }
+        } while (::FindNextFile(hFind, &fd));
+        ::FindClose(hFind);
     }
 }

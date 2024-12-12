@@ -1,7 +1,9 @@
+#include <bitset>
 #include "BitCounter.h"
 
 BitCounter::BitCounter(void)
 {
+    //std::bitset<4096*256> bits;
     Reset();
 }
 

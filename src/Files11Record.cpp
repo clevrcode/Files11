@@ -69,8 +69,13 @@ int Files11Record::Initialize(int lbn, std::fstream &istrm)
 				MakeDate(pIdent->expiration_date, fileExpirationDate, false);
 				bDirectory = (fileExt == "DIR");
 				headerLBN = lbn;
-				blockCount = BuildBlockList(lbn, blockList, istrm);
-				blockCountString = std::to_string(blockCount);
+                if (!IsFileExtension()) {
+    				blockCount = BuildBlockList(lbn, blockList, istrm);
+    				blockCountString = std::to_string(blockCount);
+                }
+                else {
+                    blockCountString = "0";
+                }
 				blockCountString += ".";
 			}
 			else
