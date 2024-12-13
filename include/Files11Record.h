@@ -30,6 +30,15 @@ public:
 	const char* GetFileCreation(bool no_seconds = true) const;
 	const char* GetFileExt(void) const          { return fileExt.c_str(); };
 	const char* GetFullName(void) const         { return fullName.c_str(); };
+	const char* GetFullName(int version)  { 
+		char octbuf[32];
+		snprintf(octbuf, sizeof(octbuf), "%o", version);
+		fullNameWithVersion = fullName;
+		fullNameWithVersion += ";";
+		fullNameWithVersion += octbuf;
+		return fullNameWithVersion.c_str(); 
+	};
+
 	const char* GetFileRevisionDate(void) const { return fileRevisionDate.c_str(); };
 	const BlockList_t& GetBlockList(void) const { return blockList; };
 	const uint16_t GetOwnerUIC(void) const { return ownerUIC; };
@@ -59,6 +68,7 @@ private:
 	std::string fileRevisionDate;
 	std::string fileExpirationDate;
 	std::string fullName;
+	std::string fullNameWithVersion;
 	std::string blockCountString;
 	bool		bDirectory;
 	uint32_t	headerLBN;

@@ -22,6 +22,7 @@ public:
 		int version;
 	} FileInfo_t;
 	typedef std::vector<FileInfo_t> FileList_t;
+	typedef std::map<int, std::string> DirFileList_t;
 
 	bool Open(const char* diskFile);
 	void Close(void);
@@ -69,7 +70,7 @@ public:
 
 	int  FindFreeBlocks(int nbBlocks, BlockList_t &blkList);
 	int  ValidateIndexBitmap(void);
-	int  ValidateDirectory(const char* dirname, int *pTotalFilesChecked); // This function is recursive
+	int  ValidateDirectory(const char* dirname, DirFileList_t & dirFileMap, int *pTotalFilesChecked); // This function is recursive
 	int  ValidateStorageBitmap(void);
 
 private:

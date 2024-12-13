@@ -58,8 +58,8 @@ bool Files11FileSystem::Open(const char *dskName)
                         int fileNumber = fileRecord.Initialize(lbn, m_dskStream);
                         if (fileNumber > 0)
                         {
-                            printf("%06o:%06o %-20sOwner: [%03o,%03o], Protection: 0x%04x LBN: %d\n", fileRecord.GetFileNumber(), fileRecord.GetFileSeq(), 
-                                fileRecord.GetFullName(), fileRecord.GetOwnerUIC() >> 8, fileRecord.GetOwnerUIC() & 0xff, fileRecord.GetFileProtection(), lbn);
+                            printf("%06o:%06o %-20sOwner: [%03o,%03o], Protection: 0x%04x LBN: %d %c\n", fileRecord.GetFileNumber(), fileRecord.GetFileSeq(), 
+                                fileRecord.GetFullName(), fileRecord.GetOwnerUIC() >> 8, fileRecord.GetOwnerUIC() & 0xff, fileRecord.GetFileProtection(), lbn, fileRecord.IsFileExtension() ? 'Y' : 'N');
                             if (FileDatabase.Add(fileNumber, fileRecord))
                             {
                                 // If a directory, add to the directory database (key: dir name)
@@ -160,7 +160,7 @@ int Files11FileSystem::GetHighestVersion(const char *dirname, const char* filena
                             Files11Record fileRec;
                             if (FileDatabase.Get(pRec[idx].fileNumber, fileRec))
                             {
-                                if (strFileName == fileRec.GetFullName())
+                                if (!fileRec.IsFileExtension() && (strFileName == fileRec.GetFullName()))
                                 {
                                     if (pRec[idx].version > highVersion) {
                                         highVersion = pRec[idx].version;
@@ -202,11 +202,11 @@ int Files11FileSystem::ValidateIndexBitmap(void)
                     int lbn = m_FileNumberToLBN[fileNumber];
                     int fnb = fileRecord.Initialize(lbn, m_dskStream);
 
-                    if (fileNumber == 0127) {
-                        printf("File: %s LBN: %d\n", fileRecord.GetFullName(), lbn);
-                        printf("Owner: %o\n", fileRecord.GetOwnerUIC());
-                        printf("Protection: 0x%04X\n", fileRecord.GetFileProtection());
-                    }
+                    //if (fileNumber == 0127) {
+                    //    printf("File: %s LBN: %d\n", fileRecord.GetFullName(), lbn);
+                    //    printf("Owner: %o\n", fileRecord.GetOwnerUIC());
+                    //    printf("Protection: 0x%04X\n", fileRecord.GetFileProtection());
+                    //}
 
                     if ((fnb > 0) && !used)
                     {
@@ -299,7 +299,7 @@ int Files11FileSystem::ValidateStorageBitmap(void)
     return totalErrors;
 }
 
-int Files11FileSystem::ValidateDirectory(const char *dirname, int* pTotalFilesChecked)
+int Files11FileSystem::ValidateDirectory(const char* dirname, DirFileList_t& dirFileMap, int* pTotalFilesChecked)
 {
     int totalErrors = 0;
     DirDatabase::DirList_t dirlist;
@@ -334,6 +334,13 @@ int Files11FileSystem::ValidateDirectory(const char *dirname, int* pTotalFilesCh
                             Radix50ToAscii(p->fileName, 3, name, true);
                             Radix50ToAscii(p->fileType, 1, ext, true);
                             (*pTotalFilesChecked)++;
+
+                            // Check if file was found in another directory
+                            auto pos = dirFileMap.find(pRec[idx].fileNumber);
+                            if (pos == dirFileMap.end()) {
+                                dirFileMap[pRec[idx].fileNumber] = strDirName;
+                            }
+
                             //std::cout << "checking file : " << name << "." << ext << ";" << pRec[idx].version << std::endl;
                             // Ignore INDEXF.SYS
                             if (p->fileNumber == F11_INDEXF_SYS)
@@ -342,14 +349,14 @@ int Files11FileSystem::ValidateDirectory(const char *dirname, int* pTotalFilesCh
                             if (p->fileRVN != 0)
                             {
                                 totalErrors++;
-                                std::cout << strDirName << " FILE ID " << p->fileNumber << "," << p->fileSeq << "," << p->fileRVN << " " << name << "." << ext << ";" << p->version;
-                                std::cout << " - RESERVED FIELD WAS NON-ZERO\n";
+                                printf("%s FILE ID %06o,%06o,%o %s.%s;%o\n", strDirName.c_str(), p->fileNumber, p->fileSeq, p->fileRVN, name.c_str(), ext.c_str(), p->version);
+                                printf(" - RESERVED FIELD WAS NON-ZERO\n");
                             }
                             if (p->version > 1777) // TODO ???
                             {
                                 totalErrors++;
-                                std::cout << strDirName << " FILE ID " << p->fileNumber << "," << p->fileSeq << "," << p->fileRVN << " " << name << "." << ext << ";" << p->version;
-                                std::cout << " - INVALID VERSION NUMBER\n";
+                                printf("%s FILE ID %06o,%06o,%o %s.%s;%o\n", strDirName.c_str(), p->fileNumber, p->fileSeq, p->fileRVN, name.c_str(), ext.c_str(), p->version);
+                                printf(" - INVALID VERSION NUMBER\n");
                             }
 
                             Files11Record frec;
@@ -359,14 +366,14 @@ int Files11FileSystem::ValidateDirectory(const char *dirname, int* pTotalFilesCh
                                 {
                                     std::string name(frec.GetFileName());
                                     if (name != "000000")
-                                        totalErrors += ValidateDirectory(frec.GetFileName(), pTotalFilesChecked);
+                                        totalErrors += ValidateDirectory(frec.GetFileName(), dirFileMap, pTotalFilesChecked);
                                 }
                             }
                             else
                             {
                                 totalErrors++;
-                                std::cout << strDirName << " FILE ID " << p->fileNumber << "," << p->fileSeq << "," << p->fileRVN << " " << name << "." << ext << ";" << p->version;
-                                std::cout << " - FILE NOT FOUND\n";
+                                printf("%s FILE ID %06o,%06o,%o %s.%s;%o\n", strDirName.c_str(), p->fileNumber, p->fileSeq, p->fileRVN, name.c_str(), ext.c_str(), p->version);
+                                printf(" - FILE NOT FOUND\n");
                             }
                         }
                     }
@@ -374,6 +381,7 @@ int Files11FileSystem::ValidateDirectory(const char *dirname, int* pTotalFilesCh
             }
         }
     }
+
     return totalErrors;
 }
 
@@ -393,12 +401,32 @@ void Files11FileSystem::VerifyFileSystem(Args_t args)
     else if ((args.size() >= 2) && (args[1] == "/DV"))
     {
         int totalFiles = 0;
+        DirFileList_t DirectoryFileMap;
 
         if (args.size() == 2)
             args.push_back("000000");
 
         // Directory Validation
-        int nbErrors = ValidateDirectory(args[2].c_str(), &totalFiles);
+
+        int nbErrors = ValidateDirectory(args[2].c_str(), DirectoryFileMap , &totalFiles);
+        // -- Find Lost Files
+        // Go to all headers and check that the file belongs in a directory
+        for (int fnumber = 1; fnumber < m_HomeBlock.GetMaxFiles(); ++fnumber)
+        {
+            if (FileDatabase.Exist(fnumber))
+            {
+                auto pos = DirectoryFileMap.find(fnumber);
+                if (pos == DirectoryFileMap.end()) {
+                    Files11Record frec;
+                    FileDatabase.Get(fnumber, frec);
+                    if (!frec.IsFileExtension()) {
+                        nbErrors++;
+                        printf("FILE ID %06o,%06o %s\n", fnumber, frec.GetFileSeq(), frec.GetFullName());
+                        printf("        FILE IS NOT REACHABLE\n");
+                    }
+                }
+            }
+        }
         if (nbErrors > 0)
             std::cout << "\n -- validation found " << nbErrors << " error(s) on " << totalFiles << " files checked\n\n";
         else
@@ -766,9 +794,7 @@ void Files11FileSystem::ListDirs(Cmds_e cmd, const char *dirname, const char *fi
                                 Files11Record frec;
                                 if (FileDatabase.Get(file.fnumber, frec))
                                 {
-                                    std::string fileName(frec.GetFullName());
-                                    fileName += ";";
-                                    fileName += std::to_string(file.version);
+                                    std::string fileName(frec.GetFullName(file.version));
                                     char contiguous = frec.IsContiguous() ? 'C' : ' ';
                                     std::string strBlocks;
                                     strBlocks = std::to_string(frec.GetUsedBlockCount()) + ".";
@@ -1005,7 +1031,7 @@ bool Files11FileSystem::AddDirectoryEntry(int filenb, DirectoryRecord_t* pDirEnt
                 DirectoryRecord_t* pEntry = (DirectoryRecord_t*)buffer;
                 for (int idx = 0; idx < nbRec; ++idx)
                 {
-                    if (pEntry[idx].fileNumber == 0) {
+                    if ((freeEntryLBN == 0)&&(pEntry[idx].fileNumber == 0)) {
                         freeEntryLBN = lbn;
                         freeEntryIDX = idx;
                     }
