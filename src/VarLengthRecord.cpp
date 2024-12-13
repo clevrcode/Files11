@@ -79,9 +79,9 @@ bool VarLengthRecord::WriteFile(const char *fname, std::fstream& outFile, BlockL
         pUserAttr->ufcs_ffbyte = 0;
         pUserAttr->ufcs_highvbn_hi = 0;
         pUserAttr->ufcs_highvbn_lo = 0;
-        pUserAttr->ufcs_recattr = 0;
-        pUserAttr->ufcs_recsize = 0;
         pUserAttr->ufcs_rectype = rt_vlr;
+        pUserAttr->ufcs_recattr = ra_cr;
+        pUserAttr->ufcs_recsize = 0;
 
         uint32_t vbn = 1;
         for (auto blk : blkList)

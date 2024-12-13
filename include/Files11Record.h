@@ -23,6 +23,7 @@ public:
 	bool	 IsDirectory(void) const            { return bDirectory; };
 	bool     IsFileExtension(void) const        { return fileExtensionSegment != 0; };
 	bool     IsContiguous(void) const           { return (userCharacteristics & uc_con) != 0; };
+	bool     IsMarkedForDeletion(void) const    { return (sysCharacteristics & sc_mdl) != 0; };
 	const Files11FCS& GetFileFCS(void) const    { return fileFCS; };
 	const char* GetFileName(void) const         { return fileName.c_str(); };
 	const char* GetBlockCountString(void) const;

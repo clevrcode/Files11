@@ -90,7 +90,7 @@ typedef struct _ODS1_FileHeader
 //--------------------------------
 // User Attributes Area
 
-// User characteristics
+// User characteristics (ref: 3.4.1.8)
 #define uc_nid  (0x02)
 #define uc_wbc  (0x04)
 #define uc_rck  (0x08)
@@ -99,16 +99,21 @@ typedef struct _ODS1_FileHeader
 #define uc_dlk  (0x40)
 #define uc_con  (0x80)
 
-// System characteristics
+// System characteristics (ref: 3.4.1.8)
 #define sc_spl	(0x10)
 #define sc_dir	(0x20)
 #define sc_bad	(0x40)
 #define sc_mdl	(0x80)
 
-// Record Type
+// Record Type (ref: 6.1.1)
 #define rt_fix  (0x01)
 #define rt_vlr  (0x02)
 #define rt_seq  (0x04)
+
+// Record Attributes (ref: 6.1.2)
+#define ra_ftn  (0x01) // Fortran carriage Control
+#define ra_cr   (0x02) // Carriage Control ; ra_cr and ra_ftn are mutually exclusive
+#define ra_prn  (0x04)
 
 
 typedef struct _ODS1_UserAttrArea {

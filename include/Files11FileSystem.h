@@ -48,7 +48,7 @@ public:
 	// Commands
 	void VerifyFileSystem(Args_t args);
 
-	void ListFiles(const Files11Record& dirRecord, const char* filename);
+	void ListFiles(const Files11Record& dirRecord, const char* filename, FileList_t &fileList);
 	void ListDirs(Cmds_e cmd, const char* dir, const char *file);
 	void TypeFile(const Files11Record& dirRecord, const char* filename);
 	void ChangeWorkingDirectory(const char*);
@@ -64,6 +64,9 @@ public:
 	}
 
 	bool AddFile(const char* nativeName, const char *pdp11Dir, const char* pdp11Name=nullptr);
+	bool DeleteFile(const char* pdp11Dir, const char* pdp11name);
+	bool DeleteFile(int fileNumber);
+
 	int  FindFreeBlocks(int nbBlocks, BlockList_t &blkList);
 	int  ValidateIndexBitmap(void);
 	int  ValidateDirectory(const char* dirname, int *pTotalFilesChecked); // This function is recursive

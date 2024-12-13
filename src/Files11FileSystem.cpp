@@ -58,7 +58,8 @@ bool Files11FileSystem::Open(const char *dskName)
                         int fileNumber = fileRecord.Initialize(lbn, m_dskStream);
                         if (fileNumber > 0)
                         {
-                            //printf("%04x:%04x %-20sOwner: 0x%04x, Protection: 0x%04x\n", fileRecord.GetFileNumber(), fileRecord.GetFileSeq(), fileRecord.GetFullName(), fileRecord.GetOwnerUIC(), fileRecord.GetFileProtection());
+                            printf("%06o:%06o %-20sOwner: [%03o,%03o], Protection: 0x%04x LBN: %d\n", fileRecord.GetFileNumber(), fileRecord.GetFileSeq(), 
+                                fileRecord.GetFullName(), fileRecord.GetOwnerUIC() >> 8, fileRecord.GetOwnerUIC() & 0xff, fileRecord.GetFileProtection(), lbn);
                             if (FileDatabase.Add(fileNumber, fileRecord))
                             {
                                 // If a directory, add to the directory database (key: dir name)
@@ -200,6 +201,13 @@ int Files11FileSystem::ValidateIndexBitmap(void)
                     Files11Record fileRecord(IndexLBN);
                     int lbn = m_FileNumberToLBN[fileNumber];
                     int fnb = fileRecord.Initialize(lbn, m_dskStream);
+
+                    if (fileNumber == 0127) {
+                        printf("File: %s LBN: %d\n", fileRecord.GetFullName(), lbn);
+                        printf("Owner: %o\n", fileRecord.GetOwnerUIC());
+                        printf("Protection: 0x%04X\n", fileRecord.GetFileProtection());
+                    }
+
                     if ((fnb > 0) && !used)
                     {
                         totalErrors++;
@@ -245,12 +253,19 @@ int Files11FileSystem::ValidateStorageBitmap(void)
 
         uint8_t buffer[F11_BLOCK_SIZE];
         int last_bitmap_block = -1;
+
         for (int fnumber = 1; fnumber < m_HomeBlock.GetMaxFiles(); ++fnumber)
         {
             if (FileDatabase.Exist(fnumber))
             {
                 Files11Record frec;
                 FileDatabase.Get(fnumber, frec);
+                // Check if file is marked for deletion
+                if (frec.IsMarkedForDeletion()) {
+                    printf("FILE ID %06o,%06o . OWNER [%o,%o]\n", frec.GetFileNumber(), frec.GetFileSeq(), frec.GetOwnerUIC() >> 8, frec.GetOwnerUIC() & 0xff);
+                    printf("        FILE IS MARKED FOR DELETE\n");
+                }
+
                 int vbn = 1;
                 int last_vbn = frec.GetFileFCS().GetUsedBlockCount();
                 int eof_bytes = frec.GetFileFCS().GetFirstFreeByte();
@@ -259,8 +274,8 @@ int Files11FileSystem::ValidateStorageBitmap(void)
                 {
                     for (auto lbn = block.lbn_start; lbn <= block.lbn_end; ++lbn)
                     {
-                        //if (lbn == 0x15eda) {
-                        //    std::cout << "LBN 0x15eda used by " << frec.GetFullName() << "\n";
+                        //if (lbn == 0x15ed9) {
+                        //    std::cout << "LBN 0x15ed9 used by " << frec.GetFullName() << "\n";
                         //}
                         int bitmap_block = lbn / 4096;
                         int bitmap_index = (lbn % 4096) / 8;
@@ -658,7 +673,7 @@ void Files11FileSystem::TypeFile(const Files11Record &dirRecord, const char* fil
     }
 }
 
-void Files11FileSystem::ListFiles(const Files11Record& dirRecord, const char *filename)
+void Files11FileSystem::ListFiles(const Files11Record& dirRecord, const char *filename, FileList_t& fileList)
 {
     int usedBlocks = 0;
     int totalBlocks = 0;
@@ -686,16 +701,7 @@ void Files11FileSystem::ListFiles(const Files11Record& dirRecord, const char *fi
                     Files11Record fileRec;
                     if (FileDatabase.Get(pRec[idx].fileNumber, fileRec, pRec[idx].version, filename))
                     {
-                        std::string fileName(fileRec.GetFullName());
-                        fileName += ";";
-                        fileName += std::to_string(pRec[idx].version);
-                        char contiguous = fileRec.IsContiguous() ? 'C' : ' ';
-                        std::string strBlocks;
-                        strBlocks = std::to_string(fileRec.GetUsedBlockCount()) + ".";
-                        printf("%-20s%-8s%c  %s\n", fileName.c_str(), strBlocks.c_str(), contiguous, fileRec.GetFileCreation());
-                        usedBlocks += fileRec.GetUsedBlockCount();
-                        totalBlocks += fileRec.GetBlockCount();
-                        totalFiles++;
+                        fileList.push_back(FileInfo_t(pRec[idx].fileNumber, pRec[idx].version));
                     }
                     else
                     {
@@ -706,10 +712,6 @@ void Files11FileSystem::ListFiles(const Files11Record& dirRecord, const char *fi
             }           
         }
     }
-    std::cout << "\nTotal of " << usedBlocks << "./" << totalBlocks << ". blocks in " << totalFiles << ". file";
-    if (totalFiles > 1)
-        std::cout << "s";
-    std::cout << "\n\n";
 }
 
 void Files11FileSystem::ListDirs(Cmds_e cmd, const char *dirname, const char *filename)
@@ -723,6 +725,11 @@ void Files11FileSystem::ListDirs(Cmds_e cmd, const char *dirname, const char *fi
     bool found = false;
     if (cwd.length() > 0)
     {
+        int GrandUsedBlocks = 0;
+        int GrandTotalBlocks = 0;
+        int GrandTotalFiles = 0;
+        int DirectoryCount = 0;
+
         DirDatabase::DirList_t dlist;
         int nb_dir = DirDatabase.Find(cwd.c_str(), dlist);
         if (nb_dir > 0)
@@ -735,21 +742,67 @@ void Files11FileSystem::ListDirs(Cmds_e cmd, const char *dirname, const char *fi
                     if (rec.IsFileExtension())
                         continue;
 
-                    found = true;
                     switch (cmd)
                     {
                     case LIST:
-                        std::cout << "\nDirectory DU0:" << DirDatabase::FormatDirectory(rec.fileName) << std::endl;
-                        std::cout << GetCurrentDate() << "\n\n";
-                        // List files in this directory that matches filename
-                        ListFiles(rec, filename);
-                        break;
+                    {
+
+                        FileList_t fileList;
+                        ListFiles(rec, filename, fileList);
+
+                        if (fileList.size() > 0)
+                        {
+                            int usedBlocks = 0;
+                            int totalBlocks = 0;
+                            int totalFiles = 0;
+                            found = true;
+                            DirectoryCount++;
+
+                            std::cout << "\nDirectory DU0:" << DirDatabase::FormatDirectory(rec.fileName) << std::endl;
+                            std::cout << GetCurrentDate() << "\n\n";
+                            // List files in this directory that matches filename
+                            for (auto file : fileList)
+                            {
+                                Files11Record frec;
+                                if (FileDatabase.Get(file.fnumber, frec))
+                                {
+                                    std::string fileName(frec.GetFullName());
+                                    fileName += ";";
+                                    fileName += std::to_string(file.version);
+                                    char contiguous = frec.IsContiguous() ? 'C' : ' ';
+                                    std::string strBlocks;
+                                    strBlocks = std::to_string(frec.GetUsedBlockCount()) + ".";
+                                    printf("%-20s%-8s%c  %s\n", fileName.c_str(), strBlocks.c_str(), contiguous, frec.GetFileCreation());
+                                    usedBlocks += frec.GetUsedBlockCount();
+                                    totalBlocks += frec.GetBlockCount();
+                                    totalFiles++;
+                                }
+                            }
+                            std::cout << "\nTotal of " << usedBlocks << "./" << totalBlocks << ". blocks in " << totalFiles << ". file";
+                            if (totalFiles > 1)
+                                std::cout << "s";
+                            std::cout << "\n\n";
+
+                            GrandUsedBlocks += usedBlocks;
+                            GrandTotalBlocks += totalBlocks;
+                            GrandTotalFiles += totalFiles;
+
+                        }
+
+                    }
+                    break;
 
                     case TYPE:
+                        found = true;
                         TypeFile(rec, filename);
                         break;
                     }
                 }
+            }
+            // Grand Total
+            if ((cmd == LIST) && (DirectoryCount > 1) && (GrandTotalFiles > 0))
+            {
+                std::cout << "Grand total of " << GrandUsedBlocks << "./" << GrandTotalBlocks << ". blocks in " << GrandTotalFiles << ". files in " << DirectoryCount << " directories\n";
             }
         }
         if (!found)
@@ -1095,8 +1148,8 @@ bool Files11FileSystem::AddFile(const char* nativeName, const char* pdp11Dir, co
     pHeader->fh1_w_fid_num   = newFileNumber;
     pHeader->fh1_w_fid_seq  += 1; // Increase the sequence number when file is reused (Ref: 3.1)
     pHeader->fh1_w_struclev  = 0x0101; // (Ref 3.4.1.5)
-    pHeader->fh1_w_fileowner = 0x0102; // TODO m_HomeBlock.GetVolumeOwner();
-    pHeader->fh1_w_fileprot  = F11_DEFAULT_FILE_PROTECTION; // Full access
+    pHeader->fh1_w_fileowner = (03 << 8) + 054; //0x0102; // TODO m_HomeBlock.GetVolumeOwner();
+    pHeader->fh1_w_fileprot  = m_HomeBlock.GetDefaultFileProtection(); //  F11_DEFAULT_FILE_PROTECTION; // Full access
     pHeader->fh1_b_userchar  = 0x80; // Set contiguous bit only (Ref:3.4.1.8)
     pHeader->fh1_b_syschar   = 0; // 
     pHeader->fh1_w_ufat      = 0; // 
@@ -1109,7 +1162,7 @@ bool Files11FileSystem::AddFile(const char* nativeName, const char* pdp11Dir, co
     AsciiToRadix50(name.c_str(), 9, pIdent->filename);
     AsciiToRadix50(ext.c_str(),  3, pIdent->filetype);
     pIdent->version  = 1;
-    pIdent->revision = 0;
+    pIdent->revision = 1;
     memset(pIdent->revision_date, 0, sizeof(pIdent->revision_date));
     memset(pIdent->revision_time, 0, sizeof(pIdent->revision_time));
     FillDate((char *)pIdent->creation_date, (char *)pIdent->creation_time);
@@ -1167,10 +1220,10 @@ bool Files11FileSystem::AddFile(const char* nativeName, const char* pdp11Dir, co
     DirectoryRecord_t dirEntry;
     dirEntry.fileNumber = pHeader->fh1_w_fid_num;
     dirEntry.fileSeq    = pHeader->fh1_w_fid_seq;
-    dirEntry.version    = 0;
+    dirEntry.version    = 1;
     memcpy(dirEntry.fileName, pIdent->filename, 6);
     memcpy(dirEntry.fileType, pIdent->filetype, 2);
-    dirEntry.fileRVN = 0;
+    dirEntry.fileRVN = 0; // MUST BE 0
 
     AddDirectoryEntry(dirInfo.fnumber, &dirEntry);
 
@@ -1190,6 +1243,17 @@ bool Files11FileSystem::AddFile(const char* nativeName, const char* pdp11Dir, co
     // Return true if successful
     return true;
 }
+
+bool Files11FileSystem::DeleteFile(const char* pdp11Dir, const char* pdp11name)
+{
+    return false;
+}
+
+bool Files11FileSystem::DeleteFile(int fileNumber)
+{
+    return false;
+}
+
 
 // Input number of free blocks needed
 // Output: LBN of first free block

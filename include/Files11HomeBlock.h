@@ -21,6 +21,7 @@ public:
 	const int Get000000SysLBN(void) const { return i000000SysLBN; };
 	const int GetCorimgSysLBN(void) const { return iCorimgSysLBN; };
 	const int GetVolumeOwner(void)  const { return iVolumeOwnerUIC; };
+	const int GetDefaultFileProtection(void) const { return iDefaultFileProtection; };
 
 	int  GetDiskSize(void) { return bValid ? iDiskSize : 0;  };
 	int  CountFreeHeaders(std::fstream& istrm);
