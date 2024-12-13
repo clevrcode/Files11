@@ -65,9 +65,9 @@ public:
 
 	bool AddFile(const char* nativeName, const char *pdp11Dir, const char* pdp11Name=nullptr);
 	int  FindFreeBlocks(int nbBlocks, BlockList_t &blkList);
-	int  ValidateIndexBitmap(const BlockList_t& blkList);
-	int  ValidateDirectory(const char* dirname, int *pTotalFilesChecked);
-
+	int  ValidateIndexBitmap(void);
+	int  ValidateDirectory(const char* dirname, int *pTotalFilesChecked); // This function is recursive
+	int  ValidateStorageBitmap(void);
 
 private:
 	std::fstream     m_dskStream;

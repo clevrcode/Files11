@@ -176,14 +176,13 @@ int Files11FileSystem::GetHighestVersion(const char *dirname, const char* filena
     return highVersion;
 }
 
-int Files11FileSystem::ValidateIndexBitmap(const BlockList_t& blkList)
+int Files11FileSystem::ValidateIndexBitmap(void)
 {
     const int IndexBitmapLBN = m_HomeBlock.GetBitmapLBN();
     const int nbIndexBlock = m_HomeBlock.GetIndexSize();
     const int IndexLBN = m_HomeBlock.GetIndexLBN();
     const int maxFiles = m_HomeBlock.GetMaxFiles();
     int totalErrors = 0;
-
 
     int fileNumber = 1;
     for (int bmpIndexBlock = 0; bmpIndexBlock < nbIndexBlock; ++bmpIndexBlock)
@@ -216,6 +215,68 @@ int Files11FileSystem::ValidateIndexBitmap(const BlockList_t& blkList)
         }
         if (fileNumber >= maxFiles)
             break;
+    }
+    return totalErrors;
+}
+
+int Files11FileSystem::ValidateStorageBitmap(void)
+{
+    int totalErrors = 0;
+    Files11Record bmpRecord;
+    if (FileDatabase.Get(F11_BITMAP_SYS, bmpRecord))
+    {
+        std::string fname(bmpRecord.GetFullName());
+        assert(fname == "BITMAP.SYS");
+        std::vector<int> bmpLBN;
+        BlockList_t blkList = bmpRecord.GetBlockList();
+        bool skipFCS = true;
+        for (auto block : blkList)
+        {
+            for (auto lbn = block.lbn_start; lbn <= block.lbn_end; ++lbn) {
+                if (skipFCS) {
+                    skipFCS = false;
+                    continue;
+                }
+                bmpLBN.push_back(lbn);
+            }
+        }
+        const int NumberOfBlocks = m_HomeBlock.GetNumberOfBlocks();
+        assert(bmpLBN.size() >= (NumberOfBlocks / 4096));
+
+        uint8_t buffer[F11_BLOCK_SIZE];
+        int last_bitmap_block = -1;
+        for (int fnumber = 1; fnumber < m_HomeBlock.GetMaxFiles(); ++fnumber)
+        {
+            if (FileDatabase.Exist(fnumber))
+            {
+                Files11Record frec;
+                FileDatabase.Get(fnumber, frec);
+                int vbn = 1;
+                int last_vbn = frec.GetFileFCS().GetUsedBlockCount();
+                int eof_bytes = frec.GetFileFCS().GetFirstFreeByte();
+                BlockList_t fBlock = frec.GetBlockList();
+                for (auto block : fBlock)
+                {
+                    for (auto lbn = block.lbn_start; lbn <= block.lbn_end; ++lbn)
+                    {
+                        int bitmap_block = lbn / 4096;
+                        int bitmap_index = (lbn % 4096) / 8;
+                        int bitmap_bit = lbn % 8;
+                        if (bitmap_block != last_bitmap_block)
+                        {
+                            readBlock(bmpLBN[bitmap_block], m_dskStream, buffer);
+                            last_bitmap_block = bitmap_block;
+                        }
+                        // Block used = 0, Block free = 1
+                        if ((buffer[bitmap_index] & (1 << bitmap_bit)) != 0) {
+                            totalErrors++;
+                            // error, bit should be cleared since it is in use for this file
+                            std::cout << "LBN " << lbn << " not marked used, (file: " << frec.GetFullName() << ")\n";
+                        }
+                    }
+                }
+            }
+        }
     }
     return totalErrors;
 }
@@ -280,7 +341,7 @@ int Files11FileSystem::ValidateDirectory(const char *dirname, int* pTotalFilesCh
                                 {
                                     std::string name(frec.GetFileName());
                                     if (name != "000000")
-                                        totalErrors = ValidateDirectory(frec.GetFileName(), pTotalFilesChecked);
+                                        totalErrors += ValidateDirectory(frec.GetFileName(), pTotalFilesChecked);
                                 }
                             }
                             else
@@ -301,39 +362,29 @@ int Files11FileSystem::ValidateDirectory(const char *dirname, int* pTotalFilesCh
 void Files11FileSystem::VerifyFileSystem(Args_t args)
 {
     // Verify that each file listed in the INDEXF.SYS file is allocated
-    int IndexLBN = m_HomeBlock.GetIndexLBN();
-    Files11Record IndexFileRecord(IndexLBN);
-    IndexFileRecord.Initialize(IndexLBN, m_dskStream);
-    auto BlkList = IndexFileRecord.GetBlockList();
-    if (!BlkList.empty())
+    if (args.size() == 1)
     {
-        if (args.size() == 1)
-        {
-            int nbErrors = ValidateIndexBitmap(BlkList);
-            if (nbErrors > 0) {
-                std::cout << "\n -- " << nbErrors << " error(s) found\n\n";
-            }
-            else
-                std::cout << "\n -- no error found\n\n";
+        int nbErrors = ValidateIndexBitmap();
+        nbErrors += ValidateStorageBitmap();
+        if (nbErrors > 0) {
+            std::cout << "\n -- " << nbErrors << " error(s) found\n\n";
         }
-        else if ((args.size() >= 2) && (args[1] == "/DV"))
-        {
-            int totalFiles = 0;
-
-            if (args.size() == 2)
-                args.push_back("000000");
-
-            // Directory Validation
-            int nbErrors = ValidateDirectory(args[2].c_str(), &totalFiles);
-            if (nbErrors > 0)
-                std::cout << "\n -- validation found " << nbErrors << " error(s) on " << totalFiles << " files checked\n\n";
-            else
-                std::cout << "\n -- validation found no error on " << totalFiles << " file(s) checked\n\n";
-        }
+        else
+            std::cout << "\n -- no error found\n\n";
     }
-    else
+    else if ((args.size() >= 2) && (args[1] == "/DV"))
     {
-        std::cerr << "ERROR -- Invalid INDEXF.SYS file: pointers list empty\n";
+        int totalFiles = 0;
+
+        if (args.size() == 2)
+            args.push_back("000000");
+
+        // Directory Validation
+        int nbErrors = ValidateDirectory(args[2].c_str(), &totalFiles);
+        if (nbErrors > 0)
+            std::cout << "\n -- validation found " << nbErrors << " error(s) on " << totalFiles << " files checked\n\n";
+        else
+            std::cout << "\n -- validation found no error on " << totalFiles << " file(s) checked\n\n";
     }
 }
 
