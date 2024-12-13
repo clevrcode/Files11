@@ -259,6 +259,9 @@ int Files11FileSystem::ValidateStorageBitmap(void)
                 {
                     for (auto lbn = block.lbn_start; lbn <= block.lbn_end; ++lbn)
                     {
+                        //if (lbn == 0x15eda) {
+                        //    std::cout << "LBN 0x15eda used by " << frec.GetFullName() << "\n";
+                        //}
                         int bitmap_block = lbn / 4096;
                         int bitmap_index = (lbn % 4096) / 8;
                         int bitmap_bit = lbn % 8;
@@ -327,7 +330,7 @@ int Files11FileSystem::ValidateDirectory(const char *dirname, int* pTotalFilesCh
                                 std::cout << strDirName << " FILE ID " << p->fileNumber << "," << p->fileSeq << "," << p->fileRVN << " " << name << "." << ext << ";" << p->version;
                                 std::cout << " - RESERVED FIELD WAS NON-ZERO\n";
                             }
-                            if (p->version > 0777) // TODO
+                            if (p->version > 1777) // TODO ???
                             {
                                 totalErrors++;
                                 std::cout << strDirName << " FILE ID " << p->fileNumber << "," << p->fileSeq << "," << p->fileRVN << " " << name << "." << ext << ";" << p->version;
@@ -807,15 +810,19 @@ void Files11FileSystem::PrintVolumeInfo(void)
 }
 
 
-bool Files11FileSystem::MarkHeaderBlock(int lbn, bool used)
+bool Files11FileSystem::MarkHeaderBlock(int file_number, bool used)
 {
-    int block = lbn / (F11_BLOCK_SIZE * 8);
-    int index = (lbn % (F11_BLOCK_SIZE * 8)) / 8;
-    int bit = lbn % 8;
+    if (file_number <= 0)
+        return false;
+
+    file_number--;
+    int block = file_number / (F11_BLOCK_SIZE * 8);
+    int index = (file_number % (F11_BLOCK_SIZE * 8)) / 8;
+    int bit = file_number % 8;
 
     if (block >= 0 && block < m_HomeBlock.GetIndexSize())
     {
-        int indexLBN = m_HomeBlock.GetIndexLBN() + block;
+        int indexLBN = m_HomeBlock.GetBitmapLBN() + block;
         uint8_t buffer[F11_BLOCK_SIZE];
         readBlock(indexLBN, m_dskStream, buffer);
         if (used)
@@ -1154,7 +1161,7 @@ bool Files11FileSystem::AddFile(const char* nativeName, const char* pdp11Dir, co
         return false;
     }
     // Mark header block as used in IndexBitmap
-    MarkHeaderBlock(header_lbn, true);
+    MarkHeaderBlock(newFileNumber, true);
 
     // 9) Create a directory entry
     DirectoryRecord_t dirEntry;
