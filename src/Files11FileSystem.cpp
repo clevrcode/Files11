@@ -616,7 +616,7 @@ void Files11FileSystem::PrintFreeBlocks(void)
     const Files11FCS& fileFCS = fileRec.GetFileFCS();
     BlockList_t blklist = fileRec.GetBlockList();
 
-    printf("Record Type : 0x%02x\n", fileFCS.GetRecordType());
+    //printf("Record Type : 0x%02x\n", fileFCS.GetRecordType());
     //if (fileFCS.GetRecordType() != 0)
     //    return;
 
@@ -1056,7 +1056,6 @@ bool Files11FileSystem::AddDirectoryEntry(int filenb, DirectoryRecord_t* pDirEnt
             uint8_t buffer[F11_BLOCK_SIZE];
             readBlock(freeEntryLBN, m_dskStream, buffer);
             DirectoryRecord_t* pEntry = (DirectoryRecord_t*)buffer;
-            pDirEntry->fileSeq = pEntry[freeEntryIDX].fileSeq + 1;
             pEntry[freeEntryIDX] = *pDirEntry;
             writeBlock(freeEntryLBN, m_dskStream, buffer);
         }
@@ -1070,8 +1069,6 @@ bool Files11FileSystem::AddDirectoryEntry(int filenb, DirectoryRecord_t* pDirEnt
                 int vbn = ffbyte / (F11_BLOCK_SIZE / recSize);
                 DirectoryRecord_t* pEntry = (DirectoryRecord_t*)buffer;
                 pEntry[vbn] = *pDirEntry;
-                pEntry[vbn].fileSeq = 1;
-                pEntry[vbn].version = 1;
                 writeBlock(lastLBN, m_dskStream, buffer);
             }
             else

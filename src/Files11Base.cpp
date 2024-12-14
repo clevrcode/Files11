@@ -73,8 +73,6 @@ void Files11Base::MakeDate(uint8_t* date, std::string& fdate, bool time)
         fdate += date[d++]; fdate += date[d++];
         fdate += ':';
         fdate += date[d++]; fdate += date[d++];
-        //fdate += ':';
-        //fdate += date[d++]; fdate += date[d++];
     }
 }
 
@@ -94,7 +92,7 @@ void Files11Base::FillDate(char *pDate, char *pTime /* = nullptr */)
     if (pDate != nullptr) {
         // output format is "DDMMMYY"
         char buffer[8];
-        sprintf_s(buffer, sizeof(buffer), "%02d%3s%02d", tinfo.tm_mday, months[tinfo.tm_mon], tinfo.tm_year % 100);
+        sprintf_s(buffer, sizeof(buffer), "%02d%3s%c%c", tinfo.tm_mday, months[tinfo.tm_mon], (tinfo.tm_year / 10) + '0', (tinfo.tm_year % 10) + '0');
         memcpy(pDate, buffer, 7);
     }
 
