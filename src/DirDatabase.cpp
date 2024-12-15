@@ -1,7 +1,7 @@
 #include <regex>
 #include "DirDatabase.h"
 
-bool DirDatabase::Add(std::string& name, DirInfo_t &info)
+bool DirDatabase::Add(const std::string& name, DirInfo_t &info)
 {
     auto dit = m_Database.find(name);
     if (dit != m_Database.end())
@@ -122,10 +122,9 @@ std::string DirDatabase:: FormatDirectory(const std::string& dir)
     return out;
 }
 
-bool DirDatabase::isWildcard(std::string& str)
+bool DirDatabase::isWildcard(const std::string& str)
 {
-    auto pos = str.find('*');
-    return pos != std::string::npos;
+    return str.find('*') != std::string::npos;
 }
 
 int DirDatabase::getUIC_hi(const std::string& in)

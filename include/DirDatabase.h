@@ -17,18 +17,19 @@ public:
 	typedef struct DirInfo {
 		DirInfo(void) : fnumber(0), lbn(0) {};
 		DirInfo(int nb, int lbn) : fnumber(nb), lbn(lbn) {};
+		DirInfo(const struct DirInfo& di) : fnumber(di.fnumber), lbn(di.lbn) {};
 		int fnumber;
 		int lbn;
 	} DirInfo_t;
 	typedef std::vector<DirInfo_t> DirList_t;
 
 	DirDatabase(void) {};
-	bool Add(std::string& name, DirInfo_t &info);
+	bool Add(const std::string& name, DirInfo_t &info);
 	bool Exist(const char* dname) const;
 	int  Find(const char *dname, DirList_t& dlist) const;
 
 	static std::string FormatDirectory(const std::string& dir);
-	static bool isWildcard(std::string& str);
+	static bool isWildcard(const std::string& str);
 	static int getUIC_hi(const std::string& in);
 	static int getUIC_lo(const std::string& in);
 	static std::string makeKey(const std::string& dir);

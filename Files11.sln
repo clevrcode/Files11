@@ -13,6 +13,9 @@ Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "VarLengthRecordTest", "VarL
 	EndProjectSection
 EndProject
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "Files11BaseTest", "Files11BaseTest\Files11BaseTest.vcxproj", "{985F1CF5-4B4E-4BE5-BB46-7626E10C1663}"
+	ProjectSection(ProjectDependencies) = postProject
+		{6728148C-A75A-4602-B4AB-644AFA63A27C} = {6728148C-A75A-4602-B4AB-644AFA63A27C}
+	EndProjectSection
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution

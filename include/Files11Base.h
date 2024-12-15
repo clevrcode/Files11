@@ -33,6 +33,10 @@ public:
 	static void     Radix50ToAscii(uint16_t* pR50, int len, std::string& str, bool strip=false);
 	static int      GetRadix50Char(char c);
 	static void     AsciiToRadix50(const char* src, size_t srclen, uint16_t* dest); // For each 3 src chars -> 1 16 bits word
+	static void     PrintError(const char* dir, DirectoryRecord_t* p, const char* msg);
+	const std::string GetCurrentDate(void);
+	const std::string GetCurrentPDPTime(void);
+	const std::string GetFileProtectionString(uint16_t pro);
 
 protected:
 	static uint8_t *readBlock(int lbn, std::fstream& istrm, uint8_t*blk);
@@ -41,5 +45,10 @@ protected:
 
 private:
 	uint8_t m_block[F11_BLOCK_SIZE];
+	std::string    m_CurrentDate;
+	std::string    m_CurrentTime;
+	std::string    m_FileProtection;
+	static const char* months[];
+	static const char* radix50Chars;
 };
 

@@ -2,15 +2,11 @@
 
 bool FileDatabase::Add(int nb, const Files11Record &frec)
 {
-    auto it = m_Database.find(nb);
-    if (it != m_Database.end()) {
+    if (m_Database.find(nb) != m_Database.end()) {
         return false;;
     }
-    else
-    {
-        // Add a new entry for this file (key: file number)
-        m_Database[nb] = frec;
-    }
+    // Add a new entry for this file (key: file number)
+    m_Database[nb] = frec;
     return true;
 }
 
@@ -27,15 +23,14 @@ int  FileDatabase::FindFirstFreeFile(int maxFileNumber)
 
 bool FileDatabase::Exist(int nb) const
 {
-    auto pos = m_Database.find(nb);
-    return pos != m_Database.end();
+    return m_Database.find(nb) != m_Database.end();
 }
 
 bool FileDatabase::Get(int nb, Files11Record& frec)
 {
-    auto cit = m_Database.find(nb);
-    if (cit != m_Database.end()) {
-        frec = cit->second;
+    auto rec = m_Database.find(nb);
+    if (rec != m_Database.end()) {
+        frec = rec->second;
         return true;
     }
     return false;
@@ -46,15 +41,8 @@ bool FileDatabase::Get(int nb, Files11Record& frec)
 
 bool FileDatabase::Get(int nb, Files11Record& frec, int version, const char *filter)
 {
-    auto cit = m_Database.find(nb);
-    if (cit != m_Database.end()) {
-        if (Filter(cit->second, filter, version))
-        {
-            frec = cit->second;
-            return true;
-        }
-    }
-    return false;
+    Get(nb, frec);
+    return Filter(frec, filter, version);
 }
 
 void FileDatabase::SplitName(const std::string &fullname, std::string& name, std::string& ext, std::string& version)
@@ -74,7 +62,6 @@ void FileDatabase::SplitName(const std::string &fullname, std::string& name, std
     ext = ext.substr(0, pos);
     return;
 }
-
 
 bool FileDatabase::Filter(const Files11Record& rec, const char* fullname, int version)
 {

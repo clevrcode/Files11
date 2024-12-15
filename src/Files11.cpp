@@ -215,6 +215,24 @@ void ProcessCommand(std::string &command, Files11FileSystem& fs)
             else
                 fs.ListDirs(Files11FileSystem::LIST, nullptr, nullptr);
         }
+        else if (words[0] == "DMPLBN")
+        {
+            if (nbWords == 2)
+            {
+                int lbn = strtol(words[1].c_str(), NULL, 10);
+                fs.DumpLBN(lbn);
+            }
+            else
+                std::cout << "ERROR -- missing argument\n";
+        }
+        else if (words[0] == "DMPHDR")
+        {
+            if (nbWords == 2)
+            {
+                int fnb = strtol(words[1].c_str(), NULL, 10);
+                fs.DumpHeader(fnb);
+            }
+        }
         else if ((words[0] == "CAT") || (words[0] == "TYPE"))
         {
             if (nbWords == 2) {
@@ -227,7 +245,7 @@ void ProcessCommand(std::string &command, Files11FileSystem& fs)
         }
         else if (words[0] == "TIME")
         {
-            std::cout << fs.GetCurrentPDPTime();
+            std::cout << fs.GetCurrentSystemTime();
         }
         else if (words[0] == "FREE")
         {

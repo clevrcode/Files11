@@ -2,6 +2,9 @@
 #include <time.h>
 #include "Files11Base.h"
 
+const char* Files11Base::months[] = { "JAN", "FEB", "MAR", "APR", "MAY", "JUN", "JUL", "AUG", "SEP", "OCT", "NOV", "DEC" };
+const char* Files11Base::radix50Chars = " ABCDEFGHIJKLMNOPQRSTUVWXYZ$.%0123456789";
+
 Files11Base::Files11Base()
 {
     memset(m_block, 0, sizeof(m_block));
@@ -81,9 +84,17 @@ void Files11Base::MakeUIC(uint8_t* uic, std::string& strUIC)
     
 }
 
+void Files11Base::PrintError(const char *dir, DirectoryRecord_t* p, const char *msg)
+{
+    std::string name, ext;
+    Radix50ToAscii(p->fileName, 3, name, true);
+    Radix50ToAscii(p->fileType, 1, ext, true);
+    printf("%s FILE ID %06o,%06o,%o %s.%s;%o\n", dir, p->fileNumber, p->fileSeq, p->fileRVN, name.c_str(), ext.c_str(), p->version);
+    printf(" - %s\n", msg);
+}
+
 void Files11Base::FillDate(char *pDate, char *pTime /* = nullptr */)
 {
-    const char* months[12] = { "JAN", "FEB", "MAR", "APR", "MAY", "JUN", "JUL", "AUG", "SEP", "OCT", "NOV", "DEC" };
     time_t rawtime;
     time(&rawtime);
 
@@ -104,11 +115,59 @@ void Files11Base::FillDate(char *pDate, char *pTime /* = nullptr */)
     }
 }
 
+const std::string Files11Base::GetCurrentDate(void)
+{
+    time_t rawtime;
+    struct tm tinfo;
+    m_CurrentDate.clear();
+    // get current timeinfo
+    time(&rawtime);
+    errno_t err = localtime_s(&tinfo, &rawtime);
+    if (err == 0) {
+        char buf[8];
+        snprintf(buf, sizeof(buf), "%02d:%02d\n", tinfo.tm_hour, tinfo.tm_min);
+        m_CurrentDate = std::to_string(tinfo.tm_mday) + "-" + months[tinfo.tm_mon] + "-" + std::to_string(tinfo.tm_year + 1900) + " " + buf;
+    }
+    return m_CurrentDate;
+}
+
+const std::string Files11Base::GetCurrentPDPTime(void)
+{
+    time_t rawtime;
+    struct tm tinfo;
+    m_CurrentTime.clear();
+    // get current timeinfo
+    time(&rawtime);
+    errno_t err = localtime_s(&tinfo, &rawtime);
+    if (err == 0) {
+        char buf[16];
+        snprintf(buf, sizeof(buf), "%02d:%02d:%02d ", tinfo.tm_hour, tinfo.tm_min, tinfo.tm_sec);
+        //m_CurrentTime = buf;
+        m_CurrentTime = buf + std::to_string(tinfo.tm_mday) + "-" + months[tinfo.tm_mon] + "-" + std::to_string(tinfo.tm_year + 1900) + "\n";
+    }
+    return m_CurrentTime;
+}
+
+const std::string Files11Base::GetFileProtectionString(uint16_t pro)
+{
+    const char* strProtection = "RWED";
+    m_FileProtection.clear();
+    for (int i = 0; i < 4; ++i) {
+        m_FileProtection += (i > 0) ? "," : "[";
+        for (int j = 0; j < 4; ++j) {
+            if ((pro & 0x01) == 0)
+                m_FileProtection += strProtection[j];
+            pro >>= 1;
+        }
+    }
+    m_FileProtection += "]";
+    return m_FileProtection;
+}
+
 // Convert a 16-bit Radix-50 value to ASCII
 void Files11Base::Radix50ToAscii(uint16_t *pR50, int len, std::string &str, bool strip) 
 {
     // Radix-50 character set
-    const char* radix50Chars = " ABCDEFGHIJKLMNOPQRSTUVWXYZ$.%0123456789";
 
     // Clear output string
     str.clear();
@@ -131,8 +190,8 @@ void Files11Base::Radix50ToAscii(uint16_t *pR50, int len, std::string &str, bool
 
 int Files11Base::GetRadix50Char(char c)
 {
-    std::string radix50Chars(" ABCDEFGHIJKLMNOPQRSTUVWXYZ$.%0123456789");
-    auto pos = radix50Chars.find(c);
+    std::string radix50(radix50Chars);
+    auto pos = radix50.find(c);
     if (pos == std::string::npos)
         return -1;
     assert((pos >= 0) && (pos < 050));

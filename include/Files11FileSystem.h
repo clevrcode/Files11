@@ -55,14 +55,16 @@ public:
 	void ChangeWorkingDirectory(const char*);
 	const char* GetCurrentWorkingDirectory(void) const { return m_CurrentDirectory.c_str(); };
 	const char* GetErrorMessage(void) const { return m_strErrorMsg.c_str(); };
-	const std::string GetCurrentDate(void);
-	const std::string GetCurrentPDPTime(void);
+	const std::string GetCurrentSystemTime(void) { return GetCurrentPDPTime(); };
 	void PrintFreeBlocks(void);
 	int FileNumberToLBN(int fnumber) const {
 		if ((fnumber > 0) && (fnumber < m_FileNumberToLBN.size()))
 			return m_FileNumberToLBN[fnumber];
 		return -1;
 	}
+
+	void DumpLBN(int lbn);
+	void DumpHeader(int fileNumber);
 
 	bool AddFile(const char* nativeName, const char *pdp11Dir, const char* pdp11Name=nullptr);
 	bool DeleteFile(const char* pdp11Dir, const char* pdp11name);
@@ -74,19 +76,19 @@ public:
 	int  ValidateStorageBitmap(void);
 
 private:
+	int GetBlockList(int lbn);
+	int GetBlockList(int lbn, BlockList_t &blkList);
+	int BuildBlockList(int lbn, BlockList_t* blk_list, std::fstream& istrm);
+	int GetBlockCount(F11_MapArea_t* pMap, BlockList_t* pBlkList = nullptr);
+
 	std::fstream     m_dskStream;
 	bool             m_bValid;
 	Files11HomeBlock m_HomeBlock;
 	std::string      m_strErrorMsg;
 	std::string      m_DiskFileName;
 	std::string      m_CurrentDirectory;
-	std::string      m_CurrentDate;
-	std::string      m_CurrentTime;
 	FileDatabase     FileDatabase;
 	DirDatabase      DirDatabase;
 	std::vector<int> m_FileNumberToLBN;
-
-	//static void CountBits(uint8_t* blks, size_t nbBytes, int nbBlks, uint8_t lastByte, int& nbTrue, int& nbFalse, int& nbContiguous, int& largestContiguousBlock);
-
 };
 

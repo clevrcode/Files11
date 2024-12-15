@@ -5,6 +5,8 @@
 
 constexpr int F11_BLOCK_SIZE = 512;
 
+#define BLOCKDATASIZE(ds) ((ds + (F11_BLOCK_SIZE - 1)) / F11_BLOCK_SIZE)
+
 //--------------------------------
 // Home Block structure
 // LBN 0 : Boot sector
