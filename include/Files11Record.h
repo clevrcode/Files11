@@ -33,7 +33,7 @@ public:
 		fullNameWithVersion = fullName + ";" + octbuf;
 		return fullNameWithVersion.c_str(); 
 	};
-
+	void           PrintRecord(void);
 	const char*    GetFileCreation(bool no_seconds = true) const;
 	const char*    GetFileRevisionDate(void)   const { return fileRevisionDate.c_str(); };
 	const uint16_t GetOwnerUIC(void)           const { return ownerUIC;                 };
@@ -61,7 +61,6 @@ private:
 	std::string fileExpirationDate;
 	std::string fullName;
 	std::string fullNameWithVersion;
-	std::string blockCountString;
 	bool		bDirectory;
 	uint32_t	headerLBN;
 };

@@ -28,8 +28,6 @@ public:
 	void Close(void);
 	void PrintVolumeInfo(void);
 	int  GetDiskSize(void);
-	bool BuildHeaderDatabase(void);
-	bool BuildFileDatabase(void);
 	void PrintFile(int fileNumber, std::ostream& strm);
 	void DumpFile(int fileNumber, std::ostream& strm);
 	int  GetHighestVersion(const char* dirname, const char* filename, Files11Record& fileRecord);

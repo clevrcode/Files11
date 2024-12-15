@@ -15,6 +15,7 @@ public:
 	int  GetNbHeaders(void) const { return (int)m_Database.size(); };
 	static void SplitName(const std::string &fullname, std::string& name, std::string& ext, std::string& version);
 	int  FindFirstFreeFile(int maxFileNumber);
+	void PrintRecord(int fnb);
 
 private:
 	typedef std::map<int, Files11Record> FileDatabase_t;

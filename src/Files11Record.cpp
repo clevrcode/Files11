@@ -65,6 +65,8 @@ int Files11Record::Initialize(int lbn, std::fstream &istrm)
 				MakeDate(pIdent->creation_date, fileCreationDate, true);
 				MakeDate(pIdent->expiration_date, fileExpirationDate, false);
 				bDirectory = (fileExt == "DIR") && (fileFCS.GetRecordSize() == 16) && (fileExtensionSegment == 0);
+				fileVersion = pIdent->version;
+				fileRevision = pIdent->revision;
 				headerLBN = lbn;
 			}
 			else
@@ -97,4 +99,13 @@ ODS1_FileHeader_t* Files11Record::ReadFileHeader(int lbn, std::fstream& istrm)
 	return pHeader;
 }
 
+void Files11Record::PrintRecord(void)
+{
+	std::cout.width(20); std::cout << std::left << GetFullName(fileVersion);
+	//std::cout.left();
+	//std::cout.fill(' ');	
+	std::string blks(std::to_string(GetUsedBlockCount()));
+	blks += ".";
+	std::cout.width(8);	std::cout << blks << (IsContiguous() ? "C  " : "   ") << GetFileCreation() << std::endl;
+}
 
