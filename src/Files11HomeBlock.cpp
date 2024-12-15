@@ -160,24 +160,6 @@ ODS1_HomeBlock_t* Files11HomeBlock::ReadHomeBlock(std::fstream& istrm)
 	return pHome;
 }
 
-int Files11HomeBlock::CountFreeHeaders(std::fstream& istrm)
-{
-	int fileCount = 0;
-	for (int i = 0; i < iIndexBitmapSize; i++)
-	{
-		uint8_t* pBlock = ReadBlock(iIndexBitmapLBN + i, istrm);
-		if (pBlock)
-		{
-			for (int b = 0; b < F11_BLOCK_SIZE; b++)
-			{
-				fileCount += bitCount[pBlock[b] % 16];
-				fileCount += bitCount[pBlock[b] / 16];
-			}
-		}
-	}
-	return fileCount;
-}
-
 void Files11HomeBlock::PrintInfo(void)
 {
 	printf("Volume contains a valid ODS1 File system\n");

@@ -24,7 +24,6 @@ public:
 	const int GetDefaultFileProtection(void) const { return iDefaultFileProtection; };
 
 	int  GetDiskSize(void) { return bValid ? iDiskSize : 0;  };
-	int  CountFreeHeaders(std::fstream& istrm);
 	int  GetUsedHeaders(void) const { return iUsedHeaders; };
 	int  GetFreeHeaders(void) const { return iMaxFiles - iUsedHeaders; };
 	int  GetNumberOfBlocks(void) const { return iScbUnitSizeBlk; };

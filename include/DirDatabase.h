@@ -3,7 +3,6 @@
 #include <vector>
 #include <map>
 
-
 class DirDatabase
 {
 public:
