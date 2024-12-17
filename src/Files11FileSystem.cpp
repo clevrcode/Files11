@@ -31,7 +31,7 @@ bool Files11FileSystem::Open(const char *dskName)
 
         // Build File Header Database
         const uint32_t IndexLBN = (uint32_t) m_HomeBlock.GetIndexLBN();
-        int nbFiles = m_HomeBlock.GetMaxFiles();
+        FileDatabase.SetMaxFile(m_HomeBlock.GetMaxFiles());
 
         Files11Record IndexFileRecord;
         IndexFileRecord.Initialize(IndexLBN, m_dskStream);
@@ -264,6 +264,10 @@ int Files11FileSystem::ValidateStorageBitmap(void)
     return totalErrors;
 }
 
+//
+// Recursive search of directories
+//
+
 int Files11FileSystem::ValidateDirectory(const char* dirname, DirFileList_t& dirFileMap, int* pTotalFilesChecked)
 {
     int totalErrors = 0;
@@ -303,6 +307,13 @@ int Files11FileSystem::ValidateDirectory(const char* dirname, DirFileList_t& dir
                             if (pos == dirFileMap.end()) {
                                 dirFileMap[pRec[idx].fileNumber] = strDirName;
                             }
+                            else
+                            {
+                                totalErrors++;
+                                std::string msg("File is present in another directory : ");
+                                msg += pos->second;
+                                PrintError(strDirName.c_str(), p, msg.c_str());
+                            }
 
                             //std::cout << "checking file : " << name << "." << ext << ";" << pRec[idx].version << std::endl;
                             // Ignore INDEXF.SYS
@@ -333,7 +344,7 @@ int Files11FileSystem::ValidateDirectory(const char* dirname, DirFileList_t& dir
                             else
                             {
                                 totalErrors++;
-                                PrintError(strDirName.c_str(), p, "FILE NOT FOUND");
+                                PrintError(strDirName.c_str(), p, "FILE NOT FOUND IN FILE DATABASE");
                             }
                         }
                     }
@@ -368,7 +379,7 @@ void Files11FileSystem::VerifyFileSystem(Args_t args)
 
         // Directory Validation
 
-        int nbErrors = ValidateDirectory(args[2].c_str(), DirectoryFileMap , &totalFiles);
+        int nbErrors = ValidateDirectory(args[2].c_str(), DirectoryFileMap, &totalFiles);
         // -- Find Lost Files
         // Go to all headers and check that the file belongs in a directory
         for (int fnumber = 1; fnumber < m_HomeBlock.GetMaxFiles(); ++fnumber)
@@ -1184,7 +1195,7 @@ bool Files11FileSystem::AddFile(const char* nativeName, const char* pdp11Dir, co
     for (int hdr = 0; hdr < nbHeaders; ++hdr)
     {
         // 4) Find/assign a free file header/number for the file metadata
-        int newFileNumber = FileDatabase.FindFirstFreeFile(m_HomeBlock.GetMaxFiles());
+        int newFileNumber = FileDatabase.FindFirstFreeFile();
         if (newFileNumber <= 0) {
             std::cerr << "ERROR -- File system full\n";
             return false;

@@ -106,6 +106,11 @@ void RunCLI(Files11FileSystem &fs)
     std::string command;
     size_t currCommand = 0;
     std::cout << PROMPT;
+    //HANDLE hConsole = CreateConsoleScreenBuffer(GENERIC_READ | GENERIC_WRITE, 0, NULL, CONSOLE_TEXTMODE_BUFFER, NULL);
+    //SetConsoleActiveScreenBuffer(hConsole);
+    //DWORD dwBytesWritten = 0;
+    //COORD pos = { 0, 0 };
+    //WriteConsoleOutputCharacter(hConsole, PROMPT, (DWORD)strlen(PROMPT), pos, &dwBytesWritten);
 
     for (;;)
     {
@@ -130,6 +135,14 @@ void RunCLI(Files11FileSystem &fs)
                         command = commandQueue[++currCommand];
                         putstring(command.c_str());
                     }
+                }
+                else if (0x4b) // Left arrow
+                {
+
+                }
+                else if (0x4d) // right arrow
+                {
+
                 }
             }
             else if (key == 0x08)
@@ -164,6 +177,7 @@ void RunCLI(Files11FileSystem &fs)
 
         }
     }
+    //CloseHandle(hConsole);
 }
 
 void SplitFilePath(const std::string &path, std::string &dir, std::string &file)
@@ -193,7 +207,7 @@ void ProcessCommand(std::string &command, Files11FileSystem& fs)
         {
             std::cout << fs.GetCurrentWorkingDirectory() << std::endl;
         }
-        if (words[0] == "VFY")
+        else if (words[0] == "VFY")
         {
             fs.VerifyFileSystem(words);
         }

@@ -78,7 +78,7 @@ bool Files11HomeBlock::Initialize(std::fstream& istrm)
 		MakeDate(pHome->hm1_t_lastrev, strLastRevision, false);
 		MakeDate(pHome->hm1_t_credate, strVolumeCreationDate, true);
 
-		auto pBitmapSysHeader = (ODS1_FileHeader_t*)ReadBlock(iBitmapSysLBN, istrm);
+		auto pBitmapSysHeader = ReadHeader(iBitmapSysLBN, istrm);
 		if (pBitmapSysHeader != nullptr)
 		{
 			int scb_lbn = 0;
@@ -148,8 +148,7 @@ bool Files11HomeBlock::ValidateHomeBlock(ODS1_HomeBlock_t* pHome)
 
 ODS1_HomeBlock_t* Files11HomeBlock::ReadHomeBlock(std::fstream& istrm)
 {
-	//ODS1_HomeBlock_t* pHome = (ODS1_HomeBlock_t*)ReadBlock(F11_HOME_LBN, istrm);
-	auto pHome = (ODS1_HomeBlock_t*)ReadBlock(F11_HOME_LBN, istrm);
+	ODS1_HomeBlock_t* pHome = (ODS1_HomeBlock_t*)ReadBlock(F11_HOME_LBN, istrm);
 	if (pHome)
 	{
 		//----------------------

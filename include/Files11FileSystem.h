@@ -69,6 +69,7 @@ public:
 	bool DeleteFile(int fileNumber);
 
 	int  FindFreeBlocks(int nbBlocks, BlockList_t &blkList);
+	bool GetFreeBlocks(int first_lbn, int nb_blocks);
 	int  ValidateIndexBitmap(void);
 	int  ValidateDirectory(const char* dirname, DirFileList_t & dirFileMap, int *pTotalFilesChecked); // This function is recursive
 	int  ValidateStorageBitmap(void);

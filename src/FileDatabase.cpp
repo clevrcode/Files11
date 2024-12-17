@@ -2,21 +2,22 @@
 
 bool FileDatabase::Add(int nb, const Files11Record &frec)
 {
-    if (m_Database.find(nb) != m_Database.end()) {
-        return false;;
-    }
     // Add a new entry for this file (key: file number)
     m_Database[nb] = frec;
     return true;
 }
 
-int  FileDatabase::FindFirstFreeFile(int maxFileNumber)
+int  FileDatabase::FindFirstFreeFile(void)
 {
     int fileNumber = -1;
-    for (int fnb = 6; (fnb < maxFileNumber) && (fileNumber <= 0); ++fnb) {
+    for (int fnb = F11_CORIMG_SYS + 1; (fnb < m_MaxFileNumber) && (fileNumber <= 0); ++fnb) {
         auto cit = m_Database.find(fnb);
-        if (cit == m_Database.end())
+        if (cit == m_Database.end()) {
+            // Mark it as used with an empty record
+            Files11Record frec;
+            m_Database[fnb] = frec;
             fileNumber = fnb;
+        }
     }
     return fileNumber;
 }
