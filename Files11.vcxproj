@@ -28,6 +28,7 @@
     <ClCompile Include="src\Files11FileSystem.cpp" />
     <ClCompile Include="src\Files11HomeBlock.cpp" />
     <ClCompile Include="src\Files11Record.cpp" />
+    <ClCompile Include="src\FixedLengthRecord.cpp" />
     <ClCompile Include="src\ProductInfo.cpp" />
     <ClCompile Include="src\VarLengthRecord.cpp" />
   </ItemGroup>
@@ -41,6 +42,7 @@
     <ClInclude Include="include\Files11HomeBlock.h" />
     <ClInclude Include="include\Files11Record.h" />
     <ClInclude Include="include\Files11_defs.h" />
+    <ClInclude Include="include\FixedLengthRecord.h" />
     <ClInclude Include="include\ProductInfo.h" />
     <ClInclude Include="include\VarLengthRecord.h" />
     <ClInclude Include="resource.h" />

@@ -4,6 +4,7 @@
 #include "Files11_defs.h"
 #include "Files11Record.h"
 #include "VarLengthRecord.h"
+#include "FixedLengthRecord.h"
 #include "BitCounter.h"
 
 // Constructor
@@ -1022,20 +1023,22 @@ bool Files11FileSystem::AddDirectoryEntry(int filenb, DirectoryRecord_t* pDirEnt
     }
 
     Files11FCS fcs = dirRec.GetFileFCS();
-    int lastVBN = fcs.GetHighVBN();
-    int eofBlock = fcs.GetEOFBlock();
-    int ffbyte = fcs.GetFirstFreeByte();
-    int recSize = fcs.GetRecordSize();
+    int lastVBN    = fcs.GetHighVBN();
+    int eofBlock   = fcs.GetEOFBlock();
+    int ffbyte     = fcs.GetFirstFreeByte();
+    int recSize    = fcs.GetRecordSize();
+
     assert(recSize == 16);
 
     // Go through the whole directory to find other files of the same name
     BlockList_t dirBlklist;
     GetBlockList(dirRec.GetHeaderLBN(), dirBlklist);
+
     int freeEntryLBN = 0;
     int freeEntryIDX = 0;
-    int highVersion = 0;
-    int lastLBN = 0;
-    int vbn = 1;
+    int highVersion  = 0;
+    int lastLBN      = 0;
+    int vbn          = 1;
     for (auto& blk : dirBlklist)
     {
         for (auto lbn = blk.lbn_start; lbn <= blk.lbn_end; ++lbn, ++vbn)
@@ -1083,9 +1086,10 @@ bool Files11FileSystem::AddDirectoryEntry(int filenb, DirectoryRecord_t* pDirEnt
     //---------------------------------------
     // Get a copy of the directory header
     uint8_t header[F11_BLOCK_SIZE];
-    ODS1_FileHeader_t* pHeader = (ODS1_FileHeader_t*)readBlock(dirRec.GetHeaderLBN(), m_dskStream, header);
-    ODS1_UserAttrArea_t* pUser = (ODS1_UserAttrArea_t*)&pHeader->fh1_w_ufat;
-    F11_MapArea_t* pMap = (F11_MapArea_t*)GetMapArea(pHeader);
+    ODS1_FileHeader_t    *pHeader = (ODS1_FileHeader_t*)readBlock(dirRec.GetHeaderLBN(), m_dskStream, header);
+    ODS1_UserAttrArea_t  *pUser = (ODS1_UserAttrArea_t*)&pHeader->fh1_w_ufat;
+    F11_MapArea_t        *pMap = (F11_MapArea_t*)GetMapArea(pHeader);
+    int nbPointers = pMap->USE / POINTER_SIZE;
 
     //-----------------------------------------------------------------------------
     // append a new directory entry (there is free room in the last directory block
@@ -1112,38 +1116,41 @@ bool Files11FileSystem::AddDirectoryEntry(int filenb, DirectoryRecord_t* pDirEnt
     //------------------------------------------------------
     // We need to allocate a new block for directory entries
     // TODO: TRY TO ALLOCATE A BLOCK CONTIGUOUS TO THE LAST DIRECTORY LBN
-    BlockList_t BlkList;
-    if (FindFreeBlocks(1, BlkList) <= 0)
+
+    if (nbPointers < NB_POINTERS_PER_HEADER)
     {
-        std::cerr << "ERROR -- Not enough free space\n";
-        return false;
+        BlockList_t BlkList;
+        if (FindFreeBlocks(1, BlkList) <= 0)
+        {
+            std::cerr << "ERROR -- Not enough free space\n";
+            return false;
+        }
+        // Mark data blocks as used in BITMAP.SYS
+        MarkDataBlock(BlkList, true);
+        int blklbn = BlkList[0].lbn_start;
+        DirectoryRecord_t* pDir = ReadDirectory(blklbn, m_dskStream, true);
+        pDir[0] = *pDirEntry;
+        writeBlock(blklbn, m_dskStream, (uint8_t*)pDir);
+        // update the user attributes
+        if (pUser->ufcs_ffbyte == 0) {
+            pUser->ufcs_ffbyte = recSize;
+            pUser->ufcs_highvbn_lo = pUser->ufcs_eofblck_lo;
+            pUser->ufcs_highvbn_hi = pUser->ufcs_eofblck_hi;
+        }
+        int ptridx = pMap->USE / POINTER_SIZE;
+        pMap->USE += POINTER_SIZE;
+        F11_Format1_t* pFmt1 = (F11_Format1_t*)&pMap->pointers;
+        pFmt1[ptridx].blk_count = 0;
+        pFmt1[ptridx].hi_lbn = blklbn >> 16;
+        pFmt1[ptridx].lo_lbn = blklbn & 0xffff;
+        WriteHeader(dirRec.GetHeaderLBN(), m_dskStream, pHeader);
+        dirRec.Refresh(m_dskStream);
+        FileDatabase.Add(filenb, dirRec);
+        return true;
     }
-    // Mark data blocks as used in BITMAP.SYS
-    MarkDataBlock(BlkList, true);
-    int blklbn = BlkList[0].lbn_start;
-    DirectoryRecord_t* pDir = ReadDirectory(blklbn, m_dskStream, true);
-    pDir[0] = *pDirEntry;
-    writeBlock(blklbn, m_dskStream, (uint8_t*)pDir);
-    // update the user attributes
-    if (pUser->ufcs_ffbyte == 0) {
-        pUser->ufcs_ffbyte = recSize;
-        pUser->ufcs_highvbn_lo = pUser->ufcs_eofblck_lo;
-        pUser->ufcs_highvbn_hi = pUser->ufcs_eofblck_hi;
-    }
-    int ptridx = pMap->USE / 2;
-    pMap->USE += 2;
-    F11_Format1_t* pFmt1 = (F11_Format1_t*)&pMap->pointers;
-    pFmt1[ptridx].blk_count = 0;
-    pFmt1[ptridx].hi_lbn = blklbn >> 16;
-    pFmt1[ptridx].lo_lbn = blklbn & 0xffff;
-    WriteHeader(dirRec.GetHeaderLBN(), m_dskStream, pHeader);
-    dirRec.Refresh(m_dskStream);
-    FileDatabase.Add(filenb, dirRec);
-
-    return true;
-
     // TODO: Case where the pointer area is full and we must add an extension header
-    //return false;
+
+    return false;
 }
 
 //========================================================
@@ -1190,10 +1197,10 @@ bool Files11FileSystem::AddFile(const char* nativeName, const char* pdp11Dir, co
         std::cerr << "ERROR -- Failed to open file '" << nativeName << "'\n";
         return false;
     }
-    // get size of file:
-    ifs.seekg(0, ifs.end);
-    int dataSize = static_cast<int>(ifs.tellg());
     ifs.close();
+
+    // Get the raw size in bytes
+    int dataSize = FixedLengthRecord::CalculateFileLength(nativeName);
 
     // Determine if text or binary content
     bool typeText = VarLengthRecord::IsVariableLengthRecordFile(nativeName);
@@ -1214,11 +1221,9 @@ bool Files11FileSystem::AddFile(const char* nativeName, const char* pdp11Dir, co
         return false;
     }
 
-    int MAX_Pointers = (F11_BLOCK_SIZE - (F11_HEADER_MAP_OFFSET * 2) - sizeof(uint16_t) - (sizeof(F11_MapArea_t) - sizeof(PtrsFormat_t))) / 2;
-    // TODO - CHECK IF EXTENSION(S) HEADER ARE REQUIRED
-    const int NB_POINTERS_PER_HEADER = MAX_Pointers / 2;
-    const int BLOCKS_PER_POINTER = 256;
-    int nbHeaders = (((nbBlocks + (BLOCKS_PER_POINTER-1)) / BLOCKS_PER_POINTER)+(NB_POINTERS_PER_HEADER-1)) / NB_POINTERS_PER_HEADER;
+    // TODO - CHECK IF EXTENSION(S) HEADER ARE REQUIRED (Must have more than 26,112 blocks)
+    int NbContiguousBlksPerHeader = BLOCKS_PER_POINTER * NB_POINTERS_PER_HEADER;
+    int nbHeaders = (nbBlocks + (NbContiguousBlksPerHeader - 1)) / NbContiguousBlksPerHeader;
 
     std::vector<int> hdrFileNumber;
     for (int hdr = 0; hdr < nbHeaders; ++hdr)
@@ -1276,14 +1281,24 @@ bool Files11FileSystem::AddFile(const char* nativeName, const char* pdp11Dir, co
     pMap->CTSZ              = 1;
     pMap->LBSZ              = 3;
     pMap->USE               = 0;
-    pMap->MAX               = (uint8_t)MAX_Pointers;
+    pMap->MAX               = (uint8_t)MAX_POINTERS;
 
     // 6) Transfer file content to the allocated blocks
     ODS1_UserAttrArea_t* pUserAttr = (ODS1_UserAttrArea_t*)&pHeader->fh1_w_ufat;
-    if (!VarLengthRecord::WriteFile(nativeName, m_dskStream, BlkList, pUserAttr))
+    if (typeText) {
+        if (!VarLengthRecord::WriteFile(nativeName, m_dskStream, BlkList, pUserAttr))
+        {
+            std::cerr << "ERROR -- Write variable record length file\n";
+            return false;
+        }
+    }
+    else
     {
-        std::cerr << "ERROR -- Write variable record length file\n";
-        return false;
+        if (!FixedLengthRecord::WriteFile(nativeName, m_dskStream, BlkList, pUserAttr))
+        {
+            std::cerr << "ERROR -- Write fixed record length file\n";
+            return false;
+        }
     }
     // Mark data blocks as used in BITMAP.SYS
     MarkDataBlock(BlkList, true);
@@ -1294,16 +1309,31 @@ bool Files11FileSystem::AddFile(const char* nativeName, const char* pdp11Dir, co
     // 9) Create a directory entry
     DirectoryRecord_t dirEntry;
     dirEntry.fileNumber = pHeader->fh1_w_fid_num;
-    dirEntry.fileSeq = pHeader->fh1_w_fid_seq;
-    dirEntry.version = 1;
+    dirEntry.fileSeq    = pHeader->fh1_w_fid_seq;
+    dirEntry.version    = 1;
+    dirEntry.fileRVN    = 0; // MUST BE 0
     memcpy(dirEntry.fileName, pIdent->filename, 6);
     memcpy(dirEntry.fileType, pIdent->filetype, 2);
-    dirEntry.fileRVN = 0; // MUST BE 0
+    // ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    // Add the directory entry and update the header file version
     AddDirectoryEntry(dirInfo.fnumber, &dirEntry);
     pIdent->version = dirEntry.version;
+    // ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
+    int data_count = dataSize;
+    int eof_bytes = -1;
+
+    // ~~~~~~~~~~~~~~~~~~~~~~~~~
+    // Write all header files
+    // ~~~~~~~~~~~~~~~~~~~~~~~~~
     for (int hdr = 0, blk = 0; hdr < nbHeaders; ++hdr)
     {
+        if (hdr > 0) {
+            pHeader->fh1_w_fid_num = pMap->ext_FileNumber;
+            pHeader->fh1_w_fid_seq = pMap->ext_FileSeqNumber;
+        }
+        pUserAttr->ufcs_ffbyte = 0;
+
         pMap->ext_FileNumber = ((hdr + 1) < hdrFileNumber.size()) ? hdrFileNumber[hdr + 1] : 0;
         pMap->ext_FileSeqNumber = 0;
         if (pMap->ext_FileNumber != 0) {
@@ -1312,37 +1342,45 @@ bool Files11FileSystem::AddFile(const char* nativeName, const char* pdp11Dir, co
             pMap->ext_FileSeqNumber = p->fh1_w_fid_seq + 1;
         }
         pMap->ext_SegNumber = hdr;
-
         // 7) Fill the pointers
         F11_Format1_t* Ptrs = (F11_Format1_t*)&pMap->pointers;
+
+        int high_vbn = 0;
+        int eof_vbn = 0;
 
         for (int k = 0; (k < NB_POINTERS_PER_HEADER) && (blk < BlkList.size()); ++blk, ++k)
         {
             BlockPtrs_t& p = BlkList[blk];
-            pMap->USE += ((pMap->CTSZ + pMap->LBSZ) / 2);
+            pMap->USE += POINTER_SIZE;
             Ptrs->blk_count = p.lbn_end - p.lbn_start;
+            high_vbn += (Ptrs->blk_count + 1);
             Ptrs->hi_lbn = p.lbn_start >> 16;
             Ptrs->lo_lbn = p.lbn_start & 0xFFFF;
+            data_count -= ((Ptrs->blk_count + 1) * F11_BLOCK_SIZE);
+            if ((eof_bytes < 0) && (data_count < 0)) {
+                eof_bytes = eofBytes;
+                eof_vbn = high_vbn;
+            }
             Ptrs++;
         }
+        if (eof_bytes == 0)
+            eof_vbn++;
+
+        pUserAttr->ufcs_ffbyte = eof_bytes;
+        pUserAttr->ufcs_eofblck_hi = eof_vbn >> 16;
+        pUserAttr->ufcs_eofblck_lo = eof_vbn & 0xffff;
+        pUserAttr->ufcs_highvbn_hi = high_vbn >> 16;
+        pUserAttr->ufcs_highvbn_lo = high_vbn & 0xffff;
+        pUserAttr->ufcs_rectype = 0;
+        // ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
         // 8) Write the header, the checksum will be calculated, DO NOT WRITE IN HEADER AFTER THIS POINT!
-        if (!WriteHeader(header_lbn, m_dskStream, pHeader))
-        {
-            std::cerr << "ERROR -- Failed to write file header\n";
-            return false;
-        }
+        WriteHeader(header_lbn, m_dskStream, pHeader);
+        // ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
         // 10) Add to the file database
         Files11Record fileRecord;
         int fileNumber = fileRecord.Initialize(header_lbn, m_dskStream);
-        if (FileDatabase.Add(fileNumber, fileRecord))
-        {
-            // If a directory, add to the directory database (key: dir name)
-            if (fileRecord.IsDirectory()) {
-                DirDatabase::DirInfo_t info(fileNumber, FileNumberToLBN(fileNumber));
-                DirDatabase.Add(fileRecord.GetFileName(), info);
-            }
-        }
+        FileDatabase.Add(fileNumber, fileRecord);
     }
     // 11) Complete
     // Return true if successful

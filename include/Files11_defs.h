@@ -28,8 +28,10 @@ constexpr int F11_CORIMG_SYS = 5;
 
 constexpr uint8_t F11_HEADER_FID_OFFSET = 0x17;
 constexpr uint8_t F11_HEADER_MAP_OFFSET = 0x2E;
-// World protection (Full access to everyone)
+// World protection (Full access to SYS,OWN,GRP)
 constexpr uint16_t F11_DEFAULT_FILE_PROTECTION = 0xE000;
+constexpr int NAM_SIZE = 3; // Size of file name in words
+constexpr int EXT_SIZE = 1; // Size of file extension in words
 
 #define EOL ("\r\n")
 
@@ -134,8 +136,8 @@ typedef struct _ODS1_UserAttrArea {
 // Ref: 3.4.2
 
 typedef struct f11_IdentArea {
-	uint16_t	filename[3];	// File name
-	uint16_t	filetype[1];    // Revision Number
+	uint16_t	filename[NAM_SIZE];	// File name
+	uint16_t	filetype[EXT_SIZE];    // Revision Number
 	uint16_t	version;
 	uint16_t	revision;
 	uint8_t		revision_date[7];
@@ -196,8 +198,8 @@ typedef struct DirectoryRecord {
 	uint16_t	fileNumber;		// File Number
 	uint16_t	fileSeq;		// File Sequence Number
 	uint16_t	fileRVN;		// Relative Volume Number (not used)
-	uint16_t	fileName[3];	// File name (9 characters encoded in Radix50)
-	uint16_t	fileType[1];    // File extension (3 characters encoded in Radix50)
+	uint16_t	fileName[NAM_SIZE];	// File name (9 characters encoded in Radix50)
+	uint16_t	fileType[EXT_SIZE]; // File extension (3 characters encoded in Radix50)
 	uint16_t	version;		// File Version number
 } DirectoryRecord_t;
 
@@ -230,5 +232,14 @@ typedef struct _SCB {
 		SCB_Data_large_t largeUnit;
 	} blocks;
 } SCB_t;
+
+// Max number of words for pointer area
+constexpr int MAX_POINTERS = (F11_BLOCK_SIZE - (F11_HEADER_MAP_OFFSET * 2) - sizeof(uint16_t) - (sizeof(F11_MapArea_t) - sizeof(PtrsFormat_t))) / 2;
+// Pointer size in words (pointer format 3 not supported)
+constexpr int POINTER_SIZE = 2;
+// Max number of pointers in a header
+constexpr int NB_POINTERS_PER_HEADER = (F11_BLOCK_SIZE - (F11_HEADER_MAP_OFFSET * 2) - sizeof(uint16_t) - (sizeof(F11_MapArea_t) - sizeof(PtrsFormat_t))) / 4;
+// Each pointer can address a maximum of 256 blocks
+constexpr int BLOCKS_PER_POINTER = 256;
 
 #pragma pack(pop)
