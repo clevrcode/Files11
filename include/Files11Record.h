@@ -14,6 +14,7 @@ public:
 	Files11Record(const Files11Record&);
 
 	int      Initialize(int lbn, std::fstream& istrm);
+	void     Refresh(std::fstream& istrm);
 	uint16_t GetFileNumber(void) const          { return fileNumber;                  };
 	uint16_t GetFileSeq(void) const             { return fileSeq;                     };
 	uint16_t GetFileRevision(void) const        { return fileRevision;                };

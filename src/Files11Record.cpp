@@ -77,6 +77,11 @@ int Files11Record::Initialize(int lbn, std::fstream &istrm)
 	return 0;
 }
 
+void Files11Record::Refresh(std::fstream& istrm)
+{
+	Initialize(headerLBN, istrm);
+}
+
 const char* Files11Record::GetFileCreation(bool no_seconds /*=true*/) const
 {
 	return fileCreationDate.c_str(); 

@@ -1022,99 +1022,128 @@ bool Files11FileSystem::AddDirectoryEntry(int filenb, DirectoryRecord_t* pDirEnt
     }
 
     Files11FCS fcs = dirRec.GetFileFCS();
-    int lastVBN  = fcs.GetHighVBN();
-    int ffbyte   = fcs.GetFirstFreeByte();
-    int recSize  = fcs.GetRecordSize();
+    int lastVBN = fcs.GetHighVBN();
+    int eofBlock = fcs.GetEOFBlock();
+    int ffbyte = fcs.GetFirstFreeByte();
+    int recSize = fcs.GetRecordSize();
     assert(recSize == 16);
 
     // Go through the whole directory to find other files of the same name
     BlockList_t dirBlklist;
     GetBlockList(dirRec.GetHeaderLBN(), dirBlklist);
-    if (!dirBlklist.empty())
+    int freeEntryLBN = 0;
+    int freeEntryIDX = 0;
+    int highVersion = 0;
+    int lastLBN = 0;
+    int vbn = 1;
+    for (auto& blk : dirBlklist)
     {
-        int freeEntryLBN = 0;
-        int freeEntryIDX = 0;
-        int highVersion =  0;
-        int lastLBN     =  0;
-        int vbn = 1;
-        for (auto& blk : dirBlklist)
+        for (auto lbn = blk.lbn_start; lbn <= blk.lbn_end; ++lbn, ++vbn)
         {
-            for (auto lbn = blk.lbn_start; lbn <= blk.lbn_end; ++lbn, ++vbn)
+            lastLBN = lbn;
+            int nbRec = (F11_BLOCK_SIZE / recSize);
+            if (vbn == lastVBN)
+                nbRec = ffbyte / recSize;
+
+            uint8_t buffer[F11_BLOCK_SIZE];
+            readBlock(lbn, m_dskStream, buffer);
+            DirectoryRecord_t* pEntry = (DirectoryRecord_t*)buffer;
+            for (int idx = 0; idx < nbRec; ++idx)
             {
-                lastLBN = lbn;
-                int nbRec = (F11_BLOCK_SIZE / recSize);
-                if (vbn == lastVBN)
-                    nbRec = ffbyte / recSize;
+                if ((freeEntryLBN == 0) && (pEntry[idx].fileNumber == 0)) {
+                    freeEntryLBN = lbn;
+                    freeEntryIDX = idx;
+                }
 
-                uint8_t buffer[F11_BLOCK_SIZE];
-                readBlock(lbn, m_dskStream, buffer);
-                DirectoryRecord_t* pEntry = (DirectoryRecord_t*)buffer;
-                for (int idx = 0; idx < nbRec; ++idx)
+                if (pEntry[idx].fileType[0] == pDirEntry->fileType[0])
                 {
-                    if ((freeEntryLBN == 0)&&(pEntry[idx].fileNumber == 0)) {
-                        freeEntryLBN = lbn;
-                        freeEntryIDX = idx;
-                    }
-
-                    if (pEntry[idx].fileType[0] == pDirEntry->fileType[0])
+                    bool match = true;
+                    for (int i = 0; (i < 3) && match; ++i)
                     {
-                        bool match = true;
-                        for (int i = 0; (i < 3) && match; ++i)
-                        {
-                            match = pEntry[idx].fileName[i] == pDirEntry->fileName[i];
-                        }
-                        if (match && (pEntry[idx].version > highVersion)) {
-                            highVersion = pEntry[idx].version;
-                        }
+                        match = pEntry[idx].fileName[i] == pDirEntry->fileName[i];
+                    }
+                    if (match && (pEntry[idx].version > highVersion)) {
+                        highVersion = pEntry[idx].version;
                     }
                 }
             }
         }
-        pDirEntry->version = highVersion + 1;
-        if (freeEntryLBN != 0) {
-            // update the free entry with the new directory entry
-            uint8_t buffer[F11_BLOCK_SIZE];
-            readBlock(freeEntryLBN, m_dskStream, buffer);
-            DirectoryRecord_t* pEntry = (DirectoryRecord_t*)buffer;
-            pEntry[freeEntryIDX] = *pDirEntry;
-            writeBlock(freeEntryLBN, m_dskStream, buffer);
+    }
+
+    pDirEntry->version = highVersion + 1;
+    if (freeEntryLBN != 0) {
+        // update the free entry with the new directory entry
+        uint8_t buffer[F11_BLOCK_SIZE];
+        readBlock(freeEntryLBN, m_dskStream, buffer);
+        DirectoryRecord_t* pEntry = (DirectoryRecord_t*)buffer;
+        pEntry[freeEntryIDX] = *pDirEntry;
+        writeBlock(freeEntryLBN, m_dskStream, buffer);
+        return true;
+    }
+    //---------------------------------------
+    // Get a copy of the directory header
+    uint8_t header[F11_BLOCK_SIZE];
+    ODS1_FileHeader_t* pHeader = (ODS1_FileHeader_t*)readBlock(dirRec.GetHeaderLBN(), m_dskStream, header);
+    ODS1_UserAttrArea_t* pUser = (ODS1_UserAttrArea_t*)&pHeader->fh1_w_ufat;
+    F11_MapArea_t* pMap = (F11_MapArea_t*)GetMapArea(pHeader);
+
+    //-----------------------------------------------------------------------------
+    // append a new directory entry (there is free room in the last directory block
+    if (ffbyte <= (F11_BLOCK_SIZE - sizeof(DirectoryRecord_t)))
+    {
+        // There is still room to append a directory entry at the end
+        DirectoryRecord_t* pEntry = ReadDirectory(lastLBN, m_dskStream);
+        int idx = ffbyte / recSize;
+        pEntry[idx] = *pDirEntry;
+        writeBlock(lastLBN, m_dskStream, (uint8_t*)pEntry);
+        pUser->ufcs_ffbyte += recSize;
+        if (pUser->ufcs_ffbyte >= F11_BLOCK_SIZE) {
+            pUser->ufcs_ffbyte = 0;
+            pUser->ufcs_eofblck_lo++;
+            if (pUser->ufcs_eofblck_lo == 0)
+                pUser->ufcs_eofblck_hi++;
         }
-        else
-        {
-            // append a new directory entry
-            if (ffbyte <= (F11_BLOCK_SIZE - sizeof(DirectoryRecord_t)))
-            {
-                // There is still room to append a directory entry at the end
-                uint8_t buffer[F11_BLOCK_SIZE];
-                readBlock(lastLBN, m_dskStream, buffer);
-                int vbn = ffbyte / (F11_BLOCK_SIZE / recSize);
-                DirectoryRecord_t* pEntry = (DirectoryRecord_t*)buffer;
-                pEntry[vbn] = *pDirEntry;
-                writeBlock(lastLBN, m_dskStream, buffer);
-            }
-            //else if ()
-            //{
-            //    // TODO Need to assign a new block
-            //    // 1) There is still room in the pointer area
-            //    int newFileNumber = FileDatabase.FindFirstFreeFile(m_HomeBlock.GetMaxFiles());
-            //    if (newFileNumber <= 0) {
-            //        std::cerr << "ERROR -- File system full\n";
-            //        return false;
-            //    }
+        WriteHeader(dirRec.GetHeaderLBN(), m_dskStream, pHeader);
+        dirRec.Refresh(m_dskStream);
+        FileDatabase.Add(filenb, dirRec);
+        return true;
+    }
 
-            //     
+    //------------------------------------------------------
+    // We need to allocate a new block for directory entries
+    // TODO: TRY TO ALLOCATE A BLOCK CONTIGUOUS TO THE LAST DIRECTORY LBN
+    BlockList_t BlkList;
+    if (FindFreeBlocks(1, BlkList) <= 0)
+    {
+        std::cerr << "ERROR -- Not enough free space\n";
+        return false;
+    }
+    // Mark data blocks as used in BITMAP.SYS
+    MarkDataBlock(BlkList, true);
+    int blklbn = BlkList[0].lbn_start;
+    DirectoryRecord_t* pDir = ReadDirectory(blklbn, m_dskStream, true);
+    pDir[0] = *pDirEntry;
+    writeBlock(blklbn, m_dskStream, (uint8_t*)pDir);
+    // update the user attributes
+    if (pUser->ufcs_ffbyte == 0) {
+        pUser->ufcs_ffbyte = recSize;
+        pUser->ufcs_highvbn_lo = pUser->ufcs_eofblck_lo;
+        pUser->ufcs_highvbn_hi = pUser->ufcs_eofblck_hi;
+    }
+    int ptridx = pMap->USE / 2;
+    pMap->USE += 2;
+    F11_Format1_t* pFmt1 = (F11_Format1_t*)&pMap->pointers;
+    pFmt1[ptridx].blk_count = 0;
+    pFmt1[ptridx].hi_lbn = blklbn >> 16;
+    pFmt1[ptridx].lo_lbn = blklbn & 0xffff;
+    WriteHeader(dirRec.GetHeaderLBN(), m_dskStream, pHeader);
+    dirRec.Refresh(m_dskStream);
+    FileDatabase.Add(filenb, dirRec);
 
-
-
-            //}
-            else
-            {
-                // 
-                // 2) We need to add an extension block
-            }
-        }
-    }   
     return true;
+
+    // TODO: Case where the pointer area is full and we must add an extension header
+    //return false;
 }
 
 //========================================================

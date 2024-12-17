@@ -19,16 +19,7 @@ Files11FCS::Files11FCS(const Files11FCS& fcs) : m_RecordType(fcs.m_RecordType), 
 
 Files11FCS::Files11FCS(ODS1_UserAttrArea_t* p)
 {
-	m_RecordType = p->ufcs_rectype;
-	m_RecordAttributes = p->ufcs_recattr;
-	m_RecordSize = p->ufcs_recsize;
-	m_HighVBN = (p->ufcs_highvbn_hi << 16) + p->ufcs_highvbn_lo;
-	m_EOF_Block = (p->ufcs_eofblck_hi << 16) + p->ufcs_eofblck_lo;
-	m_FirstFreeByte = p->ufcs_ffbyte;
-	if (m_FirstFreeByte == 0) {
-		m_EOF_Block--;
-		m_FirstFreeByte = 0x200;
-	}
+	Initialize(p);
 }
 
 void Files11FCS::Initialize(ODS1_UserAttrArea_t* p)
@@ -39,7 +30,7 @@ void Files11FCS::Initialize(ODS1_UserAttrArea_t* p)
 	m_HighVBN = (p->ufcs_highvbn_hi << 16) + p->ufcs_highvbn_lo;
 	m_EOF_Block = (p->ufcs_eofblck_hi << 16) + p->ufcs_eofblck_lo;
 	m_FirstFreeByte = p->ufcs_ffbyte;
-	if (m_FirstFreeByte == 0) {
+	if ((m_FirstFreeByte == 0)&&(m_EOF_Block > m_HighVBN)) {
 		m_EOF_Block--;
 		m_FirstFreeByte = 0x200;
 	}

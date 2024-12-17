@@ -13,6 +13,7 @@ public:
 	uint8_t GetRecordAttributes(void) const { return m_RecordAttributes; };
 	int     GetRecordSize(void)       const { return m_RecordSize; };
 	int     GetUsedBlockCount(void)   const { return m_EOF_Block; };
+	int     GetEOFBlock(void)         const { return m_EOF_Block; };
 	int     GetHighVBN()              const { return m_HighVBN; };
 	int     GetFirstFreeByte(void)    const { return m_FirstFreeByte; };
 	bool    IsVarLengthRecord(void)   const { return (m_RecordType & rt_vlr) != 0; };
