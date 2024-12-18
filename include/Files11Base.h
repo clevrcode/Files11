@@ -21,38 +21,38 @@ public:
 	typedef struct BlockPtrs BlockPtrs_t;
 	typedef std::vector<BlockPtrs_t> BlockList_t;
 
-	uint8_t *ReadBlock(int lbn, std::fstream& istrm);
-	void WriteBlock(std::fstream& istrm);
+	void               ClearBlock(void);
+	uint8_t           *ReadBlock(int lbn, std::fstream& istrm);
+	void               WriteBlock(std::fstream& istrm);
 	ODS1_FileHeader_t* ReadHeader(int lbn, std::fstream& istrm, bool clear=false);
 	DirectoryRecord_t* ReadDirectory(int lbn, std::fstream& istrm, bool clear=false);
 	F11_MapArea_t*     GetMapArea(ODS1_FileHeader_t* ptr=nullptr) const;
 	F11_IdentArea_t*   GetIdentArea(ODS1_FileHeader_t* ptr=nullptr) const;
-	bool CreateExtensionHeader(int lbn, int extFileNumber, ODS1_FileHeader_t* pHeader, BlockList_t &blkList, std::fstream& istrm);
+	bool               CreateExtensionHeader(int lbn, int extFileNumber, ODS1_FileHeader_t* pHeader, BlockList_t &blkList, std::fstream& istrm);
 	
-	static uint16_t   CalcChecksum(uint16_t* buffer, size_t wordCount);
-	static void       MakeString(char* str, size_t len, std::string &outstr, bool strip=false);
-	static void       MakeDate(uint8_t* date, std::string& fdate, bool time);
-	static void       MakeUIC(uint8_t* uic, std::string& strUIC);
-	static void       FillDate(char *pDate, char *time=nullptr);
-	static void       Radix50ToAscii(uint16_t* pR50, int len, std::string& str, bool strip=false);
-	static int        GetRadix50Char(char c);
-	static void       AsciiToRadix50(const char* src, size_t srclen, uint16_t* dest); // For each 3 src chars -> 1 16 bits word
-	static void       PrintError(const char* dir, DirectoryRecord_t* p, const char* msg);
-	const std::string GetCurrentDate(void);
-	const std::string GetCurrentPDPTime(void);
-	const std::string GetFileProtectionString(uint16_t pro);
+	static uint16_t    CalcChecksum(uint16_t* buffer, size_t wordCount);
+	static void        MakeString(char* str, size_t len, std::string &outstr, bool strip=false);
+	static void        MakeDate(uint8_t* date, std::string& fdate, bool time);
+	static void        MakeUIC(uint8_t* uic, std::string& strUIC);
+	static void        FillDate(char *pDate, char *time=nullptr);
+	static void        Radix50ToAscii(uint16_t* pR50, int len, std::string& str, bool strip=false);
+	static int         GetRadix50Char(char c);
+	static void        AsciiToRadix50(const char* src, size_t srclen, uint16_t* dest); // For each 3 src chars -> 1 16 bits word
+	static void        PrintError(const char* dir, DirectoryRecord_t* p, const char* msg);
+	const std::string  GetCurrentDate(void);
+	const std::string  GetCurrentPDPTime(void);
+	const std::string  GetFileProtectionString(uint16_t pro);
 
-protected:
-	static uint8_t   *readBlock(int lbn, std::fstream& istrm, uint8_t*blk);
-	static uint8_t   *writeBlock(int lbn, std::fstream& istrm, uint8_t* blk);
-	static bool       WriteHeader(int lbn, std::fstream& istrm, ODS1_FileHeader_t* pHeader);
+	static uint8_t    *readBlock(int lbn, std::fstream& istrm, uint8_t*blk);
+	static uint8_t    *writeBlock(int lbn, std::fstream& istrm, uint8_t* blk);
+	static bool        WriteHeader(int lbn, std::fstream& istrm, ODS1_FileHeader_t* pHeader);
 
 private:
-	int m_LastBlockRead;
-	uint8_t m_block[F11_BLOCK_SIZE];
-	std::string    m_CurrentDate;
-	std::string    m_CurrentTime;
-	std::string    m_FileProtection;
+	int                m_LastBlockRead;
+	uint8_t            m_block[F11_BLOCK_SIZE];
+	std::string        m_CurrentDate;
+	std::string        m_CurrentTime;
+	std::string        m_FileProtection;
 	static const char* months[];
 	static const char* radix50Chars;
 };

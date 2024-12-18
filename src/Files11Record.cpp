@@ -42,7 +42,7 @@ int Files11Record::Initialize(int lbn, std::fstream &istrm)
 			assert(pHdr->fh1_b_mpoffset == F11_HEADER_MAP_OFFSET);
 
 			// If the header is a continuation segment, skip it
-			F11_MapArea_t* pMap = GetMapArea();
+			F11_MapArea_t* pMap = m_File.GetMapArea();
             fileExtensionSegment = pMap->ext_SegNumber;
 
 			fileSeq    = pHdr->fh1_w_fid_seq;
@@ -52,18 +52,18 @@ int Files11Record::Initialize(int lbn, std::fstream &istrm)
 			userCharacteristics = pHdr->fh1_b_userchar;
 			fileFCS.Initialize((ODS1_UserAttrArea_t*) & pHdr->fh1_w_ufat);
 
-			F11_IdentArea_t* pIdent = GetIdentArea();
+			F11_IdentArea_t* pIdent = m_File.GetIdentArea();
 			if (pIdent)
 			{
 				//fileRev = pRecord->fileRVN;
-				Radix50ToAscii(pIdent->filename, 3, fileName, true);
-				Radix50ToAscii(pIdent->filetype, 1, fileExt, true);
+				Files11Base::Radix50ToAscii(pIdent->filename, 3, fileName, true);
+				Files11Base::Radix50ToAscii(pIdent->filetype, 1, fileExt, true);
                 fullName = fileName;
                 if (fileExt.length() > 0)
     				fullName = fileName + "." + fileExt;
-				MakeDate(pIdent->revision_date, fileRevisionDate, true);
-				MakeDate(pIdent->creation_date, fileCreationDate, true);
-				MakeDate(pIdent->expiration_date, fileExpirationDate, false);
+				Files11Base::MakeDate(pIdent->revision_date, fileRevisionDate, true);
+				Files11Base::MakeDate(pIdent->creation_date, fileCreationDate, true);
+				Files11Base::MakeDate(pIdent->expiration_date, fileExpirationDate, false);
 				bDirectory = (fileExt == "DIR") && (fileFCS.GetRecordSize() == 16) && (fileExtensionSegment == 0);
 				fileVersion = pIdent->version;
 				fileRevision = pIdent->revision;
@@ -89,13 +89,13 @@ const char* Files11Record::GetFileCreation(bool no_seconds /*=true*/) const
 
 bool Files11Record::ValidateHeader(ODS1_FileHeader_t* pHeader)
 {
-	uint16_t checksum = CalcChecksum((uint16_t*)pHeader, 255);
+	uint16_t checksum = Files11Base::CalcChecksum((uint16_t*)pHeader, 255);
 	return (checksum == pHeader->fh1_w_checksum);
 }
 
 ODS1_FileHeader_t* Files11Record::ReadFileHeader(int lbn, std::fstream& istrm)
 {
-	ODS1_FileHeader_t* pHeader = (ODS1_FileHeader_t*) ReadBlock(lbn, istrm);
+	ODS1_FileHeader_t* pHeader = (ODS1_FileHeader_t*) m_File.ReadBlock(lbn, istrm);
 	if (pHeader)
 	{
 		if (!ValidateHeader(pHeader))

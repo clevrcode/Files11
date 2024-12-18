@@ -7,7 +7,7 @@
 #include "Files11Base.h"
 #include "Files11FCS.h"
 
-class Files11Record : public Files11Base 
+class Files11Record
 {
 public:
 	Files11Record(void);
@@ -45,6 +45,7 @@ protected:
 	ODS1_FileHeader_t* ReadFileHeader(int lbn, std::fstream& istrm);
 
 private:
+	Files11Base m_File;
 	int         fileExtensionSegment;
 	uint16_t	fileNumber;
 	uint16_t	fileSeq;

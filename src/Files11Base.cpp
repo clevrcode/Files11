@@ -7,6 +7,13 @@ const char* Files11Base::radix50Chars = " ABCDEFGHIJKLMNOPQRSTUVWXYZ$.%012345678
 
 Files11Base::Files11Base()
 {
+    m_LastBlockRead = -1;
+    ClearBlock();
+}
+
+void Files11Base::ClearBlock(void) 
+{
+    m_LastBlockRead = -1;
     memset(m_block, 0, sizeof(m_block));
 }
 

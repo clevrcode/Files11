@@ -5,7 +5,7 @@
 #include <string>
 #include "Files11Base.h"
 
-class Files11HomeBlock : public Files11Base
+class Files11HomeBlock
 {
 public:
 	Files11HomeBlock();
@@ -32,6 +32,7 @@ public:
 	ODS1_HomeBlock_t* ReadHomeBlock(std::fstream& istrm);
 
 private:
+	Files11Base m_File;
 	bool bValid;
 	int i000000SysLBN;
 	int iDiskSize; // size of disk in bytes

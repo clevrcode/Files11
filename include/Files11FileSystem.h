@@ -9,7 +9,7 @@
 #include "FileDatabase.h"
 #include "DirDatabase.h"
 
-class Files11FileSystem : public Files11Base
+class Files11FileSystem
 {
 public:
 	Files11FileSystem();
@@ -32,7 +32,7 @@ public:
 	void DumpFile(int fileNumber, std::ostream& strm);
 	int  GetHighestVersion(const char* dirname, const char* filename, Files11Record& fileRecord);
 	int  GetDirFileList(const char* dirname, FileList_t &fileList);
-	bool MarkDataBlock(BlockList_t blkList, bool used);
+	bool MarkDataBlock(Files11Base::BlockList_t blkList, bool used);
 	bool MarkHeaderBlock(int lbn, bool used);
 	bool AddDirectoryEntry(int lbn, DirectoryRecord_t* pDirEntry);
 
@@ -53,7 +53,7 @@ public:
 	void ChangeWorkingDirectory(const char*);
 	const char* GetCurrentWorkingDirectory(void) const { return m_CurrentDirectory.c_str(); };
 	const char* GetErrorMessage(void) const { return m_strErrorMsg.c_str(); };
-	const std::string GetCurrentSystemTime(void) { return GetCurrentPDPTime(); };
+	const std::string GetCurrentSystemTime(void) { return m_File.GetCurrentPDPTime(); };
 	void PrintFreeBlocks(void);
 	int FileNumberToLBN(int fnumber) const {
 		if ((fnumber > 0) && (fnumber < m_FileNumberToLBN.size()))
@@ -68,18 +68,19 @@ public:
 	bool DeleteFile(const char* pdp11Dir, const char* pdp11name);
 	bool DeleteFile(int fileNumber);
 
-	int  FindFreeBlocks(int nbBlocks, BlockList_t &blkList);
+	int  FindFreeBlocks(int nbBlocks, Files11Base::BlockList_t &blkList);
 	bool GetFreeBlocks(int first_lbn, int nb_blocks);
 	int  ValidateIndexBitmap(void);
 	int  ValidateDirectory(const char* dirname, DirFileList_t & dirFileMap, int *pTotalFilesChecked); // This function is recursive
 	int  ValidateStorageBitmap(void);
 
 private:
-	int GetBlockList(int lbn);
-	int GetBlockList(int lbn, BlockList_t &blkList);
-	int BuildBlockList(int lbn, BlockList_t* blk_list, std::fstream& istrm);
-	int GetBlockCount(F11_MapArea_t* pMap, BlockList_t* pBlkList = nullptr);
 
+	int GetBlockList(int lbn);
+	int GetBlockList(int lbn, Files11Base::BlockList_t &blkList);
+	int BuildBlockList(int lbn, Files11Base::BlockList_t* blk_list, std::fstream& istrm);
+	int GetBlockCount(F11_MapArea_t* pMap, Files11Base::BlockList_t* pBlkList = nullptr);
+	Files11Base      m_File;
 	std::fstream     m_dskStream;
 	bool             m_bValid;
 	Files11HomeBlock m_HomeBlock;

@@ -20,9 +20,9 @@ Files11HomeBlock::Files11HomeBlock()
 
 	iStorageBitmapClusterFactor = 0;
 	// DeviceType;
-	iVolumeStructureLevel = 0;
-	iVolumeOwnerUIC       = 0;
-	iVolumeProtectionCode = 0;
+	iVolumeStructureLevel    = 0;
+	iVolumeOwnerUIC          = 0;
+	iVolumeProtectionCode    = 0;
 	// VolumeCharacteristics;
 	iDefaultFileProtection   = 0;
 	iDefaultWindowSize       = 0;
@@ -72,17 +72,17 @@ bool Files11HomeBlock::Initialize(std::fstream& istrm)
 		iCountHomeBlockRevision     = pHome->hm1_w_modifcnt;
 		iPackSerialNumber           = pHome->hm1_l_serialnum;
 			
-		MakeString((char *)pHome->hm1_t_volname, sizeof(pHome->hm1_t_volname), strVolumeName, true);
-		MakeString((char *)pHome->hm1_t_format, sizeof(pHome->hm1_t_format), strFormatType, true);
-		MakeString((char *)pHome->hm1_t_ownername, sizeof(pHome->hm1_t_ownername), strVolumeOwner, true);
-		MakeDate(pHome->hm1_t_lastrev, strLastRevision, false);
-		MakeDate(pHome->hm1_t_credate, strVolumeCreationDate, true);
+		Files11Base::MakeString((char *)pHome->hm1_t_volname, sizeof(pHome->hm1_t_volname), strVolumeName, true);
+		Files11Base::MakeString((char *)pHome->hm1_t_format, sizeof(pHome->hm1_t_format), strFormatType, true);
+		Files11Base::MakeString((char *)pHome->hm1_t_ownername, sizeof(pHome->hm1_t_ownername), strVolumeOwner, true);
+		Files11Base::MakeDate(pHome->hm1_t_lastrev, strLastRevision, false);
+		Files11Base::MakeDate(pHome->hm1_t_credate, strVolumeCreationDate, true);
 
-		auto pBitmapSysHeader = ReadHeader(iBitmapSysLBN, istrm);
+		auto pBitmapSysHeader = m_File.ReadHeader(iBitmapSysLBN, istrm);
 		if (pBitmapSysHeader != nullptr)
 		{
 			int scb_lbn = 0;
-			F11_MapArea_t* pMap = GetMapArea();
+			F11_MapArea_t* pMap = m_File.GetMapArea();
 			if (pMap->LBSZ == 3) {
 				scb_lbn = (pMap->pointers.fm1.hi_lbn << 16) + pMap->pointers.fm1.lo_lbn;
 			}
@@ -95,7 +95,7 @@ bool Files11HomeBlock::Initialize(std::fstream& istrm)
 			if (scb_lbn != 0)
 			{
 				// Read Storage Control Block
-				auto Scb = (SCB_t*)ReadBlock(scb_lbn, istrm);
+				auto Scb = (SCB_t*)m_File.ReadBlock(scb_lbn, istrm);
 				if (Scb != nullptr)
 				{
 					iScbNbBlocks = Scb->nbBitmapBlks;
@@ -114,7 +114,7 @@ bool Files11HomeBlock::Initialize(std::fstream& istrm)
 				int vbn = 1;
 				for (auto lbn = iIndexBitmapLBN; lbn < iIndexFileLBN; lbn++)
 				{
-					auto pBmp = ReadBlock(lbn, istrm);
+					auto pBmp = m_File.ReadBlock(lbn, istrm);
 					assert(pBmp != nullptr);
 					int nbBits = F11_BLOCK_SIZE * 8;
 					if (iMaxFiles < (vbn * (F11_BLOCK_SIZE * 8))) {
@@ -136,8 +136,8 @@ bool Files11HomeBlock::Initialize(std::fstream& istrm)
 
 bool Files11HomeBlock::ValidateHomeBlock(ODS1_HomeBlock_t* pHome)
 {
-	uint16_t checksum1 = CalcChecksum((uint16_t*)pHome, (((char*)&pHome->hm1_w_checksum1 - (char*)&pHome->hm1_w_ibmapsize) / 2));
-	uint16_t checksum2 = CalcChecksum((uint16_t*)pHome, (((char*)&pHome->hm1_w_checksum2 - (char*)&pHome->hm1_w_ibmapsize) / 2));
+	uint16_t checksum1 = Files11Base::CalcChecksum((uint16_t*)pHome, (((char*)&pHome->hm1_w_checksum1 - (char*)&pHome->hm1_w_ibmapsize) / 2));
+	uint16_t checksum2 = Files11Base::CalcChecksum((uint16_t*)pHome, (((char*)&pHome->hm1_w_checksum2 - (char*)&pHome->hm1_w_ibmapsize) / 2));
 	bool bValid = (pHome->hm1_w_checksum1 == checksum1) && (pHome->hm1_w_checksum2 == checksum2);
 
 	bValid &= ((pHome->hm1_w_ibmapsize != 0) && !((pHome->hm1_w_ibmaplbn_hi == 0) && (pHome->hm1_w_ibmaplbn_lo == 0))) &&
@@ -148,7 +148,7 @@ bool Files11HomeBlock::ValidateHomeBlock(ODS1_HomeBlock_t* pHome)
 
 ODS1_HomeBlock_t* Files11HomeBlock::ReadHomeBlock(std::fstream& istrm)
 {
-	ODS1_HomeBlock_t* pHome = (ODS1_HomeBlock_t*)ReadBlock(F11_HOME_LBN, istrm);
+	ODS1_HomeBlock_t* pHome = (ODS1_HomeBlock_t*)m_File.ReadBlock(F11_HOME_LBN, istrm);
 	if (pHome)
 	{
 		//----------------------
