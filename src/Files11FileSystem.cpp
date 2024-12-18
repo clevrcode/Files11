@@ -638,8 +638,6 @@ void Files11FileSystem::DumpHeader(int fileNumber)
     std::cout << "Dump of DU0:" << fRec.GetFullName() << " - File ID " << std::oct << fRec.GetFileNumber() << "," << fRec.GetFileSeq() << ",0\n";
     std::cout << "                                                           File header\n\n";
     std::cout << "HEADER AREA\n";
-    std::cout.width(3);
-    std::cout.fill('0');
     std::cout << "        H.IDOF                 ";
     std::cout.width(3); std::cout.fill('0');
     std::cout << std::oct << (int)pHeader->fh1_b_idoffset << std::endl;
@@ -654,15 +652,80 @@ void Files11FileSystem::DumpHeader(int fileNumber)
     std::cout << (pHeader->fh1_w_fileowner >> 8) << ",";
     std::cout.width(3); std::cout.fill('0');
     std::cout << (pHeader->fh1_w_fileowner & 0xFF) << "]" << std::endl;
-    std::cout << "        H.FPRO                 " << m_File.GetFileProtectionString(pHeader->fh1_w_fileprot) << std::endl;
-    std::string name, ext;
-    F11_IdentArea_t* pIdent = m_File.GetIdentArea(pHeader);
-    Files11Base::Radix50ToAscii(pIdent->filename, 3, name, false);
-    Files11Base::Radix50ToAscii(pIdent->filetype, 1, ext, false);
-    std::cout << "        I.NAME                 " << name << std::endl;
-    std::cout << "        I.TYPE                 " << ext  << std::endl;
+    std::cout << "        H.FPRO                 " << hdrFile.GetFileProtectionString(pHeader->fh1_w_fileprot) << std::endl;
 
     // TODO -- CONTINUE...
+    //   User data
+    // TODO -- CONTINUE...
+
+    std::cout.width(0);
+    std::cout << "IDENTIFICATION AREA\n";
+    std::string name, ext, misc;
+    F11_IdentArea_t* pIdent = hdrFile.GetIdentArea();
+    Files11Base::Radix50ToAscii(pIdent->filename, 3, name, true);
+    Files11Base::Radix50ToAscii(pIdent->filetype, 1, ext, true);
+    std::cout << "        I.FNAM                 " << name << std::endl;
+    std::cout << "        I.FTYP                 " << ext  << std::endl;
+    std::cout << "        I.FVER                 " << name << "." << ext << ";" << pIdent->version << std::endl;
+    std::cout << "        I.RVNO                 " << pIdent->revision << std::endl;
+    Files11Base::MakeDate(pIdent->revision_date, misc, false);
+    std::cout << "        I.RVDT                 " << misc << std::endl;
+    Files11Base::MakeTime(pIdent->revision_time, misc);
+    std::cout << "        I.RVTI                 " << misc << std::endl;
+    Files11Base::MakeDate(pIdent->creation_date, misc, false);
+    std::cout << "        I.CRDT                 " << misc << std::endl;
+    Files11Base::MakeTime(pIdent->creation_time, misc);
+    std::cout << "        I.CRTI                 " << misc << std::endl;
+    Files11Base::MakeDate(pIdent->expiration_date, misc, false);
+    std::cout << "        I.EXDT                 " << misc << std::endl;
+
+    F11_MapArea_t* pMap = hdrFile.GetMapArea();
+    std::cout.width(3); std::cout.fill('0');
+    std::cout << "MAP AREA\n";
+    std::cout.width(3); std::cout.fill('0');
+    std::cout << "        M.ESQN                 ";
+    std::cout.width(3); std::cout.fill('0');
+    std::cout << std::right << (int)pMap->ext_SegNumber << std::endl;
+    std::cout << "        M.ERVN                 ";
+    std::cout.width(3); std::cout.fill('0');
+    std::cout << std::right << (int)pMap->ext_RelVolNo << std::endl;
+    std::cout << "        M.EFNU                 " << std::endl;
+    std::cout << "        M.EFSQ                 (" << (int)pMap->ext_FileNumber << "," << (int)pMap->ext_FileSeqNumber << ")" << std::endl;
+    std::cout << "        M.CTSZ                 ";
+    std::cout.width(3); std::cout.fill('0');
+    std::cout << std::right << (int)pMap->CTSZ << std::endl;
+    std::cout << "        M.LBSZ                 ";
+    std::cout.width(3); std::cout.fill('0');
+    std::cout << std::right << (int)pMap->LBSZ << std::endl;
+    std::cout << "        M.USE                  ";
+
+    std::cout.width(3); std::cout.fill('0');
+    std::cout << std::oct << std::right << (int)pMap->USE << std::dec << " = " << (int)pMap->USE << "." << std::endl;
+    std::cout << "        M.MAX                  ";
+    std::cout.width(3); std::cout.fill('0');
+    std::cout << std::oct << std::right << (int)pMap->MAX << std::dec << " = " << (int)pMap->MAX << "." << std::endl;
+    std::cout << "        M.RTRV                 " << std::endl;
+    std::cout << "        SIZE    LBN            " << std::endl;
+    F11_Format1_t* pFmt1 = (F11_Format1_t*) & pMap->pointers;
+    for (int i = 0; i < (pMap->USE / 2); ++i) {
+        std::cout << "        ";
+        std::cout.width(8); std::cout.fill(' ');
+        misc = std::to_string(pFmt1->blk_count + 1) + ".";
+        std::cout << std::left << misc;
+        std::cout << "H:";
+        std::cout.width(3); std::cout.fill('0');
+        std::cout << std::right << std::oct << (int)pFmt1->hi_lbn;
+        std::cout << " L:";
+        std::cout.width(6); std::cout.fill('0');
+        std::cout << std::right << (int)pFmt1->lo_lbn << " = " << std::dec << (int)((pFmt1->hi_lbn * 0x1000) + pFmt1->lo_lbn) << "." << std::endl;
+        pFmt1++;
+    }
+
+    std::cout << "CHECKSUM\n";
+    std::cout << "        H.CKSM                 " << std::oct << pHeader->fh1_w_checksum << std::endl;
+    std::cout << std::endl;
+    std::cout << std::endl;
+
     std::cout << std::dec;
     std::cout.fill(' ');
 }
@@ -795,7 +858,7 @@ void Files11FileSystem::ListFiles(const Files11Record& dirRecord, const char *fi
     }
 }
 
-void Files11FileSystem::ListDirs(Cmds_e cmd, const char *dirname, const char *filename)
+void Files11FileSystem::ListDirs(Cmds_e cmd, const char *dirname, const char *filename, const char * outdir/*=nullptr*/)
 {
     std::string cwd;
     if ((dirname == nullptr) || (dirname[0] == '\0'))
@@ -861,9 +924,14 @@ void Files11FileSystem::ListDirs(Cmds_e cmd, const char *dirname, const char *fi
             break;
 
             case TYPE:
-                found = true;
+                found = true;  
                 TypeFile(rec, filename);
                 break;
+
+            case EXPORT:
+                std::cout << "Not implemented yet\n";
+                break;
+
             }
         }
     }

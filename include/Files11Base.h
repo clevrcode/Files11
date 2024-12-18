@@ -35,6 +35,7 @@ public:
 	static uint16_t      CalcChecksum(uint16_t* buffer, size_t wordCount);
 	static void          MakeString(char* str, size_t len, std::string &outstr, bool strip=false);
 	static void          MakeDate(uint8_t* date, std::string& fdate, bool time);
+	static void          MakeTime(uint8_t* tim, std::string& ftime);
 	static void          MakeUIC(uint8_t* uic, std::string& strUIC);
 	static void          FillDate(char *pDate, char *time=nullptr);
 	static void          Radix50ToAscii(uint16_t* pR50, int len, std::string& str, bool strip=false);

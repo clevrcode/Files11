@@ -106,7 +106,6 @@ ODS1_FileHeader_t* Files11Record::ReadFileHeader(int lbn, std::fstream& istrm)
 
 void Files11Record::PrintRecord(void)
 {
-	//std::cout.left();
 	std::cout.fill(' ');	
 	std::cout.width(20); std::cout << std::left << GetFullName(fileVersion);
 	std::string blks(std::to_string(GetUsedBlockCount()));

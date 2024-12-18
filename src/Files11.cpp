@@ -313,7 +313,7 @@ void ProcessCommand(std::string &command, Files11FileSystem& fs)
         {
             fs.PrintFreeBlocks();
         }
-        else if ((words[0].substr(0,3) == "IMP") || (words[0] == "GET"))
+        else if ((words[0].substr(0,3) == "IMP") || (words[0] == "UP"))
         {
             std::string dir;
             if (nbWords == 2) {
@@ -341,6 +341,18 @@ void ProcessCommand(std::string &command, Files11FileSystem& fs)
             }
             else {
                 std::cout << "ERROR -- Missing argument\n";
+            }
+        }
+        else if ((words[0].substr(0, 3) == "EXP") || (words[0] == "DOWN"))
+        {
+            std::string dir;
+            if (nbWords >= 2) {
+                std::string dir, file, output;
+                SplitFilePath(words[1], dir, file);
+                if (nbWords == 3)
+                    fs.ListDirs(Files11FileSystem::EXPORT, dir.c_str(), file.c_str(), words[2].c_str());
+                else
+                    fs.ListDirs(Files11FileSystem::EXPORT, dir.c_str(), file.c_str(), nullptr);
             }
         }
         else

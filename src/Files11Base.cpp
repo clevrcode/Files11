@@ -101,28 +101,49 @@ void Files11Base::MakeDate(uint8_t* date, std::string& fdate, bool time)
     int d = 0;
     int b = 0;
     fdate.clear();
-    fdate += date[d++]; fdate += date[d++];
-    fdate += '-';
-    fdate += date[d++]; fdate += date[d++]; fdate += date[d++];
-    fdate += '-';
-    if ((date[d] < '7') || (date[d] > '9')) {
-        fdate += "20";
-    }
-    else {
-        fdate += "19";
-    }
-    fdate += (date[d] > '9') ? (date[d] - ':') + '0' : date[d];
-    d++;
-    fdate += date[d++];
-
-    if (time)
+    if (date[0] == 0)
+        fdate = "--";
+    else
     {
-        fdate += ' ';
         fdate += date[d++]; fdate += date[d++];
-        fdate += ':';
-        fdate += date[d++]; fdate += date[d++];
+        fdate += '-';
+        fdate += date[d++]; fdate += date[d++]; fdate += date[d++];
+        fdate += '-';
+        if ((date[d] < '7') || (date[d] > '9')) {
+            fdate += "20";
+        }
+        else {
+            fdate += "19";
+        }
+        fdate += (date[d] > '9') ? (date[d] - ':') + '0' : date[d];
+        d++;
+        fdate += date[d++];
+
+        if (time)
+        {
+            fdate += ' ';
+            fdate += date[d++]; fdate += date[d++];
+            fdate += ':';
+            fdate += date[d++]; fdate += date[d++];
+        }
     }
 }
+
+void Files11Base::MakeTime(uint8_t* tim, std::string& ftime)
+{
+    int d = 0;
+    ftime.clear();
+    if (tim[d] == 0)
+        ftime = "--";
+    else {
+        ftime += tim[d++]; ftime += tim[d++];
+        ftime += ':';
+        ftime += tim[d++]; ftime += tim[d++];
+        ftime += ':';
+        ftime += tim[d++]; ftime += tim[d++];
+    }
+}
+
 
 void Files11Base::MakeUIC(uint8_t* uic, std::string& strUIC)
 {
