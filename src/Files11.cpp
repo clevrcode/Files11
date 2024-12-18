@@ -349,10 +349,9 @@ void ProcessCommand(std::string &command, Files11FileSystem& fs)
             if (nbWords >= 2) {
                 std::string dir, file, output;
                 SplitFilePath(words[1], dir, file);
-                if (nbWords == 3)
-                    fs.ListDirs(Files11FileSystem::EXPORT, dir.c_str(), file.c_str(), words[2].c_str());
-                else
-                    fs.ListDirs(Files11FileSystem::EXPORT, dir.c_str(), file.c_str(), nullptr);
+                if (nbWords == 2)
+                    words.push_back(".");
+                fs.ExportFiles(dir.c_str(), file.c_str(), words[2].c_str());
             }
         }
         else

@@ -1,5 +1,4 @@
-#include <regex>
-#include <bitset>
+#include <direct.h>
 #include "Files11FileSystem.h"
 #include "Files11_defs.h"
 #include "Files11Record.h"
@@ -858,7 +857,56 @@ void Files11FileSystem::ListFiles(const Files11Record& dirRecord, const char *fi
     }
 }
 
-void Files11FileSystem::ListDirs(Cmds_e cmd, const char *dirname, const char *filename, const char * outdir/*=nullptr*/)
+void Files11FileSystem::ExportFiles(const char* dirname, const char* filename, const char* outdir)
+{
+    if ((dirname == nullptr) || (filename == nullptr) || (outdir == nullptr))
+        return;
+
+    std::string directory(outdir);
+    //_mkdir(directory.c_str());
+    //_chdir(directory.c_str());
+
+    std::string pdpdir(DirDatabase::makeKey(DirDatabase::FormatDirectory(dirname)));
+    std::cout << "-------------------------------------------------------\n";
+    std::cout << "Output directory: " << directory << std::endl;
+    std::cout << pdpdir << std::endl;
+    std::cout << filename << std::endl;
+
+    DirDatabase::DirList_t dlist;
+    int nb_dir = DirDatabase.Find(pdpdir.c_str(), dlist);
+    for (auto& dir : dlist)
+    {
+        Files11Record rec;
+        if (FileDatabase.Get(dir.fnumber, rec))
+        {
+            std::string prefix("---");
+            std::string name(rec.GetFullName());
+            std::cout << prefix << name << std::endl;
+
+            FileList_t fileList;
+            ListFiles(rec, filename, fileList);
+            if (fileList.size() > 0)
+            {
+                for (auto file : fileList) {
+                    Files11Record frec;
+                    if (FileDatabase.Get(file.fnumber, frec))
+                    {
+                        std::string name(frec.GetFullName());
+                        //if ((name.length(0 > 4)&&(name.substr(name.length()-4) == ".DIR"))
+                        if (frec.IsDirectory())
+                            std::cout << "********************** DIRECTORY *************************\n";
+                        std::cout << prefix << prefix << ">" << frec.GetFullName() << std::endl;
+                        if (frec.IsDirectory())
+                            std::cout << "**********************************************************\n";
+                    }
+                }
+            }
+        }
+    }
+    return;
+}
+
+void Files11FileSystem::ListDirs(Cmds_e cmd, const char *dirname, const char *filename)
 {
     std::string cwd;
     if ((dirname == nullptr) || (dirname[0] == '\0'))
@@ -924,14 +972,9 @@ void Files11FileSystem::ListDirs(Cmds_e cmd, const char *dirname, const char *fi
             break;
 
             case TYPE:
-                found = true;  
+                found = true;
                 TypeFile(rec, filename);
                 break;
-
-            case EXPORT:
-                std::cout << "Not implemented yet\n";
-                break;
-
             }
         }
     }

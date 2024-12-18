@@ -1,5 +1,7 @@
 #include <assert.h>
 #include <time.h>
+#include <direct.h> // _getcwd
+#include <stdlib.h> // free, perror#include <regex>
 #include "Files11Base.h"
 
 const char* Files11Base::months[] = { "JAN", "FEB", "MAR", "APR", "MAY", "JUN", "JUL", "AUG", "SEP", "OCT", "NOV", "DEC" };
@@ -352,5 +354,17 @@ bool Files11Base::CreateExtensionHeader(int lbn, int extFileNumber, ODS1_FileHea
         } while (nb > 0);
     }
     Files11Base::writeHeader(lbn, istrm, p);
+    return true;
+}
+
+bool Files11Base::getCurrentDirectory(std::string& dir)
+{
+    dir.clear();
+    char* buffer;
+    if ((buffer = _getcwd(NULL, 0)) != NULL)
+    {
+        dir = buffer;
+        free(buffer);
+    }
     return true;
 }

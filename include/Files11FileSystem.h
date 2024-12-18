@@ -48,7 +48,9 @@ public:
 	void VerifyFileSystem(Args_t args);
 
 	void ListFiles(const Files11Record& dirRecord, const char* filename, FileList_t &fileList);
-	void ListDirs(Cmds_e cmd, const char* dir, const char *file, const char *outdir=nullptr);
+	void ListDirs(Cmds_e cmd, const char* dir, const char *file);
+	void ExportFiles(const char* dirname, const char* filename, const char* outdir);
+
 	void TypeFile(const Files11Record& dirRecord, const char* filename);
 	void ChangeWorkingDirectory(const char*);
 	const char* GetCurrentWorkingDirectory(void) const { return m_CurrentDirectory.c_str(); };

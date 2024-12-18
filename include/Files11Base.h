@@ -49,6 +49,8 @@ public:
 	static uint8_t      *readBlock(int lbn, std::fstream& istrm, uint8_t*blk);
 	static uint8_t      *writeBlock(int lbn, std::fstream& istrm, uint8_t* blk);
 	static bool          writeHeader(int lbn, std::fstream& istrm, ODS1_FileHeader_t* pHeader);
+	static bool          getCurrentDirectory(std::string &dir);
+
 
 private:
 	int                m_LastBlockRead;
