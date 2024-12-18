@@ -31,14 +31,22 @@ void BitCounter::Count(const uint8_t data[], const size_t nbBits)
     for (auto i = 0; i < nbBytes; ++i, ++blockCounter)
     {
         uint8_t b = data[i];
-        if ((_nbits + 8) < nbBits)
+        if ((_nbits + 8) <= nbBits)
         {
             if (b == 0xff)
             {
                 iNbHi += 8;
                 iContiguousHi += 8;
                 _nbits += 8;
-                bLastState = true;
+                if (!bLastState) {
+                    if (iContiguousLo > iLargestContiguousLo)
+                        iLargestContiguousLo = iContiguousLo;
+                    if (iContiguousLo < iSmallestContiguousLo)
+                        iSmallestContiguousLo = iContiguousLo;
+
+                    iContiguousLo = 0;
+                    bLastState = true;
+                }
                 continue;
             }
             else if (b == 0)
@@ -46,7 +54,14 @@ void BitCounter::Count(const uint8_t data[], const size_t nbBits)
                 iNbLo += 8;
                 iContiguousLo += 8;
                 _nbits += 8;
-                bLastState = false;
+                if (bLastState) {
+                    if (iContiguousHi > iLargestContiguousHi)
+                        iLargestContiguousHi = iContiguousHi;
+                    if (iContiguousHi < iSmallestContiguousHi)
+                        iSmallestContiguousLo = iContiguousLo;
+                    iContiguousHi = 0;
+                    bLastState = false;
+                }
                 continue;
             }
         }

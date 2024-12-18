@@ -13,7 +13,6 @@ Files11Base::Files11Base()
 
 void Files11Base::ClearBlock(void) 
 {
-    m_LastBlockRead = -1;
     memset(m_block, 0, sizeof(m_block));
 }
 
@@ -23,9 +22,18 @@ uint8_t* Files11Base::ReadBlock(int lbn, std::fstream& istrm)
     return readBlock(lbn, istrm, m_block);
 }
 
-void Files11Base::WriteBlock(std::fstream& istrm)
+bool Files11Base::WriteBlock(std::fstream& istrm)
 {
-    writeBlock(m_LastBlockRead, istrm, m_block);
+    if (m_LastBlockRead >= 0)
+        return writeBlock(m_LastBlockRead, istrm, m_block);
+    return false;
+}
+
+bool Files11Base::WriteHeader(std::fstream& istrm)
+{
+    if (m_LastBlockRead >= 0)
+        return writeHeader(m_LastBlockRead, istrm, (ODS1_FileHeader_t*)m_block);
+    return false;
 }
 
 ODS1_FileHeader_t* Files11Base::ReadHeader(int lbn, std::fstream& istrm, bool clear/*=false*/)
@@ -58,6 +66,12 @@ F11_IdentArea_t* Files11Base::GetIdentArea(ODS1_FileHeader_t* ptr/*=nullptr*/) c
 {
     ODS1_FileHeader_t* pHeader = (ptr == nullptr) ? (ODS1_FileHeader_t*)m_block : ptr;
     return (F11_IdentArea_t*)((uint16_t*)pHeader + pHeader->fh1_b_idoffset);
+}
+
+ODS1_UserAttrArea_t* Files11Base::GetUserAttr(ODS1_FileHeader_t* ptr/*=nullptr*/) const
+{
+    ODS1_FileHeader_t* pHeader = (ptr == nullptr) ? (ODS1_FileHeader_t*)m_block : ptr;
+    return (ODS1_UserAttrArea_t * ) &pHeader->fh1_w_ufat;
 }
 
 uint16_t Files11Base::CalcChecksum(uint16_t *buffer, size_t wordCount)
@@ -263,7 +277,7 @@ uint8_t* Files11Base::writeBlock(int lbn, std::fstream & istrm, uint8_t * blk)
     return istrm.good() ? blk : nullptr;
 }
 
-bool Files11Base::WriteHeader(int lbn, std::fstream& istrm, ODS1_FileHeader_t* pHeader)
+bool Files11Base::writeHeader(int lbn, std::fstream& istrm, ODS1_FileHeader_t* pHeader)
 {
     pHeader->fh1_w_checksum = CalcChecksum((uint16_t*)pHeader, (sizeof(ODS1_FileHeader_t) - sizeof(uint16_t)) / 2);
     return writeBlock(lbn, istrm, (uint8_t*)pHeader) != nullptr;
@@ -316,6 +330,6 @@ bool Files11Base::CreateExtensionHeader(int lbn, int extFileNumber, ODS1_FileHea
             k++;
         } while (nb > 0);
     }
-    WriteHeader(lbn, istrm, p);
+    Files11Base::writeHeader(lbn, istrm, p);
     return true;
 }

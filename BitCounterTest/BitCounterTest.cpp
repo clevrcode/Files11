@@ -98,5 +98,37 @@ namespace BitCounterTest
 			counter.FindSmallestBlock(data, 64, 6);
 			Assert::AreEqual(40, counter.GetSmallestBlockLo());
 		}
+
+		//
+		// Find largets HI block (Multiblocks)
+		//
+		TEST_METHOD(TestFindLargestBlocks)
+		{
+			BitCounter counter;
+			uint8_t blocks[3][512];
+			int largest_block_hi = 0;
+			int smallest_block_hi = 0;
+			for (int i = 0; i < 3; i++) {
+				memset(blocks[i], 0, 512);
+			}
+			for (int i = 0x150; i < 0x200; ++i) {
+				blocks[0][i] = 0xff;
+				largest_block_hi += 8;
+			}
+			for (int i = 0; i < 0x150; ++i) {
+				blocks[1][i] = 0xff;
+				largest_block_hi += 8;
+			}
+			for (int i = 0x100; i < 0x200; ++i) {
+				blocks[2][i] = 0xff;
+				smallest_block_hi += 8;
+			}
+			// Largest block
+			for (int i = 0; i < 3; i++)
+				counter.Count(blocks[i], 4096);
+
+			Assert::AreEqual(largest_block_hi, counter.GetLargestContiguousHi());
+			Assert::AreEqual(smallest_block_hi, counter.GetSmallestContiguousHi());
+		}
 	};
 }
