@@ -232,7 +232,7 @@ void Files11Base::AsciiToRadix50(const char* src, size_t srclen, uint16_t* dest)
         uint16_t tmp = 0;
         for (auto j = 0; j < 3; ++j) {
             tmp *= 050;
-            char ctmp = ((i + j) < len) ? src[i + j] : ' ';
+            char ctmp = toupper(((i + j) < len) ? src[i + j] : ' ');
             tmp += GetRadix50Char(ctmp);
         }
         *dest = tmp;

@@ -231,9 +231,14 @@ void ProcessCommand(std::string &command, Files11FileSystem& fs)
         }
         else if (words[0] == "DMPLBN")
         {
-            if (nbWords == 2)
+            if ((nbWords == 2)&&(words[1].length() > 1))
             {
-                int lbn = strtol(words[1].c_str(), NULL, 10);
+                int base = 10;
+                if (words[1][0] == '0')
+                    base = 8;
+                else if ((words[1][0] == 'x') || (words[1][0] == 'X'))
+                    base = 16;
+                int lbn = strtol(words[1].c_str(), NULL, base);
                 fs.DumpLBN(lbn);
             }
             else
@@ -241,9 +246,14 @@ void ProcessCommand(std::string &command, Files11FileSystem& fs)
         }
         else if (words[0] == "DMPHDR")
         {
-            if (nbWords == 2)
+            if ((nbWords == 2) && (words[1].length() > 1))
             {
-                int fnb = strtol(words[1].c_str(), NULL, 10);
+                int base = 10;
+                if (words[1][0] == '0')
+                    base = 8;
+                else if ((words[1][0] == 'x') || (words[1][0] == 'X'))
+                    base = 16;
+                int fnb = strtol(words[1].c_str(), NULL, base);
                 fs.DumpHeader(fnb);
             }
         }
@@ -276,13 +286,19 @@ void ProcessCommand(std::string &command, Files11FileSystem& fs)
                 dir = words[2];
                 std::vector<std::string> list;
                 GetFileList(words[1], list);
-                for (auto localfile : list)
+                if (list.size() > 0)
                 {
-                    std::string pdpfile(localfile);
-                    auto pos = localfile.rfind("/");
-                    if (pos != std::string::npos)
-                        pdpfile = localfile.substr(pos + 1);
-                    fs.AddFile(localfile.c_str(), dir.c_str(), pdpfile.c_str());
+                    for (auto localfile : list)
+                    {
+                        std::string pdpfile(localfile);
+                        auto pos = localfile.rfind("/");
+                        if (pos != std::string::npos)
+                            pdpfile = localfile.substr(pos + 1);
+                        fs.AddFile(localfile.c_str(), dir.c_str(), pdpfile.c_str());
+                    }
+                }
+                else {
+                    std::cout << "ERROR -- File not found\n";
                 }
             }
             else {

@@ -106,9 +106,9 @@ ODS1_FileHeader_t* Files11Record::ReadFileHeader(int lbn, std::fstream& istrm)
 
 void Files11Record::PrintRecord(void)
 {
-	std::cout.width(20); std::cout << std::left << GetFullName(fileVersion);
 	//std::cout.left();
-	//std::cout.fill(' ');	
+	std::cout.fill(' ');	
+	std::cout.width(20); std::cout << std::left << GetFullName(fileVersion);
 	std::string blks(std::to_string(GetUsedBlockCount()));
 	blks += ".";
 	std::cout.width(8);	std::cout << blks << (IsContiguous() ? "C  " : "   ") << GetFileCreation() << std::endl;

@@ -59,8 +59,8 @@ bool Files11FileSystem::Open(const char *dskName)
                         int fileNumber = fileRecord.Initialize(lbn, m_dskStream);
                         if (fileNumber > 0)
                         {
-                            //printf("%06o:%06o %-20sOwner: [%03o,%03o], Protection: 0x%04x LBN: %d %c\n", fileRecord.GetFileNumber(), fileRecord.GetFileSeq(), 
-                            //    fileRecord.GetFullName(), fileRecord.GetOwnerUIC() >> 8, fileRecord.GetOwnerUIC() & 0xff, fileRecord.GetFileProtection(), lbn, fileRecord.IsFileExtension() ? 'Y' : 'N');
+                            printf("%06o:%06o %-20sOwner: [%03o,%03o], Protection: 0x%04x LBN: %d %c\n", fileRecord.GetFileNumber(), fileRecord.GetFileSeq(), 
+                                fileRecord.GetFullName(), fileRecord.GetOwnerUIC() >> 8, fileRecord.GetOwnerUIC() & 0xff, fileRecord.GetFileProtection(), lbn, fileRecord.IsFileExtension() ? 'Y' : 'N');
                             if (FileDatabase.Add(fileNumber, fileRecord))
                             {
                                 // If a directory, add to the directory database (key: dir name)
@@ -617,6 +617,7 @@ void Files11FileSystem::DumpLBN(int lbn)
         }
         std::cout << " |" << std::endl;
     }
+    std::cout.fill(' ');
     std::cout << std::endl << std::endl;
 }
 
@@ -655,7 +656,16 @@ void Files11FileSystem::DumpHeader(int fileNumber)
     std::cout.width(3); std::cout.fill('0');
     std::cout << (pHeader->fh1_w_fileowner & 0xFF) << "]" << std::endl;
     std::cout << "        H.FPRO                 " << GetFileProtectionString(pHeader->fh1_w_fileprot) << std::endl;
+    std::string name, ext;
+    F11_IdentArea_t* pIdent = GetIdentArea(pHeader);
+    Radix50ToAscii(pIdent->filename, 3, name, false);
+    Radix50ToAscii(pIdent->filetype, 1, ext, false);
+    std::cout << "        I.NAME                 " << name << std::endl;
+    std::cout << "        I.TYPE                 " << ext  << std::endl;
+
     // TODO -- CONTINUE...
+    std::cout << std::dec;
+    std::cout.fill(' ');
 }
 
 void Files11FileSystem::PrintFreeBlocks(void)
@@ -1274,10 +1284,7 @@ bool Files11FileSystem::AddFile(const char* nativeName, const char* pdp11Dir, co
 
     // Fill the map area
     F11_MapArea_t* pMap = (F11_MapArea_t*)((uint16_t*)pHeader + pHeader->fh1_b_mpoffset);
-    pMap->ext_SegNumber     = 0;
     pMap->ext_RelVolNo      = 0;
-    pMap->ext_FileNumber    = 0;
-    pMap->ext_FileSeqNumber = 0;
     pMap->CTSZ              = 1;
     pMap->LBSZ              = 3;
     pMap->USE               = 0;
@@ -1320,67 +1327,46 @@ bool Files11FileSystem::AddFile(const char* nativeName, const char* pdp11Dir, co
     pIdent->version = dirEntry.version;
     // ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-    int data_count = dataSize;
-    int eof_bytes = -1;
-
     // ~~~~~~~~~~~~~~~~~~~~~~~~~
     // Write all header files
     // ~~~~~~~~~~~~~~~~~~~~~~~~~
     for (int hdr = 0, blk = 0; hdr < nbHeaders; ++hdr)
     {
-        if (hdr > 0) {
-            pHeader->fh1_w_fid_num = pMap->ext_FileNumber;
-            pHeader->fh1_w_fid_seq = pMap->ext_FileSeqNumber;
-        }
-        pUserAttr->ufcs_ffbyte = 0;
+        header_lbn = FileNumberToLBN(hdrFileNumber[hdr]);
 
         pMap->ext_FileNumber = ((hdr + 1) < hdrFileNumber.size()) ? hdrFileNumber[hdr + 1] : 0;
         pMap->ext_FileSeqNumber = 0;
         if (pMap->ext_FileNumber != 0) {
-            uint8_t extbuf[F11_BLOCK_SIZE];
-            ODS1_FileHeader_t* p = (ODS1_FileHeader_t*)readBlock(FileNumberToLBN(pMap->ext_FileNumber), m_dskStream, extbuf);
+            ODS1_FileHeader_t* p = (ODS1_FileHeader_t*)ReadHeader(FileNumberToLBN(pMap->ext_FileNumber), m_dskStream);
             pMap->ext_FileSeqNumber = p->fh1_w_fid_seq + 1;
         }
         pMap->ext_SegNumber = hdr;
         // 7) Fill the pointers
         F11_Format1_t* Ptrs = (F11_Format1_t*)&pMap->pointers;
-
-        int high_vbn = 0;
-        int eof_vbn = 0;
-
         for (int k = 0; (k < NB_POINTERS_PER_HEADER) && (blk < BlkList.size()); ++blk, ++k)
         {
             BlockPtrs_t& p = BlkList[blk];
             pMap->USE += POINTER_SIZE;
             Ptrs->blk_count = p.lbn_end - p.lbn_start;
-            high_vbn += (Ptrs->blk_count + 1);
             Ptrs->hi_lbn = p.lbn_start >> 16;
             Ptrs->lo_lbn = p.lbn_start & 0xFFFF;
-            data_count -= ((Ptrs->blk_count + 1) * F11_BLOCK_SIZE);
-            if ((eof_bytes < 0) && (data_count < 0)) {
-                eof_bytes = eofBytes;
-                eof_vbn = high_vbn;
-            }
             Ptrs++;
         }
-        if (eof_bytes == 0)
-            eof_vbn++;
 
-        pUserAttr->ufcs_ffbyte = eof_bytes;
-        pUserAttr->ufcs_eofblck_hi = eof_vbn >> 16;
-        pUserAttr->ufcs_eofblck_lo = eof_vbn & 0xffff;
-        pUserAttr->ufcs_highvbn_hi = high_vbn >> 16;
-        pUserAttr->ufcs_highvbn_lo = high_vbn & 0xffff;
-        pUserAttr->ufcs_rectype = 0;
         // ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
         // 8) Write the header, the checksum will be calculated, DO NOT WRITE IN HEADER AFTER THIS POINT!
+        
         WriteHeader(header_lbn, m_dskStream, pHeader);
+
         // ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
         // 10) Add to the file database
         Files11Record fileRecord;
         int fileNumber = fileRecord.Initialize(header_lbn, m_dskStream);
         FileDatabase.Add(fileNumber, fileRecord);
+
+        pHeader->fh1_w_fid_num = pMap->ext_FileNumber;
+        pHeader->fh1_w_fid_seq = pMap->ext_FileSeqNumber;
     }
     // 11) Complete
     // Return true if successful
