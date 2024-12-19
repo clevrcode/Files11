@@ -835,44 +835,68 @@ void Files11FileSystem::ExportFiles(const char* dirname, const char* filename, c
         return;
 
     std::string directory(outdir);
-    //_mkdir(directory.c_str());
-    //_chdir(directory.c_str());
+    if (directory == ".") {
+        directory += "\\";
+        directory += m_HomeBlock.GetVolumeName();
+    }
+    _mkdir(directory.c_str());
+    _chdir(directory.c_str());
 
-    std::string pdpdir(DirDatabase::makeKey(DirDatabase::FormatDirectory(dirname)));
+    //std::string pdpdir(DirDatabase::makeKey(DirDatabase::FormatDirectory(dirname)));
+    std::string pdpdir(DirDatabase::FormatDirectory(dirname));
     std::cout << "-------------------------------------------------------\n";
     std::cout << "Output directory: " << directory << std::endl;
     std::cout << pdpdir << std::endl;
     std::cout << filename << std::endl;
 
     DirDatabase::DirList_t dlist;
-    int nb_dir = DirDatabase.Find(pdpdir.c_str(), dlist);
+    GetDirList(pdpdir.c_str(), dlist);
     for (auto& dir : dlist)
     {
-        Files11Record rec;
-        if (FileDatabase.Get(dir.fnumber, rec))
-        {
-            std::string prefix("---");
-            std::string name(rec.GetFullName());
-            std::cout << prefix << name << std::endl;
+        Files11Record dirRec;
+        FileDatabase.Get(dir.fnumber, dirRec);
+        std::string prefix("---");
+        std::cout << prefix << dirRec.GetFullName() << std::endl;
 
-            FileList_t fileList;
-            ListFiles(rec, filename, fileList);
-            if (fileList.size() > 0)
+        std::vector<Files11Record> filteredList;
+
+        FileList_t fileList;
+        GetFileList(dir.fnumber, fileList);
+        for (auto& file : fileList)
+        {
+            Files11Record frec;
+            if (FileDatabase.Get(file.fnumber, frec, 0, filename))
             {
-                for (auto file : fileList) {
-                    Files11Record frec;
-                    if (FileDatabase.Get(file.fnumber, frec))
-                    {
-                        std::string name(frec.GetFullName());
-                        //if ((name.length(0 > 4)&&(name.substr(name.length()-4) == ".DIR"))
-                        if (frec.IsDirectory())
-                            std::cout << "********************** DIRECTORY *************************\n";
-                        std::cout << prefix << prefix << ">" << frec.GetFullName() << std::endl;
-                        if (frec.IsDirectory())
-                            std::cout << "**********************************************************\n";
+                filteredList.push_back(frec);
+                //std::string name(frec.GetFullName());
+                ////if ((name.length(0 > 4)&&(name.substr(name.length()-4) == ".DIR"))
+                //if (frec.IsDirectory())
+                //    std::cout << "********************** DIRECTORY *************************\n";
+                //std::cout << prefix << prefix << ">" << frec.GetFullName() << std::endl;
+                //if (frec.IsDirectory())
+                //    std::cout << "**********************************************************\n";
+            }
+        }
+        if (!filteredList.empty())
+        {
+            std::cout << "------------------------------------------------------\n";
+            std::cout << "Create directory: " << dirRec.GetFullName() << std::endl;
+            _mkdir(dirRec.GetFileName());
+            _chdir(dirRec.GetFileName());
+            for (auto f : filteredList)
+            {
+                if (f.GetFileFCS().GetRecordType() & rt_vlr) {
+                    std::fstream oStream;
+                    oStream.open(f.GetFullName(), std::fstream::out | std::fstream::trunc | std::ifstream::binary);
+                    if (oStream.is_open()) {
+                        PrintFile(f.GetFileNumber(), oStream);
+                        oStream.close();
                     }
                 }
+                //else
+                //    WriteFile(f.GetFileNumber(), std::cout);
             }
+            _chdir("..");
         }
     }
     return;

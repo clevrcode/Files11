@@ -12,6 +12,7 @@ public:
 	bool Initialize(const char *diskName);
 	bool Initialize(std::fstream& istrm);
 	void PrintInfo(void);
+	const char* GetVolumeName(void) const { return strVolumeName.c_str(); };
 	const int GetMaxFiles(void)     const { return iMaxFiles; };
 	const int GetBitmapLBN(void)    const { return iIndexBitmapLBN; };
 	const int GetIndexSize(void)    const { return iIndexBitmapSize;};

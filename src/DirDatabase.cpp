@@ -1,4 +1,5 @@
 #include <regex>
+#include "Files11_defs.h"
 #include "DirDatabase.h"
 
 bool DirDatabase::Add(const std::string& name, DirInfo_t &info)
@@ -31,8 +32,10 @@ int DirDatabase::Find(const char *dname, DirList_t& dlist) const
         {
             // return all directories
             //for (auto cit = m_Database.cbegin(); cit != m_Database.cend(); ++cit)
-            for (auto & cit : m_Database)
-                dlist.push_back(cit.second);
+            for (auto& cit : m_Database) {
+                if (cit.second.fnumber != F11_000000_SYS)
+                    dlist.push_back(cit.second);
+            }
         }
         else
         {
@@ -44,9 +47,11 @@ int DirDatabase::Find(const char *dname, DirList_t& dlist) const
                 // return all directories
                 for (auto & cit : m_Database)
                 {
-                    int b = getUIC_lo(cit.first);
-                    if (a == b)
-                        dlist.push_back(cit.second);
+                    if (cit.second.fnumber != F11_000000_SYS) {
+                        int b = getUIC_lo(cit.first);
+                        if (a == b)
+                            dlist.push_back(cit.second);
+                    }
                 }
             }
             else
@@ -59,9 +64,11 @@ int DirDatabase::Find(const char *dname, DirList_t& dlist) const
                     //for (auto cit = m_Database.cbegin(); cit != m_Database.cend(); ++cit)
                     for (auto & cit : m_Database)
                     {
-                        int b = getUIC_hi(cit.first);
-                        if (a == b)
-                            dlist.push_back(cit.second);
+                        if (cit.second.fnumber != F11_000000_SYS) {
+                            int b = getUIC_hi(cit.first);
+                            if (a == b)
+                                dlist.push_back(cit.second);
+                        }
                     }
                 }
                 else
