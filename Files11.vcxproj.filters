@@ -51,6 +51,9 @@
     <ClCompile Include="src\FixedLengthRecord.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
+    <ClCompile Include="src\HelpUtil.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="include\Files11Record.h">
@@ -90,6 +93,9 @@
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="include\FixedLengthRecord.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="include\HelpUtil.h">
       <Filter>Header Files</Filter>
     </ClInclude>
   </ItemGroup>

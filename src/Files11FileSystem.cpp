@@ -213,6 +213,7 @@ int Files11FileSystem::ValidateStorageBitmap(void)
 
         Files11Base blockFile;
         int last_bitmap_block = -1;
+        uint8_t* buffer = nullptr;
 
         for (int fnumber = 1; fnumber < m_HomeBlock.GetMaxFiles(); ++fnumber)
         {
@@ -241,7 +242,6 @@ int Files11FileSystem::ValidateStorageBitmap(void)
                         //if (lbn == 0x15ed9) {
                         //    std::cout << "LBN 0x15ed9 used by " << frec.GetFullName() << "\n";
                         //}
-                        uint8_t *buffer = nullptr;
                         int bitmap_block = lbn / 4096;
                         int bitmap_index = (lbn % 4096) / 8;
                         int bitmap_bit = lbn % 8;
@@ -250,11 +250,13 @@ int Files11FileSystem::ValidateStorageBitmap(void)
                             buffer = blockFile.ReadBlock(bmpLBN[bitmap_block], m_dskStream);
                             last_bitmap_block = bitmap_block;
                         }
-                        // Block used = 0, Block free = 1
-                        if ((buffer[bitmap_index] & (1 << bitmap_bit)) != 0) {
-                            totalErrors++;
-                            // error, bit should be cleared since it is in use for this file
-                            std::cout << "LBN " << lbn << " not marked used, (file: " << frec.GetFullName() << ")\n";
+                        if (buffer) {
+                            // Block used = 0, Block free = 1
+                            if ((buffer[bitmap_index] & (1 << bitmap_bit)) != 0) {
+                                totalErrors++;
+                                // error, bit should be cleared since it is in use for this file
+                                std::cout << "LBN " << lbn << " not marked used, (file: " << frec.GetFullName() << ")\n";
+                            }
                         }
                     }
                 }
