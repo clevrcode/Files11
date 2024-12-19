@@ -1174,7 +1174,7 @@ bool Files11FileSystem::AddDirectoryEntry(int filenb, DirectoryRecord_t* pDirEnt
         {
             lastLBN = lbn;
             int nbRec = (F11_BLOCK_SIZE / recSize);
-            if (vbn == lastVBN)
+            if (vbn == eofBlock)
                 nbRec = firstFreePtr;
 
             DirectoryRecord_t* pEntry = dirFile.ReadDirectory(lbn, m_dskStream);
@@ -1529,11 +1529,96 @@ bool Files11FileSystem::AddFile(const char* nativeName, const char* pdp11Dir, co
 
 bool Files11FileSystem::DeleteFile(const char* pdp11Dir, const char* pdp11name)
 {
-    return false;
+    if ((pdp11Dir == nullptr) || (pdp11name == nullptr)) {
+        std::cerr << "ERROR -- Invalid arguments\n";
+        return false;
+    }
+
+    // Validate file name name max 9 chars, extension max 3 chars
+    std::string name, ext, version;
+    FileDatabase::SplitName(pdp11name, name, ext, version);
+    if ((name.length() > 9) || (ext.length() > 3))
+    {
+        std::cerr << "ERROR -- Invalid file name\n";
+        return false;
+    }
+
+    uint16_t fileType;
+    uint16_t fileName[3];
+    Files11Base::AsciiToRadix50(ext.c_str() , 3, &fileType);
+    Files11Base::AsciiToRadix50(name.c_str(), 9, fileName);
+
+    DirDatabase::DirList_t dirList;
+    DirDatabase.Find(pdp11Dir, dirList);
+
+    for (auto dirInfo : dirList) {
+        Files11Record dirRec;
+        if (!FileDatabase.Get(dirInfo.fnumber, dirRec))
+        {
+            continue;
+        }
+        const int NB_DIR_ENTRY = F11_BLOCK_SIZE / sizeof(DirectoryRecord_t);
+        Files11FCS fcs = dirRec.GetFileFCS();
+        int eofBlock = fcs.GetEOFBlock();
+        int ffbyte = fcs.GetFirstFreeByte();
+        int recSize = fcs.GetRecordSize();
+        int firstFreePtr = ffbyte / recSize;
+        assert(recSize == 16);
+
+        // Go through the whole directory to find other files of the same name
+        Files11Base::BlockList_t dirBlklist;
+        GetBlockList(dirRec.GetHeaderLBN(), dirBlklist);
+        int vbn = 1;
+        Files11Base dirFile;
+        for (auto& blk : dirBlklist)
+        {
+            for (auto lbn = blk.lbn_start; lbn <= blk.lbn_end; ++lbn, ++vbn)
+            {
+                int nbRec = (F11_BLOCK_SIZE / recSize);
+                if (vbn == eofBlock)
+                    nbRec = firstFreePtr;
+
+                DirectoryRecord_t* pEntry = dirFile.ReadDirectory(lbn, m_dskStream);
+                for (int idx = 0; idx < nbRec; ++idx)
+                {
+                    if (pEntry[idx].fileNumber == 0)
+                        continue;
+
+                    if (pEntry[idx].fileType[0] == fileType)
+                    {
+                        bool match = true;
+                        for (int i = 0; (i < 3) && match; ++i)
+                        {
+                            match = pEntry[idx].fileName[i] == fileName[i];
+                        }
+                        if (match)
+                            DeleteFile(pEntry[idx].fileNumber);
+                    }
+                }
+            }
+        }
+    }
+    return true;
 }
 
 bool Files11FileSystem::DeleteFile(int fileNumber)
 {
+    Files11Record frec;
+    if (FileDatabase.Get(fileNumber, frec)) 
+    {
+        Files11Base::BlockList_t BlkList;
+        GetBlockList(frec.GetHeaderLBN(), BlkList);
+        // Deallocate data blocks
+        MarkDataBlock(BlkList, false);
+
+        // Set header file number to 0
+        Files11Base file;
+        ODS1_FileHeader_t *pHeader = file.ReadHeader(frec.GetHeaderLBN(), m_dskStream);
+        pHeader->fh1_w_fid_num = 0;
+
+        // Deallocate the header block
+        MarkHeaderBlock(fileNumber, false);
+    }
     return false;
 }
 
