@@ -7,6 +7,12 @@ bool FileDatabase::Add(int nb, const Files11Record &frec)
     return true;
 }
 
+bool FileDatabase::Delete(int nb)
+{
+    m_Database.erase(nb);
+    return true;
+}
+
 int  FileDatabase::FindFirstFreeFile(void)
 {
     int fileNumber = -1;
@@ -40,10 +46,10 @@ bool FileDatabase::Get(int nb, Files11Record& frec)
 // -----------------------------------------------------------------------------
 // Return a file record in frec if file name and version passes the filter
 
-bool FileDatabase::Get(int nb, Files11Record& frec, int version, const char *filter)
+bool FileDatabase::Get(int nb, Files11Record& frec, int version, const char *fname)
 {
     Get(nb, frec);
-    return Filter(frec, filter, version);
+    return Filter(frec, fname);
 }
 
 void FileDatabase::SplitName(const std::string &fullname, std::string& name, std::string& ext, std::string& version)
@@ -64,7 +70,7 @@ void FileDatabase::SplitName(const std::string &fullname, std::string& name, std
     return;
 }
 
-bool FileDatabase::Filter(const Files11Record& rec, const char* fullname, int version)
+bool FileDatabase::Filter(const Files11Record& rec, const char* fullname)
 {
     if (fullname)
     {
@@ -89,10 +95,10 @@ bool FileDatabase::Filter(const Files11Record& rec, const char* fullname, int ve
         }
         if (fversion.length() > 0) {
             if (fversion == "*")
-                iVersion = version;
+                iVersion = rec.GetFileVersion();
             else
                 iVersion = strtol(fversion.c_str(), nullptr, 10);
-            return (name == rec.GetFileName()) && (ext == rec.GetFileExt()) && (iVersion == version);
+            return (name == rec.GetFileName()) && (ext == rec.GetFileExt()) && (iVersion == rec.GetFileVersion());
         }
         return (name == rec.GetFileName()) && (ext == rec.GetFileExt());
     }

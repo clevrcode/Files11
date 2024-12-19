@@ -12,7 +12,8 @@ public:
 	bool Exist(int nb) const;
 	bool Get(int nb, Files11Record& frec);
 	bool Get(int nb, Files11Record& frec, int version, const char *filter);
-	bool Filter(const Files11Record& rec, const char* name, int version);
+	bool Delete(int nb);
+	bool Filter(const Files11Record& rec, const char* name);
 	int  GetNbHeaders(void) const { return (int)m_Database.size(); };
 	static void SplitName(const std::string &fullname, std::string& name, std::string& ext, std::string& version);
 	int  FindFirstFreeFile(void);

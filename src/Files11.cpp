@@ -241,6 +241,16 @@ void ProcessCommand(std::string &command, Files11FileSystem& fs)
             else
                 fs.ListDirs(Files11FileSystem::LIST, nullptr, nullptr);
         }
+        else if ((words[0].substr(0, 3) == "DEL") || (words[0] == "RM"))
+        {
+            if (nbWords == 2) {
+                std::string dir, fname;
+                SplitFilePath(words[1], dir, fname);
+                fs.DeleteFile(dir.c_str(), fname.c_str());
+            }
+            else
+                std::cout << "ERROR -- missing argument\n";
+        }
         else if (words[0] == "DMPLBN")
         {
             if ((nbWords == 2)&&(words[1].length() > 1))

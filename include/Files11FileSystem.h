@@ -9,6 +9,11 @@
 #include "FileDatabase.h"
 #include "DirDatabase.h"
 
+#if defined(DeleteFile)
+#undef DeleteFile
+#endif
+
+
 class Files11FileSystem
 {
 public:
@@ -30,11 +35,15 @@ public:
 	int  GetDiskSize(void);
 	void PrintFile(int fileNumber, std::ostream& strm);
 	void DumpFile(int fileNumber, std::ostream& strm);
-	int  GetHighestVersion(const char* dirname, const char* filename, Files11Record& fileRecord);
-	int  GetDirFileList(const char* dirname, FileList_t &fileList);
+	int  GetHighestVersion(int dirfnb, const char* filename, Files11Record& fileRecord);
+	
+	int  GetDirList(const char* dirname, DirDatabase::DirList_t &dlist);
+	int  GetFileList(int dirfnb, FileList_t& fileList);
+
 	bool MarkDataBlock(Files11Base::BlockList_t blkList, bool used);
 	bool MarkHeaderBlock(int lbn, bool used);
-	bool AddDirectoryEntry(int lbn, DirectoryRecord_t* pDirEntry);
+	bool AddDirectoryEntry(int filenb, DirectoryRecord_t* pDirEntry);
+	bool DeleteDirectoryEntry(int filenb, std::vector<int> &fileNbToRemove);
 
 	typedef enum _Cmds {
 		LIST = 1000,

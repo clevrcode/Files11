@@ -88,55 +88,24 @@ bool Files11FileSystem::Open(const char *dskName)
 }
 
 
-int Files11FileSystem::GetHighestVersion(const char *dirname, const char* filename, Files11Record &fileRecord)
+int Files11FileSystem::GetHighestVersion(int dirfnb, const char* filename, Files11Record &fileRecord)
 {
-    int highVersion = -1;
-    if (dirname != nullptr)
+    int highVersion = 0;
+
+    FileList_t fileList;
+    GetFileList(dirfnb, fileList);
+
+    std::string strFileName(filename);
+    for (auto& file : fileList)
     {
-        DirDatabase::DirList_t dlist;
-        int nb_dir = DirDatabase.Find(dirname, dlist);
-        // no wildcard allowed
-        if (nb_dir != 1)
-            return 0;
-
-        Files11Record dirRecord;
-        if (FileDatabase.Get(dlist[0].fnumber, dirRecord))
+        Files11Record fileRec;
+        if (FileDatabase.Get(file.fnumber, fileRec))
         {
-            std::string strFileName(filename);
-            Files11Base::BlockList_t  dirblks;
-            GetBlockList(dirRecord.GetHeaderLBN(), dirblks);
-            Files11FCS  dirFCS  = dirRecord.GetFileFCS();
-
-            int vbn = 1;
-            int last_vbn  = dirFCS.GetUsedBlockCount();
-            int eof_bytes = dirFCS.GetFirstFreeByte();
-
-            for (auto& it : dirblks)
+            if (!fileRec.IsFileExtension() && (strFileName == fileRec.GetFullName()))
             {
-                for (auto lbn = it.lbn_start; (lbn <= it.lbn_end) && (vbn <= last_vbn); ++lbn, ++vbn)
-                {
-                    int nbrecs = (vbn == last_vbn) ? eof_bytes : F11_BLOCK_SIZE;
-                    nbrecs /= sizeof(DirectoryRecord_t);
-
-                    Files11Base dirFile;
-                    DirectoryRecord_t* pRec = dirFile.ReadDirectory(lbn, m_dskStream);
-                    for (int idx = 0; idx < nbrecs; idx++)
-                    {
-                        if (pRec[idx].fileNumber != 0)
-                        {
-                            Files11Record fileRec;
-                            if (FileDatabase.Get(pRec[idx].fileNumber, fileRec))
-                            {
-                                if (!fileRec.IsFileExtension() && (strFileName == fileRec.GetFullName()))
-                                {
-                                    if (pRec[idx].version > highVersion) {
-                                        highVersion = pRec[idx].version;
-                                        fileRecord = fileRec;
-                                    }
-                                }
-                            }
-                        }
-                    }
+                if (file.version > highVersion) {
+                    highVersion = file.version;
+                    fileRecord = fileRec;
                 }
             }
         }
@@ -407,46 +376,43 @@ void Files11FileSystem::VerifyFileSystem(Args_t args)
     }
 }
 
-// -----------------------------------------------------------
-// Return the list of file number present in a directory
-int Files11FileSystem::GetDirFileList(const char* dirname, FileList_t &fileList)
+int Files11FileSystem::GetDirList(const char* dirname, DirDatabase::DirList_t &dlist)
 {
-    fileList.clear();
+    dlist.clear();
     if (dirname != nullptr)
     {
-        DirDatabase::DirList_t dlist;
-        int nb_dir = DirDatabase.Find(dirname, dlist);
-        // no wildcard allowed
-        if (nb_dir != 1)
-            return 0;
+        DirDatabase.Find(dirname, dlist);
+    }
+    return static_cast<int>(dlist.size());
+}
 
-        Files11Record dirRecord;
-        if (FileDatabase.Get(dlist[0].fnumber, dirRecord))
+// --------------------------------------------------------------------------
+// Return the list of file number present in directory specified by dirname
+int Files11FileSystem::GetFileList(int dirfnb, FileList_t &fileList)
+{
+    Files11Record dirRecord;
+    if (FileDatabase.Get(dirfnb, dirRecord))
+    {
+        Files11Base::BlockList_t dirblks;
+        GetBlockList(dirRecord.GetHeaderLBN(), dirblks);
+        Files11FCS  dirFCS = dirRecord.GetFileFCS();
+
+        int vbn = 1;
+        int last_vbn = dirFCS.GetUsedBlockCount();
+        int eof_bytes = dirFCS.GetFirstFreeByte();
+
+        for (auto& block : dirblks)
         {
-            Files11Base::BlockList_t dirblks;
-            GetBlockList(dirRecord.GetHeaderLBN(), dirblks);
-            Files11FCS  dirFCS = dirRecord.GetFileFCS();
-
-            int vbn = 1;
-            int last_vbn = dirFCS.GetUsedBlockCount();
-            int eof_bytes = dirFCS.GetFirstFreeByte();
-
-            for (auto& it : dirblks)
+            for (auto lbn = block.lbn_start; (lbn <= block.lbn_end) && (vbn <= last_vbn); ++lbn, ++vbn)
             {
-                for (auto lbn = it.lbn_start; (lbn <= it.lbn_end) && (vbn <= last_vbn); ++lbn, ++vbn)
-                {
-                    int nbrecs = (vbn == last_vbn) ? eof_bytes : F11_BLOCK_SIZE;
-                    nbrecs /= sizeof(DirectoryRecord_t);
+                int nbrecs = (vbn == last_vbn) ? eof_bytes : F11_BLOCK_SIZE;
+                nbrecs /= sizeof(DirectoryRecord_t);
 
-                    DirectoryRecord_t* pRec = (DirectoryRecord_t*)m_File.ReadBlock(lbn, m_dskStream);
-                    for (int idx = 0; idx < nbrecs; idx++)
-                    {
-                        if (pRec[idx].fileNumber != 0)
-                        {
-                            FileInfo_t fileInfo(pRec[idx].fileNumber, pRec[idx].version);
-                            fileList.push_back(fileInfo);
-                        }
-                    }
+                DirectoryRecord_t* pRec = (DirectoryRecord_t*)m_File.ReadBlock(lbn, m_dskStream);
+                for (int idx = 0; idx < nbrecs; idx++)
+                {
+                    if (pRec[idx].fileNumber != 0)
+                        fileList.push_back(FileInfo_t(pRec[idx].fileNumber, pRec[idx].version));
                 }
             }
         }
@@ -543,16 +509,11 @@ void Files11FileSystem::DumpFile(int fileNumber, std::ostream& strm)
         {
             for (auto lbn = block.lbn_start; (lbn <= block.lbn_end) && (vbn <= last_vbn); lbn++, vbn++)
             {
-                uint8_t buffer[F11_BLOCK_SIZE];
-                if (Files11Base::readBlock(lbn, m_dskStream, buffer) == nullptr)
-                {
-                    std::cerr << "Failed to read block\n";
-                    break;
-                }
+                Files11Base file;
+                uint16_t *ptr = (uint16_t *)file.ReadBlock(lbn, m_dskStream);
                 int nbBytes = F11_BLOCK_SIZE;
-                if (vbn == last_vbn) {
+                if (vbn == last_vbn)
                     nbBytes = last_block_length;
-                }
 
                 char header[128];
                 snprintf(header, sizeof(header), "\n\n\n\nDump of DU0:%s;%d - File ID %d,%d,%d\n", fileRec.GetFullName(), 1, fileNumber, fileRec.GetFileSeq(), 0);
@@ -560,7 +521,6 @@ void Files11FileSystem::DumpFile(int fileNumber, std::ostream& strm)
                 snprintf(header, sizeof(header), "                  Virtual block 0,%06d - Size %d. bytes\n\n", vbn, nbBytes);
                 strm << header;
 
-                uint16_t* ptr = (uint16_t*)buffer;
                 for (int i = 0; i < (nbBytes / 16); i++)
                 {
                     // 000000    054523 000000 054523 000000 054523 000000 054523 000000
@@ -798,35 +758,45 @@ void Files11FileSystem::PrintFreeBlocks(void)
     }
 }
 
-void Files11FileSystem::TypeFile(const Files11Record &dirRecord, const char* filename)
+void Files11FileSystem::TypeFile(const Files11Record& dirRecord, const char* filename)
 {
     std::string dirName = DirDatabase::FormatDirectory(dirRecord.GetFullName());
     std::string strFileName(filename);
     // If no version specified, only output the highest version
-    if (strFileName.find(";") == std::string::npos)
+
+
+    bool printHighVersion = strFileName.find(";") == std::string::npos;
     {
-        Files11Record fileRec;
-        int highVersion = GetHighestVersion(dirName.c_str(), filename, fileRec);
-        if (highVersion > 0) {
-            if (fileRec.GetFileFCS().GetRecordType() & rt_vlr)
-                PrintFile(fileRec.GetFileNumber(), std::cout);
-            else
-                DumpFile(fileRec.GetFileNumber(), std::cout);
-        }
-    }
-    else
-    {
-        FileList_t fileList;
-        GetDirFileList(dirName.c_str(), fileList);
-        for (auto& fileInfo : fileList)
+        DirDatabase::DirList_t dirlist;
+        GetDirList(dirName.c_str(), dirlist);
+        for (auto& dir : dirlist)
         {
-            Files11Record fileRec;
-            if (FileDatabase.Get(fileInfo.fnumber, fileRec, fileInfo.version, filename))
+            if (printHighVersion) 
             {
-                if (fileRec.GetFileFCS().GetRecordType() & rt_vlr)
-                    PrintFile(fileRec.GetFileNumber(), std::cout);
-                else
-                    DumpFile(fileRec.GetFileNumber(), std::cout);
+                Files11Record fileRec;
+                if (GetHighestVersion(dir.fnumber, filename, fileRec) > 0)
+                {
+                    if (fileRec.GetFileFCS().GetRecordType() & rt_vlr)
+                        PrintFile(fileRec.GetFileNumber(), std::cout);
+                    else
+                        DumpFile(fileRec.GetFileNumber(), std::cout);
+                }
+            }
+            else
+            {
+                FileList_t fileList;
+                GetFileList(dir.fnumber, fileList);
+                for (auto& fileInfo : fileList)
+                {
+                    Files11Record fileRec;
+                    if (FileDatabase.Get(fileInfo.fnumber, fileRec, fileInfo.version, filename))
+                    {
+                        if (fileRec.GetFileFCS().GetRecordType() & rt_vlr)
+                            PrintFile(fileRec.GetFileNumber(), std::cout);
+                        else
+                            DumpFile(fileRec.GetFileNumber(), std::cout);
+                    }
+                }
             }
         }
     }
@@ -923,59 +893,60 @@ void Files11FileSystem::ListDirs(Cmds_e cmd, const char *dirname, const char *fi
     int DirectoryCount = 0;
 
     DirDatabase::DirList_t dlist;
-    int nb_dir = DirDatabase.Find(cwd.c_str(), dlist);
+    GetDirList(cwd.c_str(), dlist);
     for (auto& dir : dlist)
     {
-        Files11Record rec;
-        if (FileDatabase.Get(dir.fnumber, rec))
-        {
-            if (rec.IsFileExtension())
-                continue;
+        Files11Record dirRec;
+        FileDatabase.Get(dir.fnumber, dirRec);
 
+        // Get a full list of the directory files
+        FileList_t flist;
+        GetFileList(dir.fnumber, flist);
+
+        // filter that list according to the specified file name
+        std::vector<Files11Record> frecList;
+        for (auto& file : flist)
+        {
+            Files11Record frec;
+            if (FileDatabase.Get(file.fnumber, frec, 0, filename))
+                frecList.push_back(frec);
+        }
+        // If the filtered list is not empty
+        if (!frecList.empty())
+        {
+            found = true;
             switch (cmd)
             {
             case LIST:
             {
-                FileList_t fileList;
-                ListFiles(rec, filename, fileList);
+                int usedBlocks = 0;
+                int totalBlocks = 0;
+                int totalFiles = 0;
+                DirectoryCount++;
 
-                if (fileList.size() > 0)
+                std::cout << "\nDirectory DU0:" << DirDatabase::FormatDirectory(dirRec.GetFileName()) << std::endl;
+                std::cout << m_File.GetCurrentDate() << "\n";
+
+                for (auto& rec : frecList)
                 {
-                    int usedBlocks = 0;
-                    int totalBlocks = 0;
-                    int totalFiles = 0;
-                    found = true;
-                    DirectoryCount++;
-
-                    std::cout << "\nDirectory DU0:" << DirDatabase::FormatDirectory(rec.GetFileName()) << std::endl;
-                    std::cout << m_File.GetCurrentDate() << "\n";
-                    // List files in this directory that matches filename
-                    for (auto& file : fileList)
-                    {
-                        Files11Record frec;
-                        if (FileDatabase.Get(file.fnumber, frec))
-                        {
-                            frec.PrintRecord();
-                            usedBlocks += frec.GetUsedBlockCount();
-                            totalBlocks += GetBlockList(frec.GetHeaderLBN());
-                            totalFiles++;
-                        }
-                    }
-                    std::cout << "\nTotal of " << usedBlocks << "./" << totalBlocks << ". blocks in " << totalFiles << ". file";
-                    if (totalFiles > 1)
-                        std::cout << "s";
-                    std::cout << "\n\n";
-
-                    GrandUsedBlocks += usedBlocks;
-                    GrandTotalBlocks += totalBlocks;
-                    GrandTotalFiles += totalFiles;
+                    rec.PrintRecord();
+                    usedBlocks += rec.GetUsedBlockCount();
+                    totalBlocks += GetBlockList(rec.GetHeaderLBN());
+                    totalFiles++;
                 }
+                std::cout << "\nTotal of " << usedBlocks << "./" << totalBlocks << ". blocks in " << totalFiles << ". file";
+                if (totalFiles > 1)
+                    std::cout << "s";
+                std::cout << "\n\n";
+
+                GrandUsedBlocks += usedBlocks;
+                GrandTotalBlocks += totalBlocks;
+                GrandTotalFiles += totalFiles;
             }
             break;
 
             case TYPE:
-                found = true;
-                TypeFile(rec, filename);
+                TypeFile(dirRec, filename);
                 break;
             }
         }
@@ -983,12 +954,12 @@ void Files11FileSystem::ListDirs(Cmds_e cmd, const char *dirname, const char *fi
     // Grand Total
     if (found) {
         if ((cmd == LIST) && (DirectoryCount > 1) && (GrandTotalFiles > 0))
-        {
             std::cout << "Grand total of " << GrandUsedBlocks << "./" << GrandTotalBlocks << ". blocks in " << GrandTotalFiles << ". files in " << DirectoryCount << ". directories\n";
-        }
     }
     else
+    {
         std::cout << "DIR -- No such file(s)\n\n";
+    }
 }
 
 void Files11FileSystem::ChangeWorkingDirectory(const char* dir)
@@ -1315,6 +1286,65 @@ bool Files11FileSystem::AddDirectoryEntry(int filenb, DirectoryRecord_t* pDirEnt
     return false;
 }
 
+bool Files11FileSystem::DeleteDirectoryEntry(int filenb, std::vector<int> &fileNbToRemove)
+{
+    Files11Record dirRec;
+    if (!FileDatabase.Get(filenb, dirRec))
+    {
+        std::cerr << "ERROR -- Directory not found\n";
+        return false;
+    }
+
+    const int NB_DIR_ENTRY = F11_BLOCK_SIZE / sizeof(DirectoryRecord_t);
+    Files11FCS fcs = dirRec.GetFileFCS();
+    int lastVBN = fcs.GetHighVBN();
+    int eofBlock = fcs.GetEOFBlock();
+    int ffbyte = fcs.GetFirstFreeByte();
+    int recSize = fcs.GetRecordSize();
+    int firstFreePtr = ffbyte / recSize;
+    assert(recSize == 16);
+
+    // Go through the whole directory to find other files of the same name
+    Files11Base::BlockList_t dirBlklist;
+    GetBlockList(dirRec.GetHeaderLBN(), dirBlklist);
+
+    int vbn = 1;
+    Files11Base dirFile;
+    for (auto& blk : dirBlklist)
+    {
+        for (auto lbn = blk.lbn_start; lbn <= blk.lbn_end; ++lbn, ++vbn)
+        {
+            int nbRec = (F11_BLOCK_SIZE / recSize);
+            if (vbn == eofBlock)
+                nbRec = firstFreePtr;
+
+            DirectoryRecord_t* pEntry = dirFile.ReadDirectory(lbn, m_dskStream);
+            Files11Base newDir;
+            DirectoryRecord_t* pNewEntry = newDir.ReadDirectory(lbn, m_dskStream, true);
+
+            for (int idx = 0, newidx = 0; idx < nbRec; ++idx)
+            {
+                for (auto fnb : fileNbToRemove)
+                {
+                    if (pEntry[idx].fileNumber == fnb) {
+                        pEntry[idx].fileNumber = 0;
+                        break;
+                    }
+                }
+                if (pEntry[idx].fileNumber != 0) {
+                    pNewEntry[newidx++] = pEntry[idx];
+                }
+            }
+            // Write back directory block
+            newDir.WriteBlock(m_dskStream);
+            // TODO: check if block is empty and if so, remove it
+
+
+        }
+    }
+    return true;
+}
+
 //========================================================
 //
 // Add a new file in the PDP-11 file system
@@ -1542,61 +1572,24 @@ bool Files11FileSystem::DeleteFile(const char* pdp11Dir, const char* pdp11name)
         std::cerr << "ERROR -- Invalid file name\n";
         return false;
     }
+    std::string fdir(pdp11Dir);
+    if (fdir.length() == 0) {
+        fdir = GetCurrentWorkingDirectory();
+    }
 
-    uint16_t fileType;
-    uint16_t fileName[3];
-    Files11Base::AsciiToRadix50(ext.c_str() , 3, &fileType);
-    Files11Base::AsciiToRadix50(name.c_str(), 9, fileName);
-
-    DirDatabase::DirList_t dirList;
-    DirDatabase.Find(pdp11Dir, dirList);
-
-    for (auto dirInfo : dirList) {
-        Files11Record dirRec;
-        if (!FileDatabase.Get(dirInfo.fnumber, dirRec))
-        {
-            continue;
+    DirDatabase::DirList_t dirlist;
+    GetDirList(fdir.c_str(), dirlist);
+    for (auto &dir : dirlist)
+    {
+        std::vector<int> fileNbToRemove;
+        FileList_t fileList;
+        GetFileList(dir.fnumber, fileList);
+        for (auto file : fileList) {
+            //std::cout << "DELETE FILE: [" << dirRec.GetFileName() << "]" << frec.GetFullName() << ";" << (int)frec.GetFileVersion() << " number: " << (int)frec.GetFileNumber() << std::endl;
+            DeleteFile(file.fnumber);
+            fileNbToRemove.push_back(file.fnumber);
         }
-        const int NB_DIR_ENTRY = F11_BLOCK_SIZE / sizeof(DirectoryRecord_t);
-        Files11FCS fcs = dirRec.GetFileFCS();
-        int eofBlock = fcs.GetEOFBlock();
-        int ffbyte = fcs.GetFirstFreeByte();
-        int recSize = fcs.GetRecordSize();
-        int firstFreePtr = ffbyte / recSize;
-        assert(recSize == 16);
-
-        // Go through the whole directory to find other files of the same name
-        Files11Base::BlockList_t dirBlklist;
-        GetBlockList(dirRec.GetHeaderLBN(), dirBlklist);
-        int vbn = 1;
-        Files11Base dirFile;
-        for (auto& blk : dirBlklist)
-        {
-            for (auto lbn = blk.lbn_start; lbn <= blk.lbn_end; ++lbn, ++vbn)
-            {
-                int nbRec = (F11_BLOCK_SIZE / recSize);
-                if (vbn == eofBlock)
-                    nbRec = firstFreePtr;
-
-                DirectoryRecord_t* pEntry = dirFile.ReadDirectory(lbn, m_dskStream);
-                for (int idx = 0; idx < nbRec; ++idx)
-                {
-                    if (pEntry[idx].fileNumber == 0)
-                        continue;
-
-                    if (pEntry[idx].fileType[0] == fileType)
-                    {
-                        bool match = true;
-                        for (int i = 0; (i < 3) && match; ++i)
-                        {
-                            match = pEntry[idx].fileName[i] == fileName[i];
-                        }
-                        if (match)
-                            DeleteFile(pEntry[idx].fileNumber);
-                    }
-                }
-            }
-        }
+        DeleteDirectoryEntry(dir.fnumber, fileNbToRemove);
     }
     return true;
 }
@@ -1613,11 +1606,20 @@ bool Files11FileSystem::DeleteFile(int fileNumber)
 
         // Set header file number to 0
         Files11Base file;
-        ODS1_FileHeader_t *pHeader = file.ReadHeader(frec.GetHeaderLBN(), m_dskStream);
-        pHeader->fh1_w_fid_num = 0;
-
-        // Deallocate the header block
-        MarkHeaderBlock(fileNumber, false);
+        int lbn = frec.GetHeaderLBN();
+        do {
+            ODS1_FileHeader_t *pHeader = file.ReadHeader(lbn, m_dskStream);
+            int fNumber = pHeader->fh1_w_fid_num;
+            pHeader->fh1_w_fid_num = 0;
+            pHeader->fh1_b_syschar |= sc_mdl; // Mark for deletion
+            F11_MapArea_t* pMap = file.GetMapArea();
+            lbn = (pMap->ext_FileNumber == 0) ? 0 : FileNumberToLBN(pMap->ext_FileNumber);
+            file.WriteHeader(m_dskStream);
+            // Deallocate the header block
+            MarkHeaderBlock(fNumber, false);
+            FileDatabase.Delete(fNumber);
+        } while (lbn != 0);
+        return true;
     }
     return false;
 }

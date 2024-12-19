@@ -17,6 +17,7 @@ public:
 	void     Refresh(std::fstream& istrm);
 	uint16_t GetFileNumber(void) const          { return fileNumber;                  };
 	uint16_t GetFileSeq(void) const             { return fileSeq;                     };
+	uint16_t GetFileVersion(void) const         { return fileVersion;                 };
 	uint16_t GetFileRevision(void) const        { return fileRevision;                };
 	uint32_t GetHeaderLBN(void) const           { return headerLBN;                   };
 	int      GetUsedBlockCount(void)            { return fileFCS.GetUsedBlockCount(); };
