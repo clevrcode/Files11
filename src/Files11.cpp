@@ -333,6 +333,8 @@ void ProcessCommand(std::string &command, Files11FileSystem& fs)
             if (nbWords >= 2) {
                 std::string dir, file, output;
                 SplitFilePath(words[1], dir, file);
+                if (dir.empty())
+                    dir = fs.GetCurrentWorkingDirectory();
                 if (nbWords == 2)
                     words.push_back(".");
                 fs.ExportFiles(dir.c_str(), file.c_str(), words[2].c_str());

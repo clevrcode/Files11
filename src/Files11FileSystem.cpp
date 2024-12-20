@@ -58,8 +58,8 @@ bool Files11FileSystem::Open(const char *dskName)
                         int fileNumber = fileRecord.Initialize(lbn, m_dskStream);
                         if (fileNumber > 0)
                         {
-                            printf("%06o:%06o %-20sOwner: [%03o,%03o], Protection: 0x%04x LBN: %d %c\n", fileRecord.GetFileNumber(), fileRecord.GetFileSeq(), 
-                                fileRecord.GetFullName(), fileRecord.GetOwnerUIC() >> 8, fileRecord.GetOwnerUIC() & 0xff, fileRecord.GetFileProtection(), lbn, fileRecord.IsFileExtension() ? 'Y' : 'N');
+                            //printf("%06o:%06o %-20sOwner: [%03o,%03o], Protection: 0x%04x LBN: %d %c\n", fileRecord.GetFileNumber(), fileRecord.GetFileSeq(), 
+                            //    fileRecord.GetFullName(), fileRecord.GetOwnerUIC() >> 8, fileRecord.GetOwnerUIC() & 0xff, fileRecord.GetFileProtection(), lbn, fileRecord.IsFileExtension() ? 'Y' : 'N');
                             if (FileDatabase.Add(fileNumber, fileRecord))
                             {
                                 // If a directory, add to the directory database (key: dir name)
@@ -615,10 +615,68 @@ void Files11FileSystem::DumpHeader(int fileNumber)
     std::cout << (pHeader->fh1_w_fileowner & 0xFF) << "]" << std::endl;
     std::cout << "        H.FPRO                 " << hdrFile.GetFileProtectionString(pHeader->fh1_w_fileprot) << std::endl;
 
+    std::cout << "        H.UCHA                 ";
+    std::cout.width(3); std::cout.fill('0');
+    std::cout << std::oct << (int)pHeader->fh1_b_userchar << " = ";
+    if (pHeader->fh1_b_userchar > 0)
+        std::cout << std::dec << (int)pHeader->fh1_b_userchar << ".";
+    std::cout << std::endl;
+    std::cout << "        H.SCHA                 ";
+    std::cout.width(3); std::cout.fill('0');
+    std::cout << std::oct << (int)pHeader->fh1_b_syschar << " = ";
+    if (pHeader->fh1_b_syschar > 0)
+        std::cout << std::dec << (int)pHeader->fh1_b_syschar << ".";
+    std::cout << std::endl;
+
+    std::cout << "        H.UFAT                 " << std::endl;
+    ODS1_UserAttrArea_t* pUser = hdrFile.GetUserAttr();
+    std::cout << "                 F.RTYP        ";
+    std::cout.width(3); std::cout.fill('0');
+    std::cout << std::oct << (int)pUser->ufcs_rectype << " = ";
+    if (pUser->ufcs_rectype & rt_fix)
+        std::cout << "R.FIX ";
+    if (pUser->ufcs_rectype & rt_vlr)
+        std::cout << "R.VAR ";
+    if (pUser->ufcs_rectype & rt_seq)
+        std::cout << "R.SEQ ";
+    std::cout << std::endl;
+
+    std::cout << "                 F.RATT        ";
+    std::cout.width(3); std::cout.fill('0');
+    std::cout << std::oct << (int)pUser->ufcs_recattr << " = ";
+    if (pUser->ufcs_recattr & ra_ftn)
+        std::cout << "FD.FTN ";
+    if (pUser->ufcs_recattr & ra_cr)
+        std::cout << "FD.CR ";
+    if (pUser->ufcs_recattr & ra_prn)
+        std::cout << "FD.PRN ";
+    std::cout << std::endl;
+
+    std::cout.width(3); std::cout.fill('0');
+    std::cout << "                 F.RSIZ        " << std::oct << pUser->ufcs_recsize << " = " << std::dec << pUser->ufcs_recsize << "." << std::endl;
+    std::cout.width(3); std::cout.fill('0');
+    std::cout << "                 F.HIBK        ";
+    print_blocks((int)pUser->ufcs_highvbn_hi, (int)pUser->ufcs_highvbn_lo);
+    std::cout.width(3); std::cout.fill('0');
+    std::cout << "                 F.EFBK        ";
+    print_blocks((int)pUser->ufcs_eofblck_hi, (int)pUser->ufcs_eofblck_lo);
+    std::cout.width(3); std::cout.fill('0');
+    std::cout << "                 F.FFBY        " << std::oct << pUser->ufcs_ffbyte << " = " << std::dec << pUser->ufcs_ffbyte << "." << std::endl;
+    std::cout << "                 (REST)\n";
+    uint16_t* p = (uint16_t*)&pHeader->fh1_b_fill_1[sizeof(ODS1_UserAttrArea_t)];
+    for (int l = 0; l < 2; l++) {
+        std::cout << "                 ";
+        for (int i = 0; i < 8; i++, p++)
+        {
+            std::cout.width(6); std::cout.fill('0');
+            std::cout << std::oct << std::right << *p << " ";
+        }
+        std::cout << std::endl;
+    }
+
     // TODO -- CONTINUE...
     //   User data
     // TODO -- CONTINUE...
-
     std::cout.width(0);
     std::cout << "IDENTIFICATION AREA\n";
     std::string name, ext, misc;
@@ -626,7 +684,7 @@ void Files11FileSystem::DumpHeader(int fileNumber)
     Files11Base::Radix50ToAscii(pIdent->filename, 3, name, true);
     Files11Base::Radix50ToAscii(pIdent->filetype, 1, ext, true);
     std::cout << "        I.FNAM                 " << name << std::endl;
-    std::cout << "        I.FTYP                 " << ext  << std::endl;
+    std::cout << "        I.FTYP                 " << ext << std::endl;
     std::cout << "        I.FVER                 " << name << "." << ext << ";" << pIdent->version << std::endl;
     std::cout << "        I.RVNO                 " << pIdent->revision << std::endl;
     Files11Base::MakeDate(pIdent->revision_date, misc, false);
@@ -640,7 +698,35 @@ void Files11FileSystem::DumpHeader(int fileNumber)
     Files11Base::MakeDate(pIdent->expiration_date, misc, false);
     std::cout << "        I.EXDT                 " << misc << std::endl;
 
-    F11_MapArea_t* pMap = hdrFile.GetMapArea();
+    int ext_header = fileNumber;
+    while (ext_header != 0)
+    {
+        Files11Base mapFile;
+        ODS1_FileHeader_t *phdr = mapFile.ReadHeader(FileNumberToLBN(ext_header), m_dskStream);
+        F11_MapArea_t *pMap = mapFile.GetMapArea();
+        print_map_area(pMap);
+        std::cout << "CHECKSUM\n";
+        std::cout << "        H.CKSM                 " << std::oct << pHeader->fh1_w_checksum << std::endl;
+        ext_header = pMap->ext_FileNumber;
+    }
+    std::cout << std::endl;
+    std::cout << std::endl;
+    std::cout << std::dec;
+    std::cout.fill(' ');
+}
+
+void Files11FileSystem::print_blocks(int blk_hi, int blk_lo)
+{
+    std::cout << "H:";
+    std::cout.width(3); std::cout.fill('0');
+    std::cout << std::right << std::oct << blk_hi;
+    std::cout << " L:";
+    std::cout.width(6); std::cout.fill('0');
+    std::cout << std::right << blk_lo << " = " << std::dec << (int)((blk_hi * 0x1000) + blk_lo) << "." << std::endl;
+}
+
+void Files11FileSystem::print_map_area(F11_MapArea_t* pMap)
+{
     std::cout.width(3); std::cout.fill('0');
     std::cout << "MAP AREA\n";
     std::cout.width(3); std::cout.fill('0');
@@ -667,29 +753,17 @@ void Files11FileSystem::DumpHeader(int fileNumber)
     std::cout << std::oct << std::right << (int)pMap->MAX << std::dec << " = " << (int)pMap->MAX << "." << std::endl;
     std::cout << "        M.RTRV                 " << std::endl;
     std::cout << "        SIZE    LBN            " << std::endl;
-    F11_Format1_t* pFmt1 = (F11_Format1_t*) & pMap->pointers;
+    F11_Format1_t* pFmt1 = (F11_Format1_t*)&pMap->pointers;
     for (int i = 0; i < (pMap->USE / 2); ++i) {
         std::cout << "        ";
         std::cout.width(8); std::cout.fill(' ');
-        misc = std::to_string(pFmt1->blk_count + 1) + ".";
+        std::string misc(std::to_string(pFmt1->blk_count + 1) + ".");
         std::cout << std::left << misc;
-        std::cout << "H:";
-        std::cout.width(3); std::cout.fill('0');
-        std::cout << std::right << std::oct << (int)pFmt1->hi_lbn;
-        std::cout << " L:";
-        std::cout.width(6); std::cout.fill('0');
-        std::cout << std::right << (int)pFmt1->lo_lbn << " = " << std::dec << (int)((pFmt1->hi_lbn * 0x1000) + pFmt1->lo_lbn) << "." << std::endl;
+        print_blocks((int)pFmt1->hi_lbn, (int)pFmt1->lo_lbn);
         pFmt1++;
     }
-
-    std::cout << "CHECKSUM\n";
-    std::cout << "        H.CKSM                 " << std::oct << pHeader->fh1_w_checksum << std::endl;
-    std::cout << std::endl;
-    std::cout << std::endl;
-
-    std::cout << std::dec;
-    std::cout.fill(' ');
 }
+
 
 void Files11FileSystem::PrintFreeBlocks(void)
 {
@@ -776,7 +850,7 @@ void Files11FileSystem::TypeFile(const Files11Record& dirRecord, const char* fil
                 Files11Record fileRec;
                 if (GetHighestVersion(dir.fnumber, filename, fileRec) > 0)
                 {
-                    if (fileRec.GetFileFCS().GetRecordType() & rt_vlr)
+                    if ((fileRec.GetFileFCS().GetRecordType() & rt_vlr)&&(fileRec.GetFileFCS().GetRecordAttributes() & ra_cr))
                         PrintFile(fileRec.GetFileNumber(), std::cout);
                     else
                         DumpFile(fileRec.GetFileNumber(), std::cout);
@@ -791,7 +865,7 @@ void Files11FileSystem::TypeFile(const Files11Record& dirRecord, const char* fil
                     Files11Record fileRec;
                     if (FileDatabase.Get(fileInfo.fnumber, fileRec, fileInfo.version, filename))
                     {
-                        if (fileRec.GetFileFCS().GetRecordType() & rt_vlr)
+                        if ((fileRec.GetFileFCS().GetRecordType() & rt_vlr) && (fileRec.GetFileFCS().GetRecordAttributes() & ra_cr))
                             PrintFile(fileRec.GetFileNumber(), std::cout);
                         else
                             DumpFile(fileRec.GetFileNumber(), std::cout);

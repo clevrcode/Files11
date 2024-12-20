@@ -86,6 +86,9 @@ public:
 
 private:
 
+	static void print_blocks(int blk_hi, int blk_lo);
+	static void print_map_area(F11_MapArea_t* pMap);
+
 	int GetBlockList(int lbn);
 	int GetBlockList(int lbn, Files11Base::BlockList_t &blkList);
 	int BuildBlockList(int lbn, Files11Base::BlockList_t* blk_list, std::fstream& istrm);
