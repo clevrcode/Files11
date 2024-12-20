@@ -601,10 +601,10 @@ void Files11FileSystem::DumpHeader(int fileNumber)
     std::cout << "HEADER AREA\n";
     std::cout << "        H.IDOF                 ";
     std::cout.width(3); std::cout.fill('0');
-    std::cout << std::oct << (int)pHeader->fh1_b_idoffset << std::endl;
+    std::cout << std::oct << std::right << (int)pHeader->fh1_b_idoffset << std::endl;
     std::cout << "        H.MPOF                 ";
     std::cout.width(3); std::cout.fill('0');
-    std::cout << std::oct << (int)pHeader->fh1_b_mpoffset << std::endl;
+    std::cout << std::oct << std::right << (int)pHeader->fh1_b_mpoffset << std::endl;
     std::cout << "        H.FNUM,                " << std::endl;
     std::cout << "        H.FSEQ                 (" << std::oct << pHeader->fh1_w_fid_num << "," << pHeader->fh1_w_fid_seq << ")" << std::endl;
     std::cout << "        H.FLEV,                " << pHeader->fh1_w_struclev << std::endl;
@@ -663,16 +663,16 @@ void Files11FileSystem::DumpHeader(int fileNumber)
     std::cout.width(3); std::cout.fill('0');
     std::cout << "                 F.FFBY        " << std::oct << pUser->ufcs_ffbyte << " = " << std::dec << pUser->ufcs_ffbyte << "." << std::endl;
     std::cout << "                 (REST)\n";
-    uint16_t* p = (uint16_t*)&pHeader->fh1_b_fill_1[sizeof(ODS1_UserAttrArea_t)];
-    for (int l = 0; l < 2; l++) {
-        std::cout << "                 ";
-        for (int i = 0; i < 8; i++, p++)
-        {
-            std::cout.width(6); std::cout.fill('0');
-            std::cout << std::oct << std::right << *p << " ";
-        }
-        std::cout << std::endl;
+    uint16_t* p = (uint16_t*)((uint8_t*)&pHeader->fh1_w_ufat + sizeof(ODS1_UserAttrArea_t));
+    std::cout << "                 ";
+    for (int i = 0; i < 8; i++, p++)
+    {
+        std::cout.width(6); std::cout.fill('0');
+        std::cout << std::oct << std::right << *p << " ";
     }
+    std::cout << std::endl << "                 ";
+    std::cout.width(6); std::cout.fill('0');
+    std::cout << std::oct << std::right << *p << std::endl;
 
     // TODO -- CONTINUE...
     //   User data
@@ -722,7 +722,7 @@ void Files11FileSystem::print_blocks(int blk_hi, int blk_lo)
     std::cout << std::right << std::oct << blk_hi;
     std::cout << " L:";
     std::cout.width(6); std::cout.fill('0');
-    std::cout << std::right << blk_lo << " = " << std::dec << (int)((blk_hi * 0x1000) + blk_lo) << "." << std::endl;
+    std::cout << std::right << blk_lo << " = " << std::dec << (int)((blk_hi * 0x10000) + blk_lo) << "." << std::endl;
 }
 
 void Files11FileSystem::print_map_area(F11_MapArea_t* pMap)
@@ -870,6 +870,40 @@ void Files11FileSystem::TypeFile(const Files11Record& dirRecord, const char* fil
                         else
                             DumpFile(fileRec.GetFileNumber(), std::cout);
                     }
+                }
+            }
+        }
+    }
+}
+
+void Files11FileSystem::DumpHeader(const Files11Record& dirRecord, const char* filename)
+{
+    std::string dirName = DirDatabase::FormatDirectory(dirRecord.GetFullName());
+    std::string strFileName(filename);
+    // If no version specified, only output the highest version
+
+
+    bool printHighVersion = strFileName.find(";") == std::string::npos;
+    {
+        DirDatabase::DirList_t dirlist;
+        GetDirList(dirName.c_str(), dirlist);
+        for (auto& dir : dirlist)
+        {
+            if (printHighVersion)
+            {
+                Files11Record fileRec;
+                if (GetHighestVersion(dir.fnumber, filename, fileRec) > 0)
+                    DumpHeader(fileRec.GetFileNumber());
+            }
+            else
+            {
+                FileList_t fileList;
+                GetFileList(dir.fnumber, fileList);
+                for (auto& fileInfo : fileList)
+                {
+                    Files11Record fileRec;
+                    if (FileDatabase.Get(fileInfo.fnumber, fileRec, fileInfo.version, filename))
+                        DumpHeader(fileRec.GetFileNumber());
                 }
             }
         }
@@ -1045,6 +1079,10 @@ void Files11FileSystem::ListDirs(Cmds_e cmd, const char *dirname, const char *fi
 
             case TYPE:
                 TypeFile(dirRec, filename);
+                break;
+
+            case DMPHDR:
+                DumpHeader(dirRec, filename);
                 break;
             }
         }

@@ -35,6 +35,8 @@ public:
 	int  GetDiskSize(void);
 	void PrintFile(int fileNumber, std::ostream& strm);
 	void DumpFile(int fileNumber, std::ostream& strm);
+	void DumpHeader(int fileNumber);
+
 	int  GetHighestVersion(int dirfnb, const char* filename, Files11Record& fileRecord);
 	
 	int  GetDirList(const char* dirname, DirDatabase::DirList_t &dlist);
@@ -48,6 +50,7 @@ public:
 	typedef enum _Cmds {
 		LIST = 1000,
 		TYPE,
+		DMPHDR,
 		EXPORT,
 		IMPORT
 	} Cmds_e;
@@ -61,6 +64,8 @@ public:
 	void ExportFiles(const char* dirname, const char* filename, const char* outdir);
 
 	void TypeFile(const Files11Record& dirRecord, const char* filename);
+	void DumpHeader(const Files11Record& dirRecord, const char* filename);
+
 	void ChangeWorkingDirectory(const char*);
 	const char* GetCurrentWorkingDirectory(void) const { return m_CurrentDirectory.c_str(); };
 	const char* GetErrorMessage(void) const { return m_strErrorMsg.c_str(); };
@@ -73,7 +78,6 @@ public:
 	}
 
 	void DumpLBN(int lbn);
-	void DumpHeader(int fileNumber);
 
 	bool AddFile(const char* nativeName, const char *pdp11Dir, const char* pdp11Name=nullptr);
 	bool DeleteFile(const char* pdp11Dir, const char* pdp11name);

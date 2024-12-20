@@ -268,16 +268,13 @@ void ProcessCommand(std::string &command, Files11FileSystem& fs)
         }
         else if (words[0] == "DMPHDR")
         {
-            if ((nbWords == 2) && (words[1].length() > 1))
-            {
-                int base = 10;
-                if (words[1][0] == '0')
-                    base = 8;
-                else if ((words[1][0] == 'x') || (words[1][0] == 'X'))
-                    base = 16;
-                int fnb = strtol(words[1].c_str(), NULL, base);
-                fs.DumpHeader(fnb);
+            if (nbWords == 2) {
+                std::string dir, file;
+                SplitFilePath(words[1], dir, file);
+                fs.ListDirs(Files11FileSystem::DMPHDR, dir.c_str(), file.c_str());
             }
+            else
+                std::cout << "ERROR -- missing argument\n";
         }
         else if ((words[0] == "CAT") || (words[0] == "TYPE"))
         {
