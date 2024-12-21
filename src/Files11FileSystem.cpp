@@ -296,7 +296,7 @@ int Files11FileSystem::ValidateDirectory(const char* dirname, DirFileList_t& dir
                                 totalErrors++;
                                 Files11Base::PrintError(strDirName.c_str(), p, "RESERVED FIELD WAS NON-ZERO");
                             }
-                            if (p->version > 1777) // TODO ???
+                            if (p->version > MAX_FILE_VERSION)
                             {
                                 totalErrors++;
                                 Files11Base::PrintError(strDirName.c_str(), p, "INVALID VERSION NUMBER");
@@ -674,9 +674,6 @@ void Files11FileSystem::DumpHeader(int fileNumber)
     std::cout.width(6); std::cout.fill('0');
     std::cout << std::oct << std::right << *p << std::endl;
 
-    // TODO -- CONTINUE...
-    //   User data
-    // TODO -- CONTINUE...
     std::cout.width(0);
     std::cout << "IDENTIFICATION AREA\n";
     std::string name, ext, misc;
@@ -1551,7 +1548,7 @@ bool Files11FileSystem::AddFile(const char* nativeName, const char* pdp11Dir, co
     // Mark data blocks as used in BITMAP.SYS
     MarkDataBlock(BlkList, true);
 
-    // TODO - CHECK IF EXTENSION(S) HEADER ARE REQUIRED (Must have more than 26,112 blocks)
+    // Calculate how many header is required
     int NbContiguousBlksPerHeader = BLOCKS_PER_POINTER * NB_POINTERS_PER_HEADER;
     int nbHeaders = (nbBlocks + (NbContiguousBlksPerHeader - 1)) / NbContiguousBlksPerHeader;
 
@@ -1584,7 +1581,7 @@ bool Files11FileSystem::AddFile(const char* nativeName, const char* pdp11Dir, co
     pHeader->fh1_w_fid_num   = hdrFileNumber[0];
     pHeader->fh1_w_fid_seq   = new_file_seq; // Increase the sequence number when file is reused (Ref: 3.1)
     pHeader->fh1_w_struclev  = 0x0101; // (Ref 3.4.1.5)
-    pHeader->fh1_w_fileowner = (03 << 8) + 054; //0x0102; // TODO m_HomeBlock.GetVolumeOwner();
+    pHeader->fh1_w_fileowner = F11_DEFAULT_FILE_OWNER;
     pHeader->fh1_w_fileprot  = m_HomeBlock.GetDefaultFileProtection(); //  F11_DEFAULT_FILE_PROTECTION; // Full access
     pHeader->fh1_b_userchar  = 0x80; // Set contiguous bit only (Ref:3.4.1.8)
     pHeader->fh1_b_syschar   = 0; // 
@@ -1660,7 +1657,6 @@ bool Files11FileSystem::AddFile(const char* nativeName, const char* pdp11Dir, co
         }
         pMap->ext_SegNumber = hdr;
 
-        // TODO: HOW TO SET POINTERS AND FCS WITH MULTIHEADER FILES
         // 7) Fill the pointers
         F11_Format1_t* Ptrs = (F11_Format1_t*)&pMap->pointers;
         for (int k = 0; (k < NB_POINTERS_PER_HEADER) && (blk < BlkList.size()); ++blk, ++k)
@@ -1722,8 +1718,12 @@ bool Files11FileSystem::DeleteFile(const char* pdp11Dir, const char* pdp11name)
         GetFileList(dir.fnumber, fileList);
         for (auto file : fileList) {
             //std::cout << "DELETE FILE: [" << dirRec.GetFileName() << "]" << frec.GetFullName() << ";" << (int)frec.GetFileVersion() << " number: " << (int)frec.GetFileNumber() << std::endl;
-            DeleteFile(file.fnumber);
-            fileNbToRemove.push_back(file.fnumber);
+            Files11Record fileRec;
+            // TODO : NEED TO FILTER THIS LIST WITH THE FILENAME/EXT (use version -1 to get latest version)
+            if (FileDatabase.Get(file.fnumber, fileRec, file.version, pdp11name)) {
+                DeleteFile(file.fnumber);
+                fileNbToRemove.push_back(file.fnumber);
+            }
         }
         DeleteDirectoryEntry(dir.fnumber, fileNbToRemove);
     }

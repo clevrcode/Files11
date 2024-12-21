@@ -28,10 +28,16 @@ constexpr int F11_CORIMG_SYS = 5;
 
 constexpr uint8_t F11_HEADER_FID_OFFSET = 0x17;
 constexpr uint8_t F11_HEADER_MAP_OFFSET = 0x2E;
+
 // World protection (Full access to SYS,OWN,GRP)
 constexpr uint16_t F11_DEFAULT_FILE_PROTECTION = 0xE000;
+// Default Owner
+constexpr uint16_t F11_DEFAULT_FILE_OWNER = (001 << 8) + 002; // [001,002] TODO
+
 constexpr int NAM_SIZE = 3; // Size of file name in words
 constexpr int EXT_SIZE = 1; // Size of file extension in words
+
+constexpr int MAX_FILE_VERSION = 017777; // TODO : VERIFY THAT
 
 #define EOL ("\r\n")
 
