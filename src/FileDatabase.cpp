@@ -1,14 +1,25 @@
+#include <regex>
 #include "FileDatabase.h"
 
-bool FileDatabase::Add(int nb, const Files11Record &frec)
+void FileDatabase::Add(int nb, const Files11Record &frec)
 {
     // Add a new entry for this file (key: file number)
     m_Database[nb] = frec;
-    return true;
+    // If a directory, add to the directory database (key: dir name)
+    if (frec.IsDirectory()) {
+        DirInfo_t info(nb, frec.GetHeaderLBN());
+        m_DirDatabase[frec.GetFileName()] = info;
+    }
 }
 
 bool FileDatabase::Delete(int nb)
 {
+	if (m_Database.find(nb) == m_Database.end())
+		return false;
+
+	if (m_Database[nb].IsDirectory()) {
+		m_DirDatabase.erase(m_Database[nb].GetFileName());
+	}
     m_Database.erase(nb);
     return true;
 }
@@ -105,3 +116,171 @@ bool FileDatabase::Filter(const Files11Record& rec, const char* fullname)
     return true;
 }
 
+//-------------------------------------------------------------------------
+
+
+bool FileDatabase::DirectoryExist(const char* dname) const
+{
+    std::string strDirName(makeKey(dname));
+    auto pos = m_DirDatabase.find(strDirName);
+    return pos != m_DirDatabase.end();
+}
+
+int FileDatabase::FindDirectory(const char* dname, DirList_t& dlist) const
+{
+    dlist.clear();
+
+    // Check if dname contains wildcard
+    std::string dirname(FormatDirectory(dname));
+    if (isWildcard(dirname))
+    {
+        if ((dirname == "[*]") || (dirname == "[*,*]"))
+        {
+            // return all directories
+            //for (auto cit = m_Database.cbegin(); cit != m_Database.cend(); ++cit)
+            for (auto& cit : m_DirDatabase) {
+                if (cit.second.fnumber != F11_000000_SYS)
+                    dlist.push_back(cit.second);
+            }
+        }
+        else
+        {
+            std::smatch sm;
+            std::regex_match(dirname, sm, std::regex("\\[\\*,([0-7]+)\\]"));
+            if (sm.size() == 2)
+            {
+                int a = strtol(sm.str(1).c_str(), nullptr, 8);
+                // return all directories
+                for (auto& cit : m_DirDatabase)
+                {
+                    if (cit.second.fnumber != F11_000000_SYS) {
+                        int b = getUIC_lo(cit.first);
+                        if (a == b)
+                            dlist.push_back(cit.second);
+                    }
+                }
+            }
+            else
+            {
+                std::regex_match(dirname, sm, std::regex("\\[([0-7]+),\\*\\]"));
+                if (sm.size() == 2)
+                {
+                    int a = strtol(sm.str(1).c_str(), nullptr, 8);
+                    // return all directories
+                    //for (auto cit = m_Database.cbegin(); cit != m_Database.cend(); ++cit)
+                    for (auto& cit : m_DirDatabase)
+                    {
+                        if (cit.second.fnumber != F11_000000_SYS) {
+                            int b = getUIC_hi(cit.first);
+                            if (a == b)
+                                dlist.push_back(cit.second);
+                        }
+                    }
+                }
+                else
+                {
+                    // string wildcard
+                }
+            }
+        }
+    }
+    else
+    {
+        std::string key(makeKey(dirname));
+        auto pos = m_DirDatabase.find(key);
+        if (pos != m_DirDatabase.end())
+            dlist.push_back(pos->second);
+    }
+    // Return the number of directories found
+    return (int)dlist.size();;
+}
+
+std::string FileDatabase::FormatDirectory(const std::string& dir)
+{
+    std::string out(dir);
+    if ((dir.length() == 6) && (dir.front() != '['))
+    {
+        std::regex re("([0-7]{3})([0-7]{3})");
+        std::smatch sm;
+        std::regex_match(dir, sm, re);
+        if (sm.size() == 3)
+        {
+            out = "[" + sm.str(1) + "," + sm.str(2) + "]";
+        }
+    }
+    else if ((dir.length() > 0) && (dir.front() == '[') && (dir.back() == ']'))
+    {
+        std::regex re("\\[([0-7]+),([0-7]+)\\]");
+        std::smatch sm;
+        std::regex_match(dir, sm, re);
+        if (sm.size() == 3)
+        {
+            char buf[16];
+            int a = strtol(sm.str(1).c_str(), nullptr, 8);
+            int b = strtol(sm.str(2).c_str(), nullptr, 8);
+            sprintf_s(buf, sizeof(buf), "[%03o,%03o]", a, b);
+            out = buf;
+        }
+    }
+    else if ((dir.length() > 0) && (dir.front() != '[') && (dir.back() != ']'))
+    {
+        auto pos = dir.find(".");
+        if (pos != std::string::npos) {
+            if (dir.substr(pos + 1, 3) == "DIR")
+                out = "[" + dir.substr(0, pos) + "]";
+        }
+        else
+            out = "[" + dir + "]";
+    }
+    return out;
+}
+
+bool FileDatabase::isWildcard(const std::string& str)
+{
+    return str.find('*') != std::string::npos;
+}
+
+int FileDatabase::getUIC_hi(const std::string& in)
+{
+    int uic = 0;
+    if (in.length() == 6)
+    {
+        bool allnum = true;
+        //for (auto cit = in.cbegin(); allnum && (cit != in.cend()); ++cit)
+        for (const auto& cit : in)
+            allnum = (cit >= '0') && (cit <= '7');
+        if (allnum)
+        {
+            uic = strtol(in.substr(0, 3).c_str(), nullptr, 8);
+        }
+    }
+    return uic;
+}
+
+int FileDatabase::getUIC_lo(const std::string& in)
+{
+    int uic = 0;
+    if (in.length() == 6)
+    {
+        bool allnum = true;
+        //for (auto cit = in.cbegin(); allnum && (cit != in.cend()); ++cit)
+        for (const auto& cit : in)
+            allnum = (cit >= '0') && (cit <= '7');
+        if (allnum)
+        {
+            uic = strtol(in.substr(3).c_str(), nullptr, 8);
+        }
+    }
+    return uic;
+}
+
+std::string FileDatabase::makeKey(const std::string& dir)
+{
+    std::string key;
+    //for (auto cit = dir.cbegin(); cit != dir.cend(); ++cit) {
+    for (const auto& cit : dir) {
+        if ((cit != '[') && (cit != ']') && (cit != ','))
+            key += cit;
+    }
+    return key;
+}

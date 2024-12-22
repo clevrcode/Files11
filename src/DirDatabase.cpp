@@ -1,4 +1,5 @@
 #include <regex>
+#include <iostream>
 #include "Files11_defs.h"
 #include "DirDatabase.h"
 
@@ -177,5 +178,20 @@ std::string DirDatabase::makeKey(const std::string& dir)
             key += cit;
     }
     return key;
+}
+
+void DirDatabase::Populate(std::function<void(int, uint8_t*)> pf)
+{
+    for (auto& dir : m_Database)
+    {
+		std::cout << "Directory: " << dir.first << std::endl;
+        uint8_t buffer[512];
+        pf(dir.second.lbn, buffer);
+		DirectoryRecord_t* pDir = (DirectoryRecord_t*)buffer;
+        for (int i = 0; i < 32; ++i)
+        {
+            std::cout << "*** entry: " << pDir[i].fileNumber << std::endl;
+        }
+    }
 }
 

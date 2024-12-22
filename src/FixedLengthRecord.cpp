@@ -17,7 +17,7 @@ bool FixedLengthRecord::IsFixedLengthRecordFile(const char* fname)
 	return false;
 }
 
-bool FixedLengthRecord::WriteFile(const char* fname, std::fstream& outFile, BlockList_t& blkList, ODS1_UserAttrArea_t* pUserAttr)
+bool FixedLengthRecord::WriteFile(const char* fname, std::fstream& outFile, BlockList_t& blkList, F11_UserAttrArea_t* pUserAttr)
 {
     if ((blkList.size() == 0) || (fname == nullptr) || (pUserAttr == nullptr))
         return false;

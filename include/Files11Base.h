@@ -25,12 +25,18 @@ public:
 	uint8_t             *ReadBlock(int lbn, std::fstream& istrm);
 	bool                 WriteBlock(std::fstream& istrm);
 	bool                 WriteHeader(std::fstream& istrm);
-	ODS1_FileHeader_t*   ReadHeader(int lbn, std::fstream& istrm, bool clear=false);
+	F11_FileHeader_t*    ReadHeader(int lbn, std::fstream& istrm, bool clear=false);
 	DirectoryRecord_t*   ReadDirectory(int lbn, std::fstream& istrm, bool clear=false);
-	F11_MapArea_t*       GetMapArea(ODS1_FileHeader_t* ptr=nullptr) const;
-	F11_IdentArea_t*     GetIdentArea(ODS1_FileHeader_t* ptr=nullptr) const;
-	ODS1_UserAttrArea_t* GetUserAttr(ODS1_FileHeader_t* ptr=nullptr) const;
-	bool                 CreateExtensionHeader(int lbn, int extFileNumber, ODS1_FileHeader_t* pHeader, BlockList_t &blkList, std::fstream& istrm);
+	bool                 ValidateHeader(F11_FileHeader_t* pHeader=nullptr);
+
+	uint8_t*             GetBlock(void) { return m_block; };
+	F11_FileHeader_t*    GetHeader(void* p=nullptr) const;
+	F11_HomeBlock_t*     GetHome(void* p=nullptr) const;
+	F11_MapArea_t*       GetMapArea(F11_FileHeader_t* ptr=nullptr) const;
+	F11_IdentArea_t*     GetIdentArea(F11_FileHeader_t* ptr=nullptr) const;
+	F11_UserAttrArea_t*  GetUserAttr(F11_FileHeader_t* ptr=nullptr) const;
+	SCB_t*               GetSCB(void) const { return (SCB_t*)m_block; };
+	bool                 CreateExtensionHeader(int lbn, int extFileNumber, F11_FileHeader_t* pHeader, BlockList_t &blkList, std::fstream& istrm);
 	
 	static uint16_t      CalcChecksum(uint16_t* buffer, size_t wordCount);
 	static void          MakeString(char* str, size_t len, std::string &outstr, bool strip=false);
@@ -48,9 +54,11 @@ public:
 
 	static uint8_t      *readBlock(int lbn, std::fstream& istrm, uint8_t*blk);
 	static uint8_t      *writeBlock(int lbn, std::fstream& istrm, uint8_t* blk);
-	static bool          writeHeader(int lbn, std::fstream& istrm, ODS1_FileHeader_t* pHeader);
+	static bool          writeHeader(int lbn, std::fstream& istrm, F11_FileHeader_t* pHeader);
 	static bool          getCurrentDirectory(std::string &dir);
-
+	static int           makeLBN(unsigned int hi, unsigned int lo) { return (hi << 16) + lo; };
+	static int           GetBlockPointers(F11_MapArea_t* p, BlockList_t& blklist);
+	static int           GetBlockCount(const BlockList_t& blklist);
 
 private:
 	int                m_LastBlockRead;

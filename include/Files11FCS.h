@@ -6,9 +6,9 @@ class Files11FCS
 {
 public:
 	Files11FCS(void);
-	Files11FCS(ODS1_UserAttrArea_t* p);
+	Files11FCS(F11_UserAttrArea_t* p);
 	Files11FCS(const Files11FCS& fcs);
-	void Initialize(ODS1_UserAttrArea_t* p);
+	void Initialize(F11_UserAttrArea_t* p);
 	uint8_t GetRecordType(void)       const { return m_RecordType; };
 	uint8_t GetRecordAttributes(void) const { return m_RecordAttributes; };
 	int     GetRecordSize(void)       const { return m_RecordSize; };

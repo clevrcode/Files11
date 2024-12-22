@@ -7,7 +7,6 @@
 #include "Files11Record.h"
 #include "Files11HomeBlock.h"
 #include "FileDatabase.h"
-#include "DirDatabase.h"
 
 #if defined(DeleteFile)
 #undef DeleteFile
@@ -32,14 +31,13 @@ public:
 	bool Open(const char* diskFile);
 	void Close(void);
 	void PrintVolumeInfo(void);
-	int  GetDiskSize(void);
 	void PrintFile(int fileNumber, std::ostream& strm);
 	void DumpFile(int fileNumber, std::ostream& strm);
 	void DumpHeader(int fileNumber);
 
 	int  GetHighestVersion(int dirfnb, const char* filename, Files11Record& fileRecord);
 	
-	int  GetDirList(const char* dirname, DirDatabase::DirList_t &dlist);
+	int  GetDirList(const char* dirname, FileDatabase::DirList_t &dlist);
 	int  GetFileList(int dirfnb, FileList_t& fileList);
 
 	bool MarkDataBlock(Files11Base::BlockList_t blkList, bool used);
@@ -93,10 +91,9 @@ private:
 	static void print_blocks(int blk_hi, int blk_lo);
 	static void print_map_area(F11_MapArea_t* pMap);
 
-	int GetBlockList(int lbn);
 	int GetBlockList(int lbn, Files11Base::BlockList_t &blkList);
-	int BuildBlockList(int lbn, Files11Base::BlockList_t* blk_list, std::fstream& istrm);
-	int GetBlockCount(F11_MapArea_t* pMap, Files11Base::BlockList_t* pBlkList = nullptr);
+	int BuildBlockList(int lbn, Files11Base::BlockList_t& blk_list, std::fstream& istrm);
+
 	Files11Base      m_File;
 	std::fstream     m_dskStream;
 	bool             m_bValid;
@@ -105,7 +102,6 @@ private:
 	std::string      m_DiskFileName;
 	std::string      m_CurrentDirectory;
 	FileDatabase     FileDatabase;
-	DirDatabase      DirDatabase;
 	std::vector<int> m_FileNumberToLBN;
 };
 

@@ -27,7 +27,11 @@ bool Files11FileSystem::Open(const char *dskName)
         m_FileNumberToLBN.push_back(0); // Exclude file number 0
 
         // Read the Home Block
-        m_bValid = m_HomeBlock.Initialize(m_dskStream);
+        if (!m_HomeBlock.Initialize([&](int lbn, Files11Base& obj) { obj.ReadBlock(lbn, m_dskStream); }))
+        {
+			m_dskStream.close();
+            return false;
+        }
 
         // Build File Header Database
         const uint32_t IndexLBN = (uint32_t) m_HomeBlock.GetIndexLBN();
@@ -36,18 +40,36 @@ bool Files11FileSystem::Open(const char *dskName)
         Files11Record IndexFileRecord;
         IndexFileRecord.Initialize(IndexLBN, m_dskStream);
         std::string filename(IndexFileRecord.GetFullName());
-        if (filename == "INDEXF.SYS")
-            m_FileNumberToLBN.push_back(IndexLBN); // File number 1 is the INDEXF.SYS file
-        else
+        if (filename != "INDEXF.SYS")
         {
             std::cerr << "Invalid File System\n";
+			m_dskStream.close();
             return false;
         }
-        Files11Base::BlockList_t  BlkList;
-        GetBlockList(IndexFileRecord.GetHeaderLBN(), BlkList);
-        if (!BlkList.empty())
-        {
-            for (auto& block : BlkList)
+        
+        m_FileNumberToLBN.push_back(IndexLBN); // File number 1 is the INDEXF.SYS file
+        FileDatabase.Add(F11_INDEXF_SYS, IndexFileRecord);
+
+        // Initialize the File Number to LBN index
+        Files11Base file;
+		int ext_file_number = F11_INDEXF_SYS;
+
+        do {
+            if (ext_file_number >= m_FileNumberToLBN.size()) {
+                break;
+            }
+            file.ReadBlock(m_FileNumberToLBN[ext_file_number], m_dskStream);
+            F11_MapArea_t* pMap = file.GetMapArea();
+            Files11Base::BlockList_t  blklist;
+            ext_file_number = Files11Base::GetBlockPointers(pMap, blklist);
+
+            if (blklist.empty()) {
+	    		std::cerr << "ERROR -- Failed to read block list for INDEXF.SYS\n";
+                m_dskStream.close();
+                return false;
+            }
+
+            for (auto& block : blklist)
             {
                 for (auto lbn = block.lbn_start; lbn <= block.lbn_end; ++lbn)
                 {
@@ -58,27 +80,23 @@ bool Files11FileSystem::Open(const char *dskName)
                         int fileNumber = fileRecord.Initialize(lbn, m_dskStream);
                         if (fileNumber > 0)
                         {
+							assert(fileNumber == m_FileNumberToLBN.size() - 1);
                             //printf("%06o:%06o %-20sOwner: [%03o,%03o], Protection: 0x%04x LBN: %d %c\n", fileRecord.GetFileNumber(), fileRecord.GetFileSeq(), 
                             //    fileRecord.GetFullName(), fileRecord.GetOwnerUIC() >> 8, fileRecord.GetOwnerUIC() & 0xff, fileRecord.GetFileProtection(), lbn, fileRecord.IsFileExtension() ? 'Y' : 'N');
-                            if (FileDatabase.Add(fileNumber, fileRecord))
-                            {
-                                // If a directory, add to the directory database (key: dir name)
-                                if (fileRecord.IsDirectory()) {
-                                    DirDatabase::DirInfo_t info(fileNumber, FileNumberToLBN(fileNumber));
-                                    DirDatabase.Add(fileRecord.GetFileName(), info);
-                                }
-                            }
+                            FileDatabase.Add(fileNumber, fileRecord);
                         }
                     }
                 }
             }
-            // set current working directory to the user UIC
-            m_CurrentDirectory = m_HomeBlock.GetOwnerUIC();
-        }
-        else
-        {
-            std::cerr << "ERROR -- Invalid INDEXF.SYS file: Block pointers empty\n";
-        }
+
+		} while (ext_file_number > 0);
+
+        // set current working directory to the user UIC
+        m_CurrentDirectory = m_HomeBlock.GetOwnerUIC();
+        m_bValid = true;
+
+		std::cout << "Number of header used: " << FileDatabase.GetNbHeaders() << std::endl;
+
     }
     else
     {
@@ -86,7 +104,6 @@ bool Files11FileSystem::Open(const char *dskName)
     }
 	return m_bValid;
 }
-
 
 int Files11FileSystem::GetHighestVersion(int dirfnb, const char* filename, Files11Record &fileRecord)
 {
@@ -242,15 +259,15 @@ int Files11FileSystem::ValidateStorageBitmap(void)
 int Files11FileSystem::ValidateDirectory(const char* dirname, DirFileList_t& dirFileMap, int* pTotalFilesChecked)
 {
     int totalErrors = 0;
-    DirDatabase::DirList_t dirlist;
-    DirDatabase.Find(dirname, dirlist);
+    FileDatabase::DirList_t dirlist;
+    FileDatabase.FindDirectory(dirname, dirlist);
     for (auto& dir : dirlist)
     {
         Files11Record dirRecord;
         if (FileDatabase.Get(dir.fnumber, dirRecord))
         {
             std::string strDirName;
-            strDirName = DirDatabase::FormatDirectory(dirRecord.GetFileName());
+            strDirName = FileDatabase::FormatDirectory(dirRecord.GetFileName());
             Files11Base::BlockList_t dirblks;
             GetBlockList(dirRecord.GetHeaderLBN(), dirblks);
             Files11FCS  dirFCS = dirRecord.GetFileFCS();
@@ -376,12 +393,12 @@ void Files11FileSystem::VerifyFileSystem(Args_t args)
     }
 }
 
-int Files11FileSystem::GetDirList(const char* dirname, DirDatabase::DirList_t &dlist)
+int Files11FileSystem::GetDirList(const char* dirname, FileDatabase::DirList_t &dlist)
 {
     dlist.clear();
     if (dirname != nullptr)
     {
-        DirDatabase.Find(dirname, dlist);
+        FileDatabase.FindDirectory(dirname, dlist);
     }
     return static_cast<int>(dlist.size());
 }
@@ -592,7 +609,7 @@ void Files11FileSystem::DumpHeader(int fileNumber)
     }
     int lbn = FileNumberToLBN(fileNumber);
     Files11Base hdrFile;
-    ODS1_FileHeader_t *pHeader = hdrFile.ReadHeader(lbn, m_dskStream);
+    F11_FileHeader_t *pHeader = hdrFile.ReadHeader(lbn, m_dskStream);
     Files11Record fRec;
     FileDatabase.Get(fileNumber, fRec);
     std::cout << "\n\n";
@@ -629,7 +646,7 @@ void Files11FileSystem::DumpHeader(int fileNumber)
     std::cout << std::endl;
 
     std::cout << "        H.UFAT                 " << std::endl;
-    ODS1_UserAttrArea_t* pUser = hdrFile.GetUserAttr();
+    F11_UserAttrArea_t* pUser = hdrFile.GetUserAttr();
     std::cout << "                 F.RTYP        ";
     std::cout.width(3); std::cout.fill('0');
     std::cout << std::oct << (int)pUser->ufcs_rectype << " = ";
@@ -663,7 +680,7 @@ void Files11FileSystem::DumpHeader(int fileNumber)
     std::cout.width(3); std::cout.fill('0');
     std::cout << "                 F.FFBY        " << std::oct << pUser->ufcs_ffbyte << " = " << std::dec << pUser->ufcs_ffbyte << "." << std::endl;
     std::cout << "                 (REST)\n";
-    uint16_t* p = (uint16_t*)((uint8_t*)&pHeader->fh1_w_ufat + sizeof(ODS1_UserAttrArea_t));
+    uint16_t* p = (uint16_t*)((uint8_t*)&pHeader->fh1_w_ufat + sizeof(F11_UserAttrArea_t));
     std::cout << "                 ";
     for (int i = 0; i < 8; i++, p++)
     {
@@ -699,7 +716,7 @@ void Files11FileSystem::DumpHeader(int fileNumber)
     while (ext_header != 0)
     {
         Files11Base mapFile;
-        ODS1_FileHeader_t *phdr = mapFile.ReadHeader(FileNumberToLBN(ext_header), m_dskStream);
+        F11_FileHeader_t *phdr = mapFile.ReadHeader(FileNumberToLBN(ext_header), m_dskStream);
         F11_MapArea_t *pMap = mapFile.GetMapArea();
         print_map_area(pMap);
         std::cout << "CHECKSUM\n";
@@ -760,7 +777,6 @@ void Files11FileSystem::print_map_area(F11_MapArea_t* pMap)
         pFmt1++;
     }
 }
-
 
 void Files11FileSystem::PrintFreeBlocks(void)
 {
@@ -831,14 +847,14 @@ void Files11FileSystem::PrintFreeBlocks(void)
 
 void Files11FileSystem::TypeFile(const Files11Record& dirRecord, const char* filename)
 {
-    std::string dirName = DirDatabase::FormatDirectory(dirRecord.GetFullName());
+    std::string dirName = FileDatabase::FormatDirectory(dirRecord.GetFullName());
     std::string strFileName(filename);
     // If no version specified, only output the highest version
 
 
     bool printHighVersion = strFileName.find(";") == std::string::npos;
     {
-        DirDatabase::DirList_t dirlist;
+        FileDatabase::DirList_t dirlist;
         GetDirList(dirName.c_str(), dirlist);
         for (auto& dir : dirlist)
         {
@@ -875,14 +891,14 @@ void Files11FileSystem::TypeFile(const Files11Record& dirRecord, const char* fil
 
 void Files11FileSystem::DumpHeader(const Files11Record& dirRecord, const char* filename)
 {
-    std::string dirName = DirDatabase::FormatDirectory(dirRecord.GetFullName());
+    std::string dirName = FileDatabase::FormatDirectory(dirRecord.GetFullName());
     std::string strFileName(filename);
     // If no version specified, only output the highest version
 
 
     bool printHighVersion = strFileName.find(";") == std::string::npos;
     {
-        DirDatabase::DirList_t dirlist;
+        FileDatabase::DirList_t dirlist;
         GetDirList(dirName.c_str(), dirlist);
         for (auto& dir : dirlist)
         {
@@ -948,13 +964,13 @@ void Files11FileSystem::ExportFiles(const char* dirname, const char* filename, c
     _chdir(directory.c_str());
 
     //std::string pdpdir(DirDatabase::makeKey(DirDatabase::FormatDirectory(dirname)));
-    std::string pdpdir(DirDatabase::FormatDirectory(dirname));
+    std::string pdpdir(FileDatabase::FormatDirectory(dirname));
     std::cout << "-------------------------------------------------------\n";
     std::cout << "Output directory: " << directory << std::endl;
     std::cout << pdpdir << std::endl;
     std::cout << filename << std::endl;
 
-    DirDatabase::DirList_t dlist;
+    FileDatabase::DirList_t dlist;
     GetDirList(pdpdir.c_str(), dlist);
     for (auto& dir : dlist)
     {
@@ -1013,7 +1029,7 @@ void Files11FileSystem::ListDirs(Cmds_e cmd, const char *dirname, const char *fi
     if ((dirname == nullptr) || (dirname[0] == '\0'))
         cwd = m_CurrentDirectory;
     else
-        cwd = DirDatabase::FormatDirectory(dirname);
+        cwd = FileDatabase::FormatDirectory(dirname);
 
     bool found = false;
     int GrandUsedBlocks = 0;
@@ -1021,7 +1037,7 @@ void Files11FileSystem::ListDirs(Cmds_e cmd, const char *dirname, const char *fi
     int GrandTotalFiles = 0;
     int DirectoryCount = 0;
 
-    DirDatabase::DirList_t dlist;
+    FileDatabase::DirList_t dlist;
     GetDirList(cwd.c_str(), dlist);
     for (auto& dir : dlist)
     {
@@ -1053,14 +1069,15 @@ void Files11FileSystem::ListDirs(Cmds_e cmd, const char *dirname, const char *fi
                 int totalFiles = 0;
                 DirectoryCount++;
 
-                std::cout << "\nDirectory DU0:" << DirDatabase::FormatDirectory(dirRec.GetFileName()) << std::endl;
+                std::cout << "\nDirectory DU0:" << FileDatabase::FormatDirectory(dirRec.GetFileName()) << std::endl;
                 std::cout << m_File.GetCurrentDate() << "\n";
 
                 for (auto& rec : frecList)
                 {
+                    Files11Base::BlockList_t blklist;
                     rec.PrintRecord();
                     usedBlocks += rec.GetUsedBlockCount();
-                    totalBlocks += GetBlockList(rec.GetHeaderLBN());
+                    totalBlocks += GetBlockList(rec.GetHeaderLBN(), blklist);
                     totalFiles++;
                 }
                 std::cout << "\nTotal of " << usedBlocks << "./" << totalBlocks << ". blocks in " << totalFiles << ". file";
@@ -1097,7 +1114,7 @@ void Files11FileSystem::ListDirs(Cmds_e cmd, const char *dirname, const char *fi
 
 void Files11FileSystem::ChangeWorkingDirectory(const char* dir)
 {
-    std::string newdir(DirDatabase::FormatDirectory(dir));
+    std::string newdir(FileDatabase::FormatDirectory(dir));
     bool found = false;
     if (newdir.length() > 0)
     {
@@ -1105,7 +1122,7 @@ void Files11FileSystem::ChangeWorkingDirectory(const char* dir)
         if (newdir.find('*') == std::string::npos)
         {
             std::vector<int> dlist;
-            if (DirDatabase.Exist(newdir.c_str()))
+            if (FileDatabase.DirectoryExist(newdir.c_str()))
             {
                 m_CurrentDirectory = newdir;
                 found = true;
@@ -1121,11 +1138,6 @@ void Files11FileSystem::Close(void)
     if (m_dskStream.is_open()) {
         m_dskStream.close();
     }
-}
-
-int Files11FileSystem::GetDiskSize(void)
-{ 
-    return m_HomeBlock.GetDiskSize();
 }
 
 void Files11FileSystem::PrintVolumeInfo(void)
@@ -1315,8 +1327,8 @@ bool Files11FileSystem::AddDirectoryEntry(int filenb, DirectoryRecord_t* pDirEnt
     //---------------------------------------
     // Get a copy of the directory header
     Files11Base hdrFile;
-    ODS1_FileHeader_t    *pHeader = hdrFile.ReadHeader(dirRec.GetHeaderLBN(), m_dskStream);
-    ODS1_UserAttrArea_t*  pUser   = hdrFile.GetUserAttr();
+    F11_FileHeader_t    *pHeader = hdrFile.ReadHeader(dirRec.GetHeaderLBN(), m_dskStream);
+    F11_UserAttrArea_t*  pUser   = hdrFile.GetUserAttr();
     F11_MapArea_t        *pMap    = hdrFile.GetMapArea();
     int                nbPointers = pMap->USE / POINTER_SIZE;
 
@@ -1507,13 +1519,13 @@ bool Files11FileSystem::AddFile(const char* nativeName, const char* pdp11Dir, co
         return false;
     }
 
-    DirDatabase::DirList_t dirList;
-    DirDatabase.Find(pdp11Dir, dirList);
+    FileDatabase::DirList_t dirList;
+    FileDatabase.FindDirectory(pdp11Dir, dirList);
     if (dirList.size() != 1) {
         std::cerr << "ERROR -- Invalid directory\n";
         return false;
     }   
-    DirDatabase::DirInfo_t dirInfo(dirList[0]);
+    FileDatabase::DirInfo_t dirInfo(dirList[0]);
 
     // Determine file content type
     std::ifstream ifs(nativeName, std::ifstream::binary);
@@ -1570,10 +1582,10 @@ bool Files11FileSystem::AddFile(const char* nativeName, const char* pdp11Dir, co
     int header_lbn = FileNumberToLBN(hdrFileNumber[0]);
 
     // 5) Create a file header for the file metadata (set the block pointers)
-    //ODS1_FileHeader_t *pHeader = (ODS1_FileHeader_t*) m_File.ReadBlock(header_lbn, m_dskStream);
+    //F11_FileHeader_t *pHeader = (F11_FileHeader_t*) m_File.ReadBlock(header_lbn, m_dskStream);
 
     Files11Base newFile;
-    ODS1_FileHeader_t* pHeader = newFile.ReadHeader(header_lbn, m_dskStream);
+    F11_FileHeader_t* pHeader = newFile.ReadHeader(header_lbn, m_dskStream);
     int new_file_seq = pHeader->fh1_w_fid_seq + 1;
     newFile.ClearBlock();
     pHeader->fh1_b_idoffset  = F11_HEADER_FID_OFFSET;
@@ -1610,7 +1622,7 @@ bool Files11FileSystem::AddFile(const char* nativeName, const char* pdp11Dir, co
     pMap->MAX               = (uint8_t)MAX_POINTERS;
 
     // 6) Transfer file content to the allocated blocks
-    ODS1_UserAttrArea_t* pUserAttr = newFile.GetUserAttr();
+    F11_UserAttrArea_t* pUserAttr = newFile.GetUserAttr();
     if (typeText) {
         if (!VarLengthRecord::WriteFile(nativeName, m_dskStream, BlkList, pUserAttr))
         {
@@ -1652,7 +1664,7 @@ bool Files11FileSystem::AddFile(const char* nativeName, const char* pdp11Dir, co
         pMap->ext_FileSeqNumber = 0;
         if (pMap->ext_FileNumber != 0) {
             Files11Base file;
-            ODS1_FileHeader_t* p = file.ReadHeader(FileNumberToLBN(pMap->ext_FileNumber), m_dskStream);
+            F11_FileHeader_t* p = file.ReadHeader(FileNumberToLBN(pMap->ext_FileNumber), m_dskStream);
             pMap->ext_FileSeqNumber = p->fh1_w_fid_seq + 1;
         }
         pMap->ext_SegNumber = hdr;
@@ -1709,7 +1721,7 @@ bool Files11FileSystem::DeleteFile(const char* pdp11Dir, const char* pdp11name)
         fdir = GetCurrentWorkingDirectory();
     }
 
-    DirDatabase::DirList_t dirlist;
+    FileDatabase::DirList_t dirlist;
     GetDirList(fdir.c_str(), dirlist);
     for (auto &dir : dirlist)
     {
@@ -1744,7 +1756,7 @@ bool Files11FileSystem::DeleteFile(int fileNumber)
         Files11Base file;
         int lbn = frec.GetHeaderLBN();
         do {
-            ODS1_FileHeader_t *pHeader = file.ReadHeader(lbn, m_dskStream);
+            F11_FileHeader_t *pHeader = file.ReadHeader(lbn, m_dskStream);
             int fNumber = pHeader->fh1_w_fid_num;
             pHeader->fh1_w_fid_num = 0;
             pHeader->fh1_b_syschar |= sc_mdl; // Mark for deletion
@@ -1827,102 +1839,35 @@ int Files11FileSystem::FindFreeBlocks(int nbBlocks, Files11Base::BlockList_t &fo
     return (int)foundBlkList.size();
 }
 
-int Files11FileSystem::GetBlockList(int lbn)
+//--------------------------------------------------------
+// Return the number of blocks and the list of blocks
+int Files11FileSystem::GetBlockList(int lbn, Files11Base::BlockList_t &blklist)
 {
-    return BuildBlockList(lbn, nullptr, m_dskStream);
+    return BuildBlockList(lbn, blklist, m_dskStream);
 }
 
-int Files11FileSystem::GetBlockList(int lbn, Files11Base::BlockList_t &blkList)
-{
-    return BuildBlockList(lbn, &blkList, m_dskStream);
-}
+//--------------------------------------------------------
+// Build the list of blocks for a given File
 
-int Files11FileSystem::BuildBlockList(int lbn, Files11Base::BlockList_t* blk_list, std::fstream& istrm)
+int Files11FileSystem::BuildBlockList(int lbn, Files11Base::BlockList_t& blklist, std::fstream& istrm)
 {
     int count = 0;
     uint8_t expected_segment = 0;
-    int current_lbn = lbn;
+    Files11Base file;
 
     // Clear the plock list
-    if (blk_list)
-        blk_list->clear();
+    blklist.clear();
 
     do {
-        ODS1_FileHeader_t Header;
-        if (Files11Base::readBlock(current_lbn, istrm, (uint8_t*)&Header))
+        F11_FileHeader_t *pHeader = file.ReadHeader(lbn, istrm);
+        F11_MapArea_t* pMap = file.GetMapArea();
+        if (pMap->ext_SegNumber != expected_segment)
         {
-            F11_MapArea_t* pMap = m_File.GetMapArea(&Header);
-            if (pMap->ext_SegNumber != expected_segment)
-            {
-                fprintf(stderr, "WARNING: Invalid segment (lbn: %d): expected %d, read %d\n", lbn, expected_segment, pMap->ext_SegNumber);
-            }
-            count += GetBlockCount(pMap, blk_list);
-            if (pMap->ext_FileNumber > 0)
-            {
-                current_lbn = m_FileNumberToLBN[pMap->ext_FileNumber];
-                expected_segment++;
-            }
-            else
-                current_lbn = 0;
+            fprintf(stderr, "WARNING: Invalid segment (lbn: %d): expected %d, read %d\n", lbn, expected_segment, pMap->ext_SegNumber);
         }
-        else
-        {
-            fprintf(stderr, "Failed to reab block lbn %d\n", current_lbn);
-            break;
-        }
-    } while (current_lbn > 0);
-    return count;
-}
+        lbn = Files11Base::GetBlockPointers(pMap, blklist);
+		expected_segment++;
+    } while (lbn > 0);
 
-int Files11FileSystem::GetBlockCount(F11_MapArea_t* pMap, Files11Base::BlockList_t* pBlkList/*=nullptr*/)
-{
-    int count = 0;
-    int ptr_size = 0;
-
-    if (pMap->LBSZ == 3)
-        ptr_size = sizeof(pMap->pointers.fm1);
-    else if (pMap->LBSZ == 2)
-        ptr_size = sizeof(pMap->pointers.fm2);
-    else if (pMap->LBSZ == 4)
-        ptr_size = sizeof(pMap->pointers.fm3);
-    else
-        return 0;
-
-    ptr_size /= 2;
-    int nbPtrs = pMap->USE / ptr_size;
-    uint16_t* p = (uint16_t*)&pMap->pointers;
-
-    for (int i = 0; i < nbPtrs; i++)
-    {
-        PtrsFormat_t* ptrs = (PtrsFormat_t*)p;
-        Files11Base::BlockPtrs_t blocks;
-        if (pMap->LBSZ == 3)
-        {
-            count += ptrs->fm1.blk_count + 1;
-            if (pBlkList) {
-                blocks.lbn_start = (ptrs->fm1.hi_lbn << 16) + ptrs->fm1.lo_lbn;
-                blocks.lbn_end = blocks.lbn_start + ptrs->fm1.blk_count;
-                pBlkList->push_back(blocks);
-            }
-        }
-        else if (pMap->LBSZ == 2)
-        {
-            count += ptrs->fm2.blk_count + 1;
-            if (pBlkList) {
-                blocks.lbn_start = ptrs->fm2.lbn;
-                blocks.lbn_end = blocks.lbn_start + ptrs->fm2.blk_count;
-                pBlkList->push_back(blocks);
-            }
-        }
-        else if (pMap->LBSZ == 4) {
-            count += ptrs->fm3.blk_count + 1;
-            if (pBlkList) {
-                blocks.lbn_start = (ptrs->fm3.hi_lbn << 16) + ptrs->fm3.lo_lbn;
-                blocks.lbn_end = blocks.lbn_start + ptrs->fm3.blk_count;
-                pBlkList->push_back(blocks);
-            }
-        }
-        p += ptr_size;
-    }
-    return count;
+    return Files11Base::GetBlockCount(blklist);
 }

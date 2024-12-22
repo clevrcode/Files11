@@ -34,18 +34,25 @@ bool Files11Base::WriteBlock(std::fstream& istrm)
 bool Files11Base::WriteHeader(std::fstream& istrm)
 {
     if (m_LastBlockRead >= 0)
-        return writeHeader(m_LastBlockRead, istrm, (ODS1_FileHeader_t*)m_block);
+        return writeHeader(m_LastBlockRead, istrm, (F11_FileHeader_t*)m_block);
     return false;
 }
 
-ODS1_FileHeader_t* Files11Base::ReadHeader(int lbn, std::fstream& istrm, bool clear/*=false*/)
+F11_FileHeader_t* Files11Base::ReadHeader(int lbn, std::fstream& istrm, bool clear/*=false*/)
 {
     m_LastBlockRead = lbn;
     uint8_t* p = readBlock(lbn, istrm, m_block);
     if (clear) {
         memset(p, 0, sizeof(m_block));
     }
-    return (ODS1_FileHeader_t*)p;
+    return (F11_FileHeader_t*)p;
+}
+
+bool Files11Base::ValidateHeader(F11_FileHeader_t* pHeader /*=nullptr*/)
+{
+	F11_FileHeader_t* p = (pHeader == nullptr) ? (F11_FileHeader_t*)m_block : pHeader;
+	uint16_t checksum = CalcChecksum((uint16_t*)p, (sizeof(F11_FileHeader_t) / 2) - 1);
+	return (p->fh1_w_checksum == checksum);
 }
 
 DirectoryRecord_t* Files11Base::ReadDirectory(int lbn, std::fstream& istrm, bool clear/*=false*/)
@@ -58,22 +65,32 @@ DirectoryRecord_t* Files11Base::ReadDirectory(int lbn, std::fstream& istrm, bool
     return (DirectoryRecord_t*)p;
 }
 
-F11_MapArea_t* Files11Base::GetMapArea(ODS1_FileHeader_t* ptr /*=nullptr*/) const
+F11_FileHeader_t* Files11Base::GetHeader(void* ptr/*=nullptr*/) const
 {
-    ODS1_FileHeader_t* pHeader = (ptr == nullptr) ? (ODS1_FileHeader_t*)m_block : ptr;
+    return (ptr == nullptr) ? (F11_FileHeader_t*)m_block : (F11_FileHeader_t*)ptr;
+}
+
+F11_HomeBlock_t* Files11Base::GetHome(void* p /*=nullptr*/) const
+{
+    return (p == nullptr) ? (F11_HomeBlock_t*)m_block : (F11_HomeBlock_t*)p;
+}
+
+F11_MapArea_t* Files11Base::GetMapArea(F11_FileHeader_t* ptr /*=nullptr*/) const
+{
+    F11_FileHeader_t* pHeader = (ptr == nullptr) ? (F11_FileHeader_t*)m_block : ptr;
     return (F11_MapArea_t*)((uint16_t*)pHeader + pHeader->fh1_b_mpoffset);
 }
 
-F11_IdentArea_t* Files11Base::GetIdentArea(ODS1_FileHeader_t* ptr/*=nullptr*/) const
+F11_IdentArea_t* Files11Base::GetIdentArea(F11_FileHeader_t* ptr/*=nullptr*/) const
 {
-    ODS1_FileHeader_t* pHeader = (ptr == nullptr) ? (ODS1_FileHeader_t*)m_block : ptr;
+    F11_FileHeader_t* pHeader = (ptr == nullptr) ? (F11_FileHeader_t*)m_block : ptr;
     return (F11_IdentArea_t*)((uint16_t*)pHeader + pHeader->fh1_b_idoffset);
 }
 
-ODS1_UserAttrArea_t* Files11Base::GetUserAttr(ODS1_FileHeader_t* ptr/*=nullptr*/) const
+F11_UserAttrArea_t* Files11Base::GetUserAttr(F11_FileHeader_t* ptr/*=nullptr*/) const
 {
-    ODS1_FileHeader_t* pHeader = (ptr == nullptr) ? (ODS1_FileHeader_t*)m_block : ptr;
-    return (ODS1_UserAttrArea_t * ) &pHeader->fh1_w_ufat;
+    F11_FileHeader_t* pHeader = (ptr == nullptr) ? (F11_FileHeader_t*)m_block : ptr;
+    return (F11_UserAttrArea_t * ) &pHeader->fh1_w_ufat;
 }
 
 uint16_t Files11Base::CalcChecksum(uint16_t *buffer, size_t wordCount)
@@ -149,7 +166,15 @@ void Files11Base::MakeTime(uint8_t* tim, std::string& ftime)
 
 void Files11Base::MakeUIC(uint8_t* uic, std::string& strUIC)
 {
-    
+	strUIC.clear();
+	strUIC += (char)('0' + ((uic[0] >> 6) & 0x07));
+	strUIC += (char)('0' + ((uic[0] >> 3) & 0x07));
+	strUIC += (char)('0' + (uic[0] & 0x07));
+	strUIC += ',';
+	strUIC += (char)('0' + ((uic[1] >> 6) & 0x07));
+	strUIC += (char)('0' + ((uic[1] >> 3) & 0x07));
+	strUIC += (char)('0' + (uic[1] & 0x07));
+	strUIC += ']';
 }
 
 void Files11Base::PrintError(const char *dir, DirectoryRecord_t* p, const char *msg)
@@ -300,15 +325,15 @@ uint8_t* Files11Base::writeBlock(int lbn, std::fstream & istrm, uint8_t * blk)
     return istrm.good() ? blk : nullptr;
 }
 
-bool Files11Base::writeHeader(int lbn, std::fstream& istrm, ODS1_FileHeader_t* pHeader)
+bool Files11Base::writeHeader(int lbn, std::fstream& istrm, F11_FileHeader_t* pHeader)
 {
-    pHeader->fh1_w_checksum = CalcChecksum((uint16_t*)pHeader, (sizeof(ODS1_FileHeader_t) - sizeof(uint16_t)) / 2);
+    pHeader->fh1_w_checksum = CalcChecksum((uint16_t*)pHeader, (sizeof(F11_FileHeader_t) - sizeof(uint16_t)) / 2);
     return writeBlock(lbn, istrm, (uint8_t*)pHeader) != nullptr;
 }
 
-bool Files11Base::CreateExtensionHeader(int lbn, int extFileNumber, ODS1_FileHeader_t *pHeader, BlockList_t &blkList, std::fstream& istrm)
+bool Files11Base::CreateExtensionHeader(int lbn, int extFileNumber, F11_FileHeader_t *pHeader, BlockList_t &blkList, std::fstream& istrm)
 {
-    ODS1_FileHeader_t* p = ReadHeader(lbn, istrm);
+    F11_FileHeader_t* p = ReadHeader(lbn, istrm);
     int seq_number = p->fh1_w_fid_seq + 1;
     memcpy(p, pHeader, F11_BLOCK_SIZE);
     int segment = 0;
@@ -321,7 +346,7 @@ bool Files11Base::CreateExtensionHeader(int lbn, int extFileNumber, ODS1_FileHea
     }
     p->fh1_w_fid_num = extFileNumber;
     p->fh1_w_fid_seq = seq_number;
-    ODS1_UserAttrArea_t* pUser = (ODS1_UserAttrArea_t*)&p->fh1_w_ufat;
+    F11_UserAttrArea_t* pUser = (F11_UserAttrArea_t*)&p->fh1_w_ufat;
     pUser->ufcs_ffbyte = F11_BLOCK_SIZE;
     pUser->ufcs_highvbn_hi = 0;
     pUser->ufcs_highvbn_lo = 1;
@@ -367,4 +392,42 @@ bool Files11Base::getCurrentDirectory(std::string& dir)
         free(buffer);
     }
     return true;
+}
+
+int Files11Base::GetBlockPointers(F11_MapArea_t* pMap, BlockList_t& blklist)
+{
+    if (pMap->LBSZ == 3) {
+		F11_Format1_t* pFmt1 = (F11_Format1_t*)&pMap->pointers;
+        for (int i = 0; i < ((pMap->USE * 2) / sizeof(F11_Format1_t)); ++i)
+		{
+			int lbn = makeLBN(pFmt1[i].hi_lbn, pFmt1[i].lo_lbn);
+			blklist.push_back(BlockPtrs_t(lbn, lbn + pFmt1[i].blk_count));
+		}
+    }
+    else if (pMap->LBSZ == 2) {
+        F11_Format2_t* pFmt2 = (F11_Format2_t*)&pMap->pointers;
+        for (int i = 0; i < ((pMap->USE * 2) / sizeof(F11_Format2_t)); ++i)
+        {
+            blklist.push_back(BlockPtrs_t(pFmt2[i].lbn, pFmt2[i].lbn + pFmt2[i].blk_count));
+        }
+    }
+    else if (pMap->LBSZ == 4) {
+        F11_Format3_t* pFmt3 = (F11_Format3_t*)&pMap->pointers;
+        for (int i = 0; i < ((pMap->USE * 2) / sizeof(F11_Format3_t)); ++i)
+        {
+            int lbn = makeLBN(pFmt3[i].hi_lbn, pFmt3[i].lo_lbn);
+            blklist.push_back(BlockPtrs_t(lbn, lbn + pFmt3[i].blk_count));
+        }
+    }
+	return pMap->ext_FileNumber;
+}
+
+int Files11Base::GetBlockCount(const BlockList_t& blklist)
+{
+	int count = 0;
+	for (auto& blk : blklist)
+	{
+		count += blk.lbn_end - blk.lbn_start + 1;
+	}
+	return count;
 }

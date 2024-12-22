@@ -36,14 +36,14 @@ public:
 		return fullNameWithVersion.c_str(); 
 	};
 	void           PrintRecord(void);
-	const char*    GetFileCreation(bool no_seconds = true) const;
+	const char*    GetFileCreation(void)       const { return fileCreationDate.c_str(); };
 	const char*    GetFileRevisionDate(void)   const { return fileRevisionDate.c_str(); };
 	const uint16_t GetOwnerUIC(void)           const { return ownerUIC;                 };
 	const uint16_t GetFileProtection(void)     const { return fileProtection;           };
 
 protected:
-	bool ValidateHeader(ODS1_FileHeader_t* pHeader);
-	ODS1_FileHeader_t* ReadFileHeader(int lbn, std::fstream& istrm);
+	bool ValidateHeader(F11_FileHeader_t* pHeader);
+	F11_FileHeader_t* ReadFileHeader(int lbn, std::fstream& istrm);
 
 private:
 	Files11Base m_File;

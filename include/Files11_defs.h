@@ -44,7 +44,7 @@ constexpr int MAX_FILE_VERSION = 017777; // TODO : VERIFY THAT
 //--------------------------------
 #pragma pack(push, 1)
 
-typedef struct _ODS1_HomeBlock
+typedef struct _F11_HomeBlock
 {
 	uint16_t hm1_w_ibmapsize;
 	uint16_t hm1_w_ibmaplbn_hi;
@@ -76,12 +76,12 @@ typedef struct _ODS1_HomeBlock
 	uint8_t  hm1_t_format[12];
 	uint16_t hm1_t_fill_6;
 	uint16_t hm1_w_checksum2;
-} ODS1_HomeBlock_t;
+} F11_HomeBlock_t;
 
 //---------------------------------------------------------------------
 // File Header
 
-typedef struct _ODS1_FileHeader
+typedef struct _F11_FileHeader
 {
 	uint8_t  fh1_b_idoffset;
 	uint8_t  fh1_b_mpoffset;
@@ -95,7 +95,7 @@ typedef struct _ODS1_FileHeader
 	uint16_t fh1_w_ufat;
 	uint8_t  fh1_b_fill_1[494];
 	uint16_t fh1_w_checksum;
-} ODS1_FileHeader_t;
+} F11_FileHeader_t;
 
 //--------------------------------
 // User Attributes Area
@@ -126,7 +126,7 @@ typedef struct _ODS1_FileHeader
 #define ra_prn  (0x04)
 
 
-typedef struct _ODS1_UserAttrArea {
+typedef struct _F11_UserAttrArea {
 	uint8_t		ufcs_rectype;
 	uint8_t		ufcs_recattr;
 	uint16_t	ufcs_recsize;
@@ -135,7 +135,7 @@ typedef struct _ODS1_UserAttrArea {
 	uint16_t	ufcs_eofblck_hi;
 	uint16_t	ufcs_eofblck_lo;
 	uint16_t	ufcs_ffbyte;
-} ODS1_UserAttrArea_t;
+} F11_UserAttrArea_t;
 
 //--------------------------------
 // Ident Area (size: 46 bytes)

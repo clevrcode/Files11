@@ -4,16 +4,16 @@
 // Default constructor
 Files11Record::Files11Record(void)
 {
-	fileNumber = 0;
-	fileSeq = 0;
-	fileVersion = 0;
-	fileRevision = 0;
-	ownerUIC = 0;
-	fileProtection = 0;
-	sysCharacteristics = 0;
-	userCharacteristics = 0;
-	bDirectory = false;
-	headerLBN  = 0;
+	fileNumber           = 0;
+	fileSeq              = 0;
+	fileVersion          = 0;
+	fileRevision         = 0;
+	ownerUIC             = 0;
+	fileProtection       = 0;
+	sysCharacteristics   = 0;
+	userCharacteristics  = 0;
+	bDirectory           = false;
+	headerLBN            = 0;
     fileExtensionSegment = 0;
 }
 
@@ -32,7 +32,7 @@ Files11Record::Files11Record(const Files11Record& frec) :
 
 int Files11Record::Initialize(int lbn, std::fstream &istrm)
 {
-	auto pHdr = (ODS1_FileHeader_t*)ReadFileHeader(lbn, istrm);
+	auto pHdr = (F11_FileHeader_t*)ReadFileHeader(lbn, istrm);
 	if (pHdr != nullptr)
 	{
 		fileNumber = pHdr->fh1_w_fid_num;
@@ -42,15 +42,14 @@ int Files11Record::Initialize(int lbn, std::fstream &istrm)
 			assert(pHdr->fh1_b_mpoffset == F11_HEADER_MAP_OFFSET);
 
 			// If the header is a continuation segment, skip it
-			F11_MapArea_t* pMap = m_File.GetMapArea();
+			F11_MapArea_t* pMap  = m_File.GetMapArea();
             fileExtensionSegment = pMap->ext_SegNumber;
-
-			fileSeq    = pHdr->fh1_w_fid_seq;
-			ownerUIC   = pHdr->fh1_w_fileowner;
-			fileProtection = pHdr->fh1_w_fileprot;
-			sysCharacteristics = pHdr->fh1_b_syschar;
-			userCharacteristics = pHdr->fh1_b_userchar;
-			fileFCS.Initialize((ODS1_UserAttrArea_t*) & pHdr->fh1_w_ufat);
+			fileSeq              = pHdr->fh1_w_fid_seq;
+			ownerUIC             = pHdr->fh1_w_fileowner;
+			fileProtection       = pHdr->fh1_w_fileprot;
+			sysCharacteristics   = pHdr->fh1_b_syschar;
+			userCharacteristics  = pHdr->fh1_b_userchar;
+			fileFCS.Initialize((F11_UserAttrArea_t*) & pHdr->fh1_w_ufat);
 
 			F11_IdentArea_t* pIdent = m_File.GetIdentArea();
 			if (pIdent)
@@ -82,23 +81,12 @@ void Files11Record::Refresh(std::fstream& istrm)
 	Initialize(headerLBN, istrm);
 }
 
-const char* Files11Record::GetFileCreation(bool no_seconds /*=true*/) const
+F11_FileHeader_t* Files11Record::ReadFileHeader(int lbn, std::fstream& istrm)
 {
-	return fileCreationDate.c_str(); 
-};
-
-bool Files11Record::ValidateHeader(ODS1_FileHeader_t* pHeader)
-{
-	uint16_t checksum = Files11Base::CalcChecksum((uint16_t*)pHeader, 255);
-	return (checksum == pHeader->fh1_w_checksum);
-}
-
-ODS1_FileHeader_t* Files11Record::ReadFileHeader(int lbn, std::fstream& istrm)
-{
-	ODS1_FileHeader_t* pHeader = (ODS1_FileHeader_t*) m_File.ReadBlock(lbn, istrm);
+	F11_FileHeader_t* pHeader = (F11_FileHeader_t*) m_File.ReadBlock(lbn, istrm);
 	if (pHeader)
 	{
-		if (!ValidateHeader(pHeader))
+		if (!m_File.ValidateHeader())
 			pHeader = nullptr;
 	}
 	return pHeader;

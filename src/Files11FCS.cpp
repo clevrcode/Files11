@@ -17,12 +17,12 @@ Files11FCS::Files11FCS(const Files11FCS& fcs) : m_RecordType(fcs.m_RecordType), 
 {
 }
 
-Files11FCS::Files11FCS(ODS1_UserAttrArea_t* p)
+Files11FCS::Files11FCS(F11_UserAttrArea_t* p)
 {
 	Initialize(p);
 }
 
-void Files11FCS::Initialize(ODS1_UserAttrArea_t* p)
+void Files11FCS::Initialize(F11_UserAttrArea_t* p)
 {
 	m_RecordType = p->ufcs_rectype;
 	m_RecordAttributes = p->ufcs_recattr;

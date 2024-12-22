@@ -3,14 +3,15 @@
 #include <iostream>
 #include <fstream>
 #include <string>
+#include <functional>
 #include "Files11Base.h"
 
 class Files11HomeBlock
 {
 public:
 	Files11HomeBlock();
-	bool Initialize(const char *diskName);
-	bool Initialize(std::fstream& istrm);
+	bool Initialize(std::function<void(int, Files11Base&obj)> fetch);
+
 	void PrintInfo(void);
 	const char* GetVolumeName(void) const { return strVolumeName.c_str(); };
 	const int GetMaxFiles(void)     const { return iMaxFiles; };
@@ -23,20 +24,14 @@ public:
 	const int GetCorimgSysLBN(void) const { return iCorimgSysLBN; };
 	const int GetVolumeOwner(void)  const { return iVolumeOwnerUIC; };
 	const int GetDefaultFileProtection(void) const { return iDefaultFileProtection; };
-
-	int  GetDiskSize(void) { return bValid ? iDiskSize : 0;  };
 	int  GetUsedHeaders(void) const { return iUsedHeaders; };
 	int  GetFreeHeaders(void) const { return iMaxFiles - iUsedHeaders; };
 	int  GetNumberOfBlocks(void) const { return iScbUnitSizeBlk; };
 	const char* GetOwnerUIC(void) const { return strVolumeOwner.c_str(); };
-	bool ValidateHomeBlock(ODS1_HomeBlock_t* pHome);
-	ODS1_HomeBlock_t* ReadHomeBlock(std::fstream& istrm);
+	bool ValidateHomeBlock(F11_HomeBlock_t* pHome);
 
 private:
-	Files11Base m_File;
-	bool bValid;
 	int i000000SysLBN;
-	int iDiskSize; // size of disk in bytes
 	int iIndexBitmapSize;
 	int iBadblkSysLBN;
 	int iBitmapSysLBN;
