@@ -35,6 +35,7 @@ public:
 	F11_MapArea_t*       GetMapArea(F11_FileHeader_t* ptr=nullptr) const;
 	F11_IdentArea_t*     GetIdentArea(F11_FileHeader_t* ptr=nullptr) const;
 	F11_UserAttrArea_t*  GetUserAttr(F11_FileHeader_t* ptr=nullptr) const;
+	DirectoryRecord_t*   GetDirectoryRecord(void* ptr = nullptr) const;
 	SCB_t*               GetSCB(void) const { return (SCB_t*)m_block; };
 	bool                 CreateExtensionHeader(int lbn, int extFileNumber, F11_FileHeader_t* pHeader, BlockList_t &blkList, std::fstream& istrm);
 	

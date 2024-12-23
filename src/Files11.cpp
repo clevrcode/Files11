@@ -13,6 +13,8 @@
 
 const char DEL = 0x08;
 const char* PROMPT = ">";
+const char* ALL_FILES = "*.*;*";
+
 std::vector<std::string> commandQueue;
 void RunCLI(Files11FileSystem &fs);
 void ProcessCommand(std::string& command, Files11FileSystem& fs);
@@ -236,10 +238,14 @@ void ProcessCommand(std::string &command, Files11FileSystem& fs)
             if (nbWords == 2) {
                 std::string dir, file;
                 SplitFilePath(words[1], dir, file);
-                fs.ListDirs(Files11FileSystem::LIST, dir.c_str(), file.c_str());
+                if (dir.empty())
+                    dir = fs.GetCurrentWorkingDirectory();
+                if (file.empty())
+					file = ALL_FILES;
+                fs.ListDirs(dir.c_str(), file.c_str());
             }
             else
-                fs.ListDirs(Files11FileSystem::LIST, nullptr, nullptr);
+                fs.ListDirs(fs.GetCurrentWorkingDirectory(), ALL_FILES);
         }
         else if ((words[0].substr(0, 3) == "DEL") || (words[0] == "RM"))
         {
@@ -271,7 +277,7 @@ void ProcessCommand(std::string &command, Files11FileSystem& fs)
             if (nbWords == 2) {
                 std::string dir, file;
                 SplitFilePath(words[1], dir, file);
-                fs.ListDirs(Files11FileSystem::DMPHDR, dir.c_str(), file.c_str());
+                //fs.ListDirs(Files11FileSystem::DMPHDR, dir.c_str(), file.c_str());
             }
             else
                 std::cout << "ERROR -- missing argument\n";
@@ -281,7 +287,7 @@ void ProcessCommand(std::string &command, Files11FileSystem& fs)
             if (nbWords == 2) {
                 std::string dir, file;
                 SplitFilePath(words[1], dir, file);
-                fs.ListDirs(Files11FileSystem::TYPE, dir.c_str(), file.c_str());
+                //fs.ListDirs(Files11FileSystem::TYPE, dir.c_str(), file.c_str());
             }
             else
                 std::cout << "ERROR -- missing argument\n";

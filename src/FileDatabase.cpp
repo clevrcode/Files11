@@ -57,7 +57,7 @@ bool FileDatabase::Get(int nb, Files11Record& frec)
 // -----------------------------------------------------------------------------
 // Return a file record in frec if file name and version passes the filter
 
-bool FileDatabase::Get(int nb, Files11Record& frec, int version, const char *fname)
+bool FileDatabase::Get(int nb, Files11Record& frec, const char *fname)
 {
     Get(nb, frec);
     return Filter(frec, fname);
@@ -136,11 +136,10 @@ int FileDatabase::FindDirectory(const char* dname, DirList_t& dlist) const
     {
         if ((dirname == "[*]") || (dirname == "[*,*]"))
         {
-            // return all directories
-            //for (auto cit = m_Database.cbegin(); cit != m_Database.cend(); ++cit)
-            for (auto& cit : m_DirDatabase) {
-                if (cit.second.fnumber != F11_000000_SYS)
-                    dlist.push_back(cit.second);
+            // return all directories (Except MFD 000000.DIR which contains all directories)
+            for (auto& dir : m_DirDatabase) {
+                if (dir.second.fnumber != F11_000000_SYS)
+                    dlist.push_back(dir.second);
             }
         }
         else
@@ -151,12 +150,12 @@ int FileDatabase::FindDirectory(const char* dname, DirList_t& dlist) const
             {
                 int a = strtol(sm.str(1).c_str(), nullptr, 8);
                 // return all directories
-                for (auto& cit : m_DirDatabase)
+                for (auto& dir : m_DirDatabase)
                 {
-                    if (cit.second.fnumber != F11_000000_SYS) {
-                        int b = getUIC_lo(cit.first);
+                    if (dir.second.fnumber != F11_000000_SYS) {
+                        int b = getUIC_lo(dir.first);
                         if (a == b)
-                            dlist.push_back(cit.second);
+                            dlist.push_back(dir.second);
                     }
                 }
             }
@@ -167,19 +166,14 @@ int FileDatabase::FindDirectory(const char* dname, DirList_t& dlist) const
                 {
                     int a = strtol(sm.str(1).c_str(), nullptr, 8);
                     // return all directories
-                    //for (auto cit = m_Database.cbegin(); cit != m_Database.cend(); ++cit)
-                    for (auto& cit : m_DirDatabase)
+                    for (auto& dir : m_DirDatabase)
                     {
-                        if (cit.second.fnumber != F11_000000_SYS) {
-                            int b = getUIC_hi(cit.first);
+                        if (dir.second.fnumber != F11_000000_SYS) {
+                            int b = getUIC_hi(dir.first);
                             if (a == b)
-                                dlist.push_back(cit.second);
+                                dlist.push_back(dir.second);
                         }
                     }
-                }
-                else
-                {
-                    // string wildcard
                 }
             }
         }
@@ -283,4 +277,46 @@ std::string FileDatabase::makeKey(const std::string& dir)
             key += cit;
     }
     return key;
+}
+
+void FileDatabase::FindMatchingFiles(const char* dir, const char* filename, DirList_t& dirList, std::function<void(int, Files11Base& obj)> fetch)
+{
+    FindDirectory(dir, dirList);
+    for (auto& dir : dirList)
+    {
+        Files11Record drec;
+        if (Get(dir.fnumber, drec))
+        {
+            int vbn = 1;
+            int eof_block = drec.GetFileFCS().GetEOFBlock();
+			int eof_byte = drec.GetFileFCS().GetFirstFreeByte();
+            Files11Base file;
+            int ext_file_number = dir.fnumber;
+            do {
+                fetch(FileNumberToLBN(ext_file_number), file);
+                F11_MapArea_t* pMap = file.GetMapArea();
+                Files11Base::BlockList_t blklist;
+                ext_file_number = Files11Base::GetBlockPointers(pMap, blklist);
+                for (auto& block : blklist)
+                {
+                    for (auto lbn = block.lbn_start; lbn <= block.lbn_end; ++lbn, ++vbn)
+                    {
+                        fetch(lbn, file);
+                        DirectoryRecord_t* pDir = file.GetDirectoryRecord();
+						int nbrecs = (vbn == eof_block) ? eof_byte / sizeof(DirectoryRecord_t) : F11_BLOCK_SIZE / sizeof(DirectoryRecord_t);
+                        for (int i = 0; i < nbrecs; ++i)
+                        {
+                            if (pDir[i].fileNumber != 0)
+                            {
+                                Files11Record frec;
+                                if (Get(pDir[i].fileNumber, frec, filename)) {
+                                    dir.fileList.push_back(DirFileRecord_t(pDir[i].fileNumber, pDir[i].fileSeq, pDir[i].version, frec.GetFileName(), frec.GetFileExt()));
+                                }
+                            }
+                        }
+                    }
+                }
+            } while (ext_file_number > 0);
+        }
+    }
 }

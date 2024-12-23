@@ -1,6 +1,7 @@
 #pragma once
 #include <string>
 #include <map>
+#include <functional>
 #include "Files11Record.h"
 
 class FileDatabase
@@ -11,12 +12,15 @@ public:
 	void Add(int nb, const Files11Record& frec);
 	bool Exist(int nb) const;
 	bool Get(int nb, Files11Record& frec);
-	bool Get(int nb, Files11Record& frec, int version, const char *filter);
+	bool Get(int nb, Files11Record& frec, const char *filter);
 	bool Delete(int nb);
 	bool Filter(const Files11Record& rec, const char* name);
 	int  GetNbHeaders(void) const { return (int)m_Database.size(); };
 	static void SplitName(const std::string &fullname, std::string& name, std::string& ext, std::string& version);
 	int  FindFirstFreeFile(void);
+	int  FileNumberToLBN(int fnb) { return (fnb < m_FileNumberToLBN.size()) ? m_FileNumberToLBN[fnb] : -1; };
+	void SetLBN(int fnb, int lbn) { m_FileNumberToLBN[fnb] = lbn; };
+	void AppendLBN(int lbn)       { m_FileNumberToLBN.push_back(lbn); };
 
 	// Directory stuff
 	static std::string FormatDirectory(const std::string& dir);
@@ -48,17 +52,18 @@ public:
 	} DirInfo_t;
 	typedef std::vector<DirInfo_t> DirList_t;
 
+	int  FindDirectory(const char* dname, DirList_t& dlist) const;
+	void FindMatchingFiles(const char* dir, const char* filename, DirList_t &dirList, std::function<void(int, Files11Base& obj)> fetch);
+
 	// Directory methods
 	bool DirectoryExist(const char* dname) const;
-	int  FindDirectory(const char* dname, DirList_t& dlist) const;
-
 
 private:
 	typedef std::map<int, Files11Record> FileDatabase_t;
 	FileDatabase_t m_Database;
 	typedef std::map<std::string, DirInfo_t> DirDatabase_t;
 	DirDatabase_t m_DirDatabase;
-
+	std::vector<int> m_FileNumberToLBN;
 	int m_MaxFileNumber;
 };
 

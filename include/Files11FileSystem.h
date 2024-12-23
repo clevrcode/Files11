@@ -58,7 +58,7 @@ public:
 	void VerifyFileSystem(Args_t args);
 
 	void ListFiles(const Files11Record& dirRecord, const char* filename, FileList_t &fileList);
-	void ListDirs(Cmds_e cmd, const char* dir, const char *file);
+	void ListDirs(const char* dir, const char *file);
 	void ExportFiles(const char* dirname, const char* filename, const char* outdir);
 
 	void TypeFile(const Files11Record& dirRecord, const char* filename);
@@ -69,12 +69,6 @@ public:
 	const char* GetErrorMessage(void) const { return m_strErrorMsg.c_str(); };
 	const std::string GetCurrentSystemTime(void) { return m_File.GetCurrentPDPTime(); };
 	void PrintFreeBlocks(void);
-	int FileNumberToLBN(int fnumber) const {
-		if ((fnumber > 0) && (fnumber < m_FileNumberToLBN.size()))
-			return m_FileNumberToLBN[fnumber];
-		return -1;
-	}
-
 	void DumpLBN(int lbn);
 
 	bool AddFile(const char* nativeName, const char *pdp11Dir, const char* pdp11Name=nullptr);
@@ -102,6 +96,6 @@ private:
 	std::string      m_DiskFileName;
 	std::string      m_CurrentDirectory;
 	FileDatabase     FileDatabase;
-	std::vector<int> m_FileNumberToLBN;
+	//std::vector<int> m_FileNumberToLBN;
 };
 

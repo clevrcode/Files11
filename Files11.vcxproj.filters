@@ -39,9 +39,6 @@
     <ClCompile Include="src\FileDatabase.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="src\DirDatabase.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
     <ClCompile Include="src\BitCounter.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
@@ -81,9 +78,6 @@
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="include\FileDatabase.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="include\DirDatabase.h">
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="include\BitCounter.h">

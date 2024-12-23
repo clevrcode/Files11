@@ -20,7 +20,6 @@
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="src\BitCounter.cpp" />
-    <ClCompile Include="src\DirDatabase.cpp" />
     <ClCompile Include="src\FileDatabase.cpp" />
     <ClCompile Include="src\Files11.cpp" />
     <ClCompile Include="src\Files11Base.cpp" />
@@ -35,7 +34,6 @@
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="include\BitCounter.h" />
-    <ClInclude Include="include\DirDatabase.h" />
     <ClInclude Include="include\FileDatabase.h" />
     <ClInclude Include="include\Files11Base.h" />
     <ClInclude Include="include\Files11FCS.h" />

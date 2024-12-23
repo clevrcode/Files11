@@ -93,6 +93,11 @@ F11_UserAttrArea_t* Files11Base::GetUserAttr(F11_FileHeader_t* ptr/*=nullptr*/) 
     return (F11_UserAttrArea_t * ) &pHeader->fh1_w_ufat;
 }
 
+DirectoryRecord_t* Files11Base::GetDirectoryRecord(void* ptr /*=nullptr*/) const
+{
+    return (ptr == nullptr) ? (DirectoryRecord_t*)m_block : (DirectoryRecord_t*) ptr;
+}
+
 uint16_t Files11Base::CalcChecksum(uint16_t *buffer, size_t wordCount)
 {
 	uint16_t checkSum = 0;
