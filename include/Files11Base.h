@@ -22,12 +22,12 @@ public:
 	typedef std::vector<BlockPtrs_t> BlockList_t;
 
 	void                 ClearBlock(void);
-	uint8_t             *ReadBlock(int lbn, std::fstream& istrm);
-	bool                 WriteBlock(std::fstream& istrm);
-	bool                 WriteHeader(std::fstream& istrm);
+	uint8_t*             ReadBlock(int lbn, std::fstream& istrm);
 	F11_FileHeader_t*    ReadHeader(int lbn, std::fstream& istrm, bool clear=false);
 	DirectoryRecord_t*   ReadDirectory(int lbn, std::fstream& istrm, bool clear=false);
-	bool                 ValidateHeader(F11_FileHeader_t* pHeader=nullptr);
+	bool                 ValidateHeader(F11_FileHeader_t* pHeader=nullptr) const;
+	bool                 WriteBlock(std::fstream& istrm);
+	bool                 WriteHeader(std::fstream& istrm);
 
 	uint8_t*             GetBlock(void) { return m_block; };
 	F11_FileHeader_t*    GetHeader(void* p=nullptr) const;
@@ -53,9 +53,12 @@ public:
 	const std::string    GetCurrentPDPTime(void);
 	const std::string    GetFileProtectionString(uint16_t pro);
 
-	static uint8_t      *readBlock(int lbn, std::fstream& istrm, uint8_t*blk);
-	static uint8_t      *writeBlock(int lbn, std::fstream& istrm, uint8_t* blk);
+	static uint8_t*      readBlock(int lbn, std::fstream& istrm, uint8_t*blk);
+	static uint8_t*      writeBlock(int lbn, std::fstream& istrm, uint8_t* blk);
 	static bool          writeHeader(int lbn, std::fstream& istrm, F11_FileHeader_t* pHeader);
+	static bool          validateHeader(F11_FileHeader_t* pHeader);
+	static F11_MapArea_t* getMapArea(F11_FileHeader_t* ptr);
+
 	static bool          getCurrentDirectory(std::string &dir);
 	static int           makeLBN(unsigned int hi, unsigned int lo) { return (hi << 16) + lo; };
 	static int           GetBlockPointers(F11_MapArea_t* p, BlockList_t& blklist);

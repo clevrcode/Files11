@@ -48,11 +48,10 @@ F11_FileHeader_t* Files11Base::ReadHeader(int lbn, std::fstream& istrm, bool cle
     return (F11_FileHeader_t*)p;
 }
 
-bool Files11Base::ValidateHeader(F11_FileHeader_t* pHeader /*=nullptr*/)
+bool Files11Base::ValidateHeader(F11_FileHeader_t* pHeader /*=nullptr*/) const
 {
 	F11_FileHeader_t* p = (pHeader == nullptr) ? (F11_FileHeader_t*)m_block : pHeader;
-	uint16_t checksum = CalcChecksum((uint16_t*)p, (sizeof(F11_FileHeader_t) / 2) - 1);
-	return (p->fh1_w_checksum == checksum);
+    return validateHeader(p);
 }
 
 DirectoryRecord_t* Files11Base::ReadDirectory(int lbn, std::fstream& istrm, bool clear/*=false*/)
@@ -78,7 +77,7 @@ F11_HomeBlock_t* Files11Base::GetHome(void* p /*=nullptr*/) const
 F11_MapArea_t* Files11Base::GetMapArea(F11_FileHeader_t* ptr /*=nullptr*/) const
 {
     F11_FileHeader_t* pHeader = (ptr == nullptr) ? (F11_FileHeader_t*)m_block : ptr;
-    return (F11_MapArea_t*)((uint16_t*)pHeader + pHeader->fh1_b_mpoffset);
+    return getMapArea(pHeader);
 }
 
 F11_IdentArea_t* Files11Base::GetIdentArea(F11_FileHeader_t* ptr/*=nullptr*/) const
@@ -334,6 +333,17 @@ bool Files11Base::writeHeader(int lbn, std::fstream& istrm, F11_FileHeader_t* pH
 {
     pHeader->fh1_w_checksum = CalcChecksum((uint16_t*)pHeader, (sizeof(F11_FileHeader_t) - sizeof(uint16_t)) / 2);
     return writeBlock(lbn, istrm, (uint8_t*)pHeader) != nullptr;
+}
+
+bool Files11Base::validateHeader(F11_FileHeader_t* pHeader)
+{
+    uint16_t checksum = CalcChecksum((uint16_t*)pHeader, (sizeof(F11_FileHeader_t) / 2) - 1);
+    return (pHeader->fh1_w_checksum == checksum);
+}
+
+F11_MapArea_t* Files11Base::getMapArea(F11_FileHeader_t* ptr)
+{
+    return (F11_MapArea_t*)((uint16_t*)ptr + ptr->fh1_b_mpoffset);
 }
 
 bool Files11Base::CreateExtensionHeader(int lbn, int extFileNumber, F11_FileHeader_t *pHeader, BlockList_t &blkList, std::fstream& istrm)

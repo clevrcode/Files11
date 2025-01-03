@@ -26,11 +26,49 @@ bool Files11FileSystem::Open(const char *dskName)
         FileDatabase.AppendLBN(0); // Exclude file number 0
 
         // Read the Home Block
-        if (!m_HomeBlock.Initialize([&](int lbn, Files11Base& obj) { obj.ReadBlock(lbn, m_dskStream); }))
+        Files11Base file;
+        file.ReadBlock(F11_HOME_LBN, m_dskStream);
+        if (!m_HomeBlock.Initialize(file.GetHome()))
         {
 			m_dskStream.close();
             return false;
         }
+        file.ReadBlock(m_HomeBlock.GetBitmapLBN(), m_dskStream);
+        if (!file.ValidateHeader())
+            return false;
+        // Read Storage Control Block
+        Files11Base::BlockList_t blkList;
+        Files11Base::GetBlockPointers(file.GetMapArea(), blkList);
+        // The SCB is the first block of the Bitmap.sys file
+        if (blkList.size() == 0)
+            return false;
+
+        file.ReadBlock(blkList[0].lbn_start, m_dskStream);
+        if (m_HomeBlock.InitializeSCB(file.GetSCB()))
+        {
+            BitCounter counter;
+            int vbn = 1;
+            int maxFiles = m_HomeBlock.GetMaxFiles();
+            for (auto lbn = m_HomeBlock.GetBitmapLBN(); lbn < m_HomeBlock.GetIndexLBN(); lbn++, vbn++)
+            {
+				file.ReadBlock(lbn, m_dskStream);
+                int nbBits = F11_BLOCK_SIZE * 8;
+                if (maxFiles < (vbn * (F11_BLOCK_SIZE * 8)))
+                    nbBits = maxFiles % (F11_BLOCK_SIZE * 8);
+                counter.Count(file.GetBlock(), nbBits);
+            }
+            //------------------------------------------
+            // NOTE: The Index File Bitmap (Ref: 5.1.3)
+            //       - bit 1 = header is used
+            //       - bit 0 = file number is free
+			//------------------------------------------
+            m_HomeBlock.SetUsedHeaders(counter.GetNbHi());
+
+			// TODO: Build link list of headers
+
+        }
+        else
+            return false;
 
         // Build File Header Database
         const uint32_t IndexLBN = (uint32_t) m_HomeBlock.GetIndexLBN();
@@ -50,9 +88,7 @@ bool Files11FileSystem::Open(const char *dskName)
         FileDatabase.Add(F11_INDEXF_SYS, IndexFileRecord);
 
         // Initialize the File Number to LBN index
-        Files11Base file;
 		int ext_file_number = F11_INDEXF_SYS;
-
         do {
             // TODO if (ext_file_number >= Files11Base::FileNumberToLBN.size()) {
             //    break;

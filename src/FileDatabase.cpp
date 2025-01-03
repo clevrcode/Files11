@@ -14,7 +14,7 @@ void FileDatabase::Add(int nb, const Files11Record &frec)
 
 bool FileDatabase::Delete(int nb)
 {
-	if (m_Database.find(nb) == m_Database.end())
+	if (!Exist(nb))
 		return false;
 
 	if (m_Database[nb].IsDirectory()) {
@@ -27,13 +27,13 @@ bool FileDatabase::Delete(int nb)
 int  FileDatabase::FindFirstFreeFile(void)
 {
     int fileNumber = -1;
-    for (int fnb = F11_CORIMG_SYS + 1; (fnb < m_MaxFileNumber) && (fileNumber <= 0); ++fnb) {
-        auto cit = m_Database.find(fnb);
-        if (cit == m_Database.end()) {
+    for (int fnb = F11_CORIMG_SYS + 1; (fnb < m_MaxFileNumber) && (fileNumber == 0); ++fnb) {
+        if (!Exist(fnb)) {
             // Mark it as used with an empty record
             Files11Record frec;
             m_Database[fnb] = frec;
             fileNumber = fnb;
+            break;
         }
     }
     return fileNumber;
@@ -59,6 +59,8 @@ bool FileDatabase::Get(int nb, Files11Record& frec)
 
 bool FileDatabase::Get(int nb, Files11Record& frec, const char *fname)
 {
+	if (!Exist(nb))
+		return false;
     Get(nb, frec);
     return Filter(frec, fname);
 }

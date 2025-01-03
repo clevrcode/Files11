@@ -11,14 +11,14 @@
 #include <Files11FileSystem.h>
 #include "HelpUtil.h"
 
-const char DEL = 0x08;
-const char* PROMPT = ">";
+const char DEL        = 0x08;
+const char* PROMPT    = ">";
 const char* ALL_FILES = "*.*;*";
 
 std::vector<std::string> commandQueue;
-void RunCLI(Files11FileSystem &fs);
-void ProcessCommand(std::string& command, Files11FileSystem& fs);
-void GetFileList(std::string search_path, std::vector<std::string>& list);
+static void RunCLI(Files11FileSystem &fs);
+static void ProcessCommand(std::string& command, Files11FileSystem& fs);
+static void GetFileList(std::string search_path, std::vector<std::string>& list);
 HelpUtil help;
 
 int main(int argc, char *argv[])
@@ -52,7 +52,7 @@ int main(int argc, char *argv[])
 // ---------------------------------------------------
 // Delete n character at teh end of the command line
 
-void del(size_t n=1)
+static void del(size_t n=1)
 {
     for (auto i = 0; i < n; i++) {
         _putch(DEL);
@@ -63,13 +63,13 @@ void del(size_t n=1)
 
 //-----------------------------------------
 // Put a string on the command line, no CR
-void putstring(const char* str)
+static void putstring(const char* str)
 {
     for (auto i = 0; str[i] != '\0'; ++i)
         _putch(str[i]);
 }
 
-std::string stripWhitespaces(std::string str)
+static std::string stripWhitespaces(std::string str)
 {
     if (str.length() > 0)
     {
@@ -87,7 +87,7 @@ std::string stripWhitespaces(std::string str)
 }
 
 typedef std::vector<std::string> Words_t;
-size_t parseCommand(std::string& command, Words_t& words)
+static size_t parseCommand(std::string& command, Words_t& words)
 {
     command = stripWhitespaces(command);
     do {
@@ -106,7 +106,7 @@ size_t parseCommand(std::string& command, Words_t& words)
     return words.size();
 }
 
-void RunCLI(Files11FileSystem &fs)
+static void RunCLI(Files11FileSystem &fs)
 {
     std::string command;
     size_t currCommand = 0;
@@ -179,13 +179,12 @@ void RunCLI(Files11FileSystem &fs)
                 command.clear();
             }
             std::cout << PROMPT;
-
         }
     }
     //CloseHandle(hConsole);
 }
 
-void SplitFilePath(const std::string &path, std::string &dir, std::string &file)
+static void SplitFilePath(const std::string &path, std::string &dir, std::string &file)
 {
     // split dir and file
     auto pos = path.find(']');
@@ -204,7 +203,7 @@ void SplitFilePath(const std::string &path, std::string &dir, std::string &file)
 //
 // HELP, PWD, CD, DIR, DMPLBN, DMPHDR, CAT, TYPE, TIME, FREE, IMPORT, EXPORT
 //
-void ProcessCommand(std::string &command, Files11FileSystem& fs)
+static void ProcessCommand(std::string &command, Files11FileSystem& fs)
 {
     Files11FileSystem::Args_t words;
     size_t nbWords = 0;
@@ -350,7 +349,7 @@ void ProcessCommand(std::string &command, Files11FileSystem& fs)
     }
 }
 
-void GetFileList(std::string search_path, std::vector<std::string>& list)
+static void GetFileList(std::string search_path, std::vector<std::string>& list)
 {
     list.clear();
     std::string dir;

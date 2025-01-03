@@ -10,7 +10,8 @@ class Files11HomeBlock
 {
 public:
 	Files11HomeBlock();
-	bool Initialize(std::function<void(int, Files11Base&obj)> fetch);
+	bool Initialize(F11_HomeBlock_t* pHome);
+	bool InitializeSCB(SCB_t* pSCB);
 
 	void PrintInfo(void);
 	const char* GetVolumeName(void) const { return strVolumeName.c_str(); };
@@ -29,6 +30,7 @@ public:
 	int  GetNumberOfBlocks(void) const { return iScbUnitSizeBlk; };
 	const char* GetOwnerUIC(void) const { return strVolumeOwner.c_str(); };
 	bool ValidateHomeBlock(F11_HomeBlock_t* pHome);
+	void SetUsedHeaders(int nbUsedHeaders) { iUsedHeaders = nbUsedHeaders; };
 
 private:
 	int i000000SysLBN;

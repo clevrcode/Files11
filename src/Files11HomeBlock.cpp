@@ -30,15 +30,10 @@ Files11HomeBlock::Files11HomeBlock()
 	iPackSerialNumber        = 0;
 }
 
-bool Files11HomeBlock::Initialize(std::function<void(int, Files11Base& obj)> fetch)
+bool Files11HomeBlock::Initialize(F11_HomeBlock_t* pHome)
 {
-	Files11Base file;
-	fetch(F11_HOME_LBN, file);
-	F11_HomeBlock_t* pHome = file.GetHome();
 	if (!ValidateHomeBlock(pHome))
-	{
 		return false;
-	}
 
 	// home block is valid
 	iIndexBitmapSize = pHome->hm1_w_ibmapsize;
@@ -65,50 +60,20 @@ bool Files11HomeBlock::Initialize(std::function<void(int, Files11Base& obj)> fet
 	Files11Base::MakeString((char*)pHome->hm1_t_ownername, sizeof(pHome->hm1_t_ownername), strVolumeOwner, true);
 	Files11Base::MakeDate(pHome->hm1_t_lastrev, strLastRevision, false);
 	Files11Base::MakeDate(pHome->hm1_t_credate, strVolumeCreationDate, true);
+	return true;
+}
 
-	fetch(iBitmapSysLBN, file);
-	if (!file.ValidateHeader())
-	{
-		return false;
+bool Files11HomeBlock::InitializeSCB(SCB_t* pSCB)
+{
+	iScbNbBlocks = pSCB->nbBitmapBlks;
+	if (iScbNbBlocks < 127) {
+		uint8_t* pBegin = (uint8_t*)&pSCB->blocks.smallUnit;
+		uint16_t* pSize = (uint16_t*)(pBegin + (iScbNbBlocks * sizeof(SCB_DataFreeBlks_t)));
+		iScbUnitSizeBlk = (pSize[0] << 16) + pSize[1];
 	}
-	// Read Storage Control Block
-	Files11Base::BlockList_t blkList;
-	Files11Base::GetBlockPointers(file.GetMapArea(), blkList);
-	// The SCB is the first block of the Bitmap.sys file
-	if (blkList.size() > 0)
+	else
 	{
-		int scb_lbn = blkList[0].lbn_start;
-		fetch(scb_lbn, file);
-		SCB_t* pScb = (SCB_t*)file.GetSCB();
-		iScbNbBlocks = pScb->nbBitmapBlks;
-		if (iScbNbBlocks < 127) {
-			uint8_t* pBegin = (uint8_t*)&pScb->blocks.smallUnit;
-			uint16_t* pSize = (uint16_t*)(pBegin + (iScbNbBlocks * sizeof(SCB_DataFreeBlks_t)));
-			iScbUnitSizeBlk = (pSize[0] << 16) + pSize[1];
-		}
-		else
-		{
-			iScbUnitSizeBlk = (pScb->blocks.largeUnit.unitSizeLogBlks_hi << 16) + pScb->blocks.largeUnit.unitSizeLogBlks_lo;
-		}
-
-		BitCounter counter;
-
-		int vbn = 1;
-		for (auto lbn = iIndexBitmapLBN; lbn < iIndexFileLBN; lbn++, vbn++)
-		{
-			fetch(lbn, file);
-			auto pBmp = file.GetBlock();
-			assert(pBmp != nullptr);
-			int nbBits = F11_BLOCK_SIZE * 8;
-			if (iMaxFiles < (vbn * (F11_BLOCK_SIZE * 8)))
-				nbBits = iMaxFiles % (F11_BLOCK_SIZE * 8);
-			counter.Count(pBmp, nbBits);
-		}
-		//------------------------------------------
-		// NOTE: The Index File Bitmap (Ref: 5.1.3)
-		//       - bit 1 = header is used
-		//       - bit 0 = file number is free
-		iUsedHeaders = counter.GetNbHi();
+		iScbUnitSizeBlk = (pSCB->blocks.largeUnit.unitSizeLogBlks_hi << 16) + pSCB->blocks.largeUnit.unitSizeLogBlks_lo;
 	}
 	return true;
 }
