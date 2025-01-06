@@ -1,6 +1,6 @@
 # Files11 -- PDP-11 File System Management
 
-The Files11 utility is acommand line interface that provides some usefule commands to manage a files-11 disk file.
+The Files11 utility is a command line interface that provides some useful commands to manage a files-11 disk file.
 
 ## Installing
 
