@@ -15,6 +15,8 @@ HelpUtil::HelpTopics_t HelpUtil::HelpTopics[] = {
     { "FREE"  , "Print information about disk usage" },
     { "IMPORT", "Import a file to the specified directory, or the current directory" },
     { "EXPORT", "Export the specified file9s) to the native directory" },
+    { "DEL"   , "Delete the specified file" },
+    { "RM"   , "Delete the specified file" },
     { nullptr , "?????" }
 };
 
