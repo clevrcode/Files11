@@ -8,19 +8,19 @@ The Files11 utility is acommand line interface that provides some usefule comman
 
 The supported commands are:
 
-HELP
-PWD
-CD
-DIR
-CAT or TYPE
-TIME
-FREE
-VFY
-DEL or RM
-DMPLBN
-DMPHDR
-IMPORT or UPLOAD
-EXPORT or DOWNLOAD
+* HELP
+* PWD
+* CD
+* DIR
+* CAT or TYPE
+* TIME
+* FREE
+* VFY
+* DEL or RM
+* DMPLBN
+* DMPHDR
+* IMPORT or UPLOAD
+* EXPORT or DOWNLOAD
 
 ### HELP
 
