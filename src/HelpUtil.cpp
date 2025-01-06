@@ -26,35 +26,38 @@ HelpUtil::HelpUtil(void)
     std::sort(commands.begin(), commands.end());
 }
 
-void HelpUtil::PrintHelp(void)
+void HelpUtil::PrintHelp(std::vector<std::string>& args)
 {
-    std::cout << "\nHelp is available on the following commands :\n\n";
-    std::cout << std::left;
-    int item = 0;
-    for (auto cmd : commands)
+    if (args.size() == 1)
     {
-        std::cout.width(16);
-        std::cout << std::left << cmd;
-        if ((++item % 5) == 0)
-            std::cout << std::endl;
-    }
-    std::cout << std::endl << std::endl;
-    std::cout << "For information on a command, type HELP commandname." << std::endl << std::endl;
-}
-
-void HelpUtil::PrintHelp(std::string& topic)
-{
-    bool found = false;
-    for (int i = 0; (HelpTopics[i].topic != nullptr) && !found; ++i)
-    {
-        if (found = (topic == HelpTopics[i].topic)) {
-            std::cout << std::endl << HelpTopics[i].details << std::endl;
+        std::cout << "\nHelp is available on the following commands :\n\n";
+        std::cout << std::left;
+        int item = 0;
+        for (auto cmd : commands)
+        {
+            std::cout.width(16);
+            std::cout << std::left << cmd;
+            if ((++item % 5) == 0)
+                std::cout << std::endl;
         }
+        std::cout << std::endl << std::endl;
+        std::cout << "For information on a command, type HELP commandname." << std::endl << std::endl;
     }
-    if (!found) {
-        std::cout << "Unknown topic\n";
+    else if (args.size() == 2)
+    {
+        bool found = false;
+        std::string topic(args[1]);
+        for (int i = 0; (HelpTopics[i].topic != nullptr) && !found; ++i)
+        {
+            if (found = (topic == HelpTopics[i].topic)) {
+                std::cout << std::endl << HelpTopics[i].details << std::endl;
+            }
+        }
+        if (!found) {
+            std::cout << "Unknown topic\n";
+        }
+        std::cout << std::endl;
     }
-    std::cout << std::endl;
 }
 
 //

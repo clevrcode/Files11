@@ -446,3 +446,13 @@ int Files11Base::GetBlockCount(const BlockList_t& blklist)
 	}
 	return count;
 }
+
+int Files11Base::StringToInt(const std::string& str)
+{
+    int base = 10;
+    if (str[0] == '0')
+        base = 8;
+    else if ((str[0] == 'x') || (str[0] == 'X'))
+        base = 16;
+    return strtol(str.c_str(), NULL, base);
+}

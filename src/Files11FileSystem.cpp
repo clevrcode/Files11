@@ -1,4 +1,5 @@
 #include <direct.h>
+#include <assert.h>
 #include "Files11FileSystem.h"
 #include "Files11_defs.h"
 #include "Files11Record.h"
@@ -33,7 +34,7 @@ bool Files11FileSystem::Open(const char *dskName)
 			m_dskStream.close();
             return false;
         }
-        file.ReadBlock(m_HomeBlock.GetBitmapLBN(), m_dskStream);
+        file.ReadBlock(m_HomeBlock.GetBitmapSysLBN(), m_dskStream);
         if (!file.ValidateHeader())
             return false;
         // Read Storage Control Block
@@ -65,7 +66,6 @@ bool Files11FileSystem::Open(const char *dskName)
             m_HomeBlock.SetUsedHeaders(counter.GetNbHi());
 
 			// TODO: Build link list of headers
-
         }
         else
             return false;
@@ -90,9 +90,6 @@ bool Files11FileSystem::Open(const char *dskName)
         // Initialize the File Number to LBN index
 		int ext_file_number = F11_INDEXF_SYS;
         do {
-            // TODO if (ext_file_number >= Files11Base::FileNumberToLBN.size()) {
-            //    break;
-            //}
             file.ReadBlock(FileDatabase.FileNumberToLBN(ext_file_number), m_dskStream);
             F11_MapArea_t* pMap = file.GetMapArea();
             Files11Base::BlockList_t  blklist;
@@ -593,46 +590,51 @@ void Files11FileSystem::DumpFile(int fileNumber, std::ostream& strm)
     }
 }
 
-void Files11FileSystem::DumpLBN(int lbn)
+void Files11FileSystem::DumpLBN(const Args_t &args)
 {
-    if ((lbn < 0) || (lbn > m_HomeBlock.GetNumberOfBlocks())) {
-        std::cout << "ERROR -- Invalid LBN [" << lbn << "]\n";
-        return;
-    }
+    assert(args[0] == "DMPLBN");
 
-    uint8_t buffer[F11_BLOCK_SIZE];
-    if (Files11Base::readBlock(lbn, m_dskStream, buffer) == nullptr)
+    if (args.size() >= 2)
     {
-        std::cerr << "ERROR == Failed to read block\n";
-        return;
-    }
+        for (auto i = 1; i < args.size(); i++)
+        {
+            int lbn = Files11Base::StringToInt(args[i]);
+            if ((lbn < 0) || (lbn > m_HomeBlock.GetNumberOfBlocks())) {
+                std::cout << "ERROR -- Invalid LBN [" << lbn << "]\n";
+                continue;
+            }
 
-    std::cout << "Dump of Logical Block Number: " << lbn << std::endl << std::endl;
+            Files11Base file;
+            uint8_t *buffer = file.ReadBlock(lbn, m_dskStream);
 
-    int nbBytes = F11_BLOCK_SIZE;
-    for (int i = 0; i < (nbBytes / 16); i++)
-    {
-        std::cout.width(4);
-        std::cout.fill('0');
-        std::cout << std::hex << std::right << (i * 16) << " | ";
-        for (int j = 0; j < 16; j++) {
-            int c = buffer[(i * 16) + j];
-            std::cout.width(2);
-            std::cout.fill('0');
-            std::cout << c << " ";
+            std::cout << "Dump of Logical Block Number: " << lbn << std::endl << std::endl;
+
+            int nbBytes = F11_BLOCK_SIZE;
+            for (int i = 0; i < (nbBytes / 16); i++)
+            {
+                std::cout.width(4);
+                std::cout.fill('0');
+                std::cout << std::hex << std::right << (i * 16) << " | ";
+                for (int j = 0; j < 16; j++) {
+                    int c = buffer[(i * 16) + j];
+                    std::cout.width(2);
+                    std::cout.fill('0');
+                    std::cout << c << " ";
+                }
+                std::cout << " | ";
+                for (int j = 0; j < 16; j++) {
+                    int c = buffer[(i * 16) + j];
+                    if (isprint(c))
+                        std::cout << static_cast<char>(c);
+                    else
+                        std::cout << ".";
+                }
+                std::cout << " |" << std::endl;
+            }
+            std::cout.fill(' ');
+            std::cout << std::endl << std::endl;
         }
-        std::cout << " | ";
-        for (int j = 0; j < 16; j++) {
-            int c = buffer[(i * 16) + j];
-            if (isprint(c))
-                std::cout << static_cast<char>(c);
-            else
-                std::cout << ".";
-        }
-        std::cout << " |" << std::endl;
     }
-    std::cout.fill(' ');
-    std::cout << std::endl << std::endl;
 }
 
 void Files11FileSystem::DumpHeader(int fileNumber)
@@ -925,36 +927,31 @@ void Files11FileSystem::TypeFile(const Files11Record& dirRecord, const char* fil
     }
 }
 
-void Files11FileSystem::DumpHeader(const Files11Record& dirRecord, const char* filename)
+
+void Files11FileSystem::DumpHeader(const Args_t args)
 {
-    std::string dirName = FileDatabase::FormatDirectory(dirRecord.GetFullName());
-    std::string strFileName(filename);
-    // If no version specified, only output the highest version
+    assert(args[0] == "DMPHDR");
+    if (args.size() != 2)
+        return;
 
+    std::string dir(GetCurrentWorkingDirectory());
+    std::string file;
+    SplitFilePath(args[1], dir, file);
 
-    bool printHighVersion = strFileName.find(";") == std::string::npos;
+    if (file.empty())
+        return;
+
+    if (dir.empty())
+        dir = GetCurrentWorkingDirectory();
+
+    FileDatabase::DirList_t dirList;
+    FileDatabase.FindMatchingFiles(dir.c_str(), file.c_str(), dirList, [&](int lbn, Files11Base& obj) { obj.ReadBlock(lbn, m_dskStream); });
+
+    for (auto &dirfiles : dirList)
     {
-        FileDatabase::DirList_t dirlist;
-        GetDirList(dirName.c_str(), dirlist);
-        for (auto& dir : dirlist)
+        for (auto& fileInfo: dirfiles.fileList)
         {
-            if (printHighVersion)
-            {
-                Files11Record fileRec;
-                if (GetHighestVersion(dir.fnumber, filename, fileRec) > 0)
-                    DumpHeader(fileRec.GetFileNumber());
-            }
-            else
-            {
-                FileList_t fileList;
-                GetFileList(dir.fnumber, fileList);
-                for (auto& fileInfo : fileList)
-                {
-                    Files11Record fileRec;
-                    if (FileDatabase.Get(fileInfo.fnumber, fileRec, filename))
-                        DumpHeader(fileRec.GetFileNumber());
-                }
-            }
+            DumpHeader(fileInfo.fnumber);
         }
     }
 }
@@ -1059,13 +1056,37 @@ void Files11FileSystem::ExportFiles(const char* dirname, const char* filename, c
     return;
 }
 
-void Files11FileSystem::ListDirs(const char *dirname, const char *filename)
+void Files11FileSystem::SplitFilePath(const std::string& path, std::string& dir, std::string& file)
 {
-    if ((dirname == nullptr)||(filename == nullptr))
-	    return;  
+    // split dir and file
+    auto pos = path.find(']');
+    if (pos != std::string::npos)
+    {
+        dir = path.substr(0, pos + 1);
+        file = ((pos + 1) < path.length()) ? path.substr(pos + 1) : "*.*;*";
+    }
+    else
+    {
+        dir = "";
+        file = path;
+    }
+}
+
+void Files11FileSystem::ListDirs(const Args_t& args)
+{
+    std::string dir(GetCurrentWorkingDirectory());
+    std::string file(ALL_FILES);
+
+    if (args.size() == 2) {
+        SplitFilePath(args[1], dir, file);
+        if (dir.empty())
+            dir = GetCurrentWorkingDirectory();
+        if (file.empty())
+            file = ALL_FILES;
+    }
 
     FileDatabase::DirList_t dirList;
-    FileDatabase.FindMatchingFiles(dirname, filename, dirList, [&](int lbn, Files11Base& obj) { obj.ReadBlock(lbn, m_dskStream); });
+    FileDatabase.FindMatchingFiles(dir.c_str(), file.c_str(), dirList, [&](int lbn, Files11Base& obj) { obj.ReadBlock(lbn, m_dskStream); });
 
     // If the filtered list is not empty
     int GrandUsedBlocks = 0;
@@ -1107,13 +1128,16 @@ void Files11FileSystem::ListDirs(const char *dirname, const char *filename)
             GrandTotalFiles += totalFiles;
         }
     }
-    // Grand Total
-    if ((DirectoryCount > 1) && (GrandTotalFiles > 0)) {
-        std::cout << "Grand total of " << GrandUsedBlocks << "./" << GrandTotalBlocks << ". blocks in " << GrandTotalFiles << ". files in " << DirectoryCount << ". directories\n";
-    }
-    else 
+    if (dirList.size() > 1)
     {
-        std::cout << "DIR -- No such file(s)\n\n";
+        // Grand Total
+        if ((DirectoryCount > 1) && (GrandTotalFiles > 0)) {
+            std::cout << "Grand total of " << GrandUsedBlocks << "./" << GrandTotalBlocks << ". blocks in " << GrandTotalFiles << ". files in " << DirectoryCount << ". directories\n";
+        }
+        else 
+        {
+            std::cout << "DIR -- No such file(s)\n\n";
+        }
     }
 }
 
@@ -1609,22 +1633,22 @@ bool Files11FileSystem::AddFile(const char* nativeName, const char* pdp11Dir, co
     F11_IdentArea_t* pIdent = newFile.GetIdentArea();
     // Encode file name, ext
     Files11Base::AsciiToRadix50(name.c_str(), 9, pIdent->filename);
-    Files11Base::AsciiToRadix50(ext.c_str(),  3, pIdent->filetype);
-    pIdent->version  = 1;
+    Files11Base::AsciiToRadix50(ext.c_str(), 3, pIdent->filetype);
+    pIdent->version = 1;
     pIdent->revision = 1;
     memset(pIdent->revision_date, 0, sizeof(pIdent->revision_date));
     memset(pIdent->revision_time, 0, sizeof(pIdent->revision_time));
-    Files11Base::FillDate((char *)pIdent->creation_date, (char *)pIdent->creation_time);
+    Files11Base::FillDate((char*)pIdent->creation_date, (char*)pIdent->creation_time);
     memset(pIdent->expiration_date, 0, sizeof(pIdent->expiration_date));
     pIdent->reserved = 0;
 
     // Fill the map area
     F11_MapArea_t* pMap = newFile.GetMapArea();
-    pMap->ext_RelVolNo      = 0;
-    pMap->CTSZ              = 1;
-    pMap->LBSZ              = 3;
-    pMap->USE               = 0;
-    pMap->MAX               = (uint8_t)MAX_POINTERS;
+    pMap->ext_RelVolNo = 0;
+    pMap->CTSZ = 1;
+    pMap->LBSZ = 3;
+    pMap->USE = 0;
+    pMap->MAX = (uint8_t)MAX_POINTERS;
 
     // 6) Transfer file content to the allocated blocks
     F11_UserAttrArea_t* pUserAttr = newFile.GetUserAttr();
@@ -1647,9 +1671,9 @@ bool Files11FileSystem::AddFile(const char* nativeName, const char* pdp11Dir, co
     // 9) Create a directory entry
     DirectoryRecord_t dirEntry;
     dirEntry.fileNumber = pHeader->fh1_w_fid_num;
-    dirEntry.fileSeq    = pHeader->fh1_w_fid_seq;
-    dirEntry.version    = 1;
-    dirEntry.fileRVN    = 0; // MUST BE 0
+    dirEntry.fileSeq = pHeader->fh1_w_fid_seq;
+    dirEntry.version = 1;
+    dirEntry.fileRVN = 0; // MUST BE 0
     memcpy(dirEntry.fileName, pIdent->filename, 6);
     memcpy(dirEntry.fileType, pIdent->filetype, 2);
     // ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -1688,7 +1712,7 @@ bool Files11FileSystem::AddFile(const char* nativeName, const char* pdp11Dir, co
 
         // ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
         // 8) Write the header, the checksum will be calculated, DO NOT WRITE IN HEADER AFTER THIS POINT!
-        
+
         Files11Base::writeHeader(header_lbn, m_dskStream, pHeader);
 
         // ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -1706,43 +1730,47 @@ bool Files11FileSystem::AddFile(const char* nativeName, const char* pdp11Dir, co
     return true;
 }
 
-bool Files11FileSystem::DeleteFile(const char* pdp11Dir, const char* pdp11name)
+
+bool Files11FileSystem::DeleteFile(const Args_t& args)
 {
-    if ((pdp11Dir == nullptr) || (pdp11name == nullptr)) {
-        std::cerr << "ERROR -- Invalid arguments\n";
-        return false;
-    }
+    assert((args[0] == "DEL") || (args[0] == "RM"));
 
-    // Validate file name name max 9 chars, extension max 3 chars
-    std::string name, ext, version;
-    FileDatabase::SplitName(pdp11name, name, ext, version);
-    if ((name.length() > 9) || (ext.length() > 3))
+    for (auto arg : args)
     {
-        std::cerr << "ERROR -- Invalid file name\n";
-        return false;
-    }
-    std::string fdir(pdp11Dir);
-    if (fdir.length() == 0) {
-        fdir = GetCurrentWorkingDirectory();
-    }
+        std::string dir, fname;
+        SplitFilePath(arg, dir, fname);
 
-    FileDatabase::DirList_t dirlist;
-    GetDirList(fdir.c_str(), dirlist);
-    for (auto &dir : dirlist)
-    {
-        std::vector<int> fileNbToRemove;
-        FileList_t fileList;
-        GetFileList(dir.fnumber, fileList);
-        for (auto file : fileList) {
-            //std::cout << "DELETE FILE: [" << dirRec.GetFileName() << "]" << frec.GetFullName() << ";" << (int)frec.GetFileVersion() << " number: " << (int)frec.GetFileNumber() << std::endl;
-            Files11Record fileRec;
-            // TODO : NEED TO FILTER THIS LIST WITH THE FILENAME/EXT (use version -1 to get latest version)
-            if (FileDatabase.Get(file.fnumber, fileRec, pdp11name)) {
-                DeleteFile(file.fnumber);
-                fileNbToRemove.push_back(file.fnumber);
-            }
+        // Validate file name name max 9 chars, extension max 3 chars
+        std::string name, ext, version;
+        FileDatabase::SplitName(fname, name, ext, version);
+        if ((name.length() > 9) || (ext.length() > 3))
+        {
+            std::cerr << "ERROR -- Invalid file name [" << fname << "]\n";
+            return false;
         }
-        DeleteDirectoryEntry(dir.fnumber, fileNbToRemove);
+        std::string fdir(dir);
+        if (fdir.length() == 0) {
+            fdir = GetCurrentWorkingDirectory();
+        }
+
+        FileDatabase::DirList_t dirlist;
+        GetDirList(fdir.c_str(), dirlist);
+        for (auto& dir : dirlist)
+        {
+            std::vector<int> fileNbToRemove;
+            FileList_t fileList;
+            GetFileList(dir.fnumber, fileList);
+            for (auto file : fileList) {
+                //std::cout << "DELETE FILE: [" << dirRec.GetFileName() << "]" << frec.GetFullName() << ";" << (int)frec.GetFileVersion() << " number: " << (int)frec.GetFileNumber() << std::endl;
+                Files11Record fileRec;
+                // TODO : NEED TO FILTER THIS LIST WITH THE FILENAME/EXT (use version -1 to get latest version)
+                if (FileDatabase.Get(file.fnumber, fileRec, fname.c_str())) {
+                    DeleteFile(file.fnumber);
+                    fileNbToRemove.push_back(file.fnumber);
+                }
+            }
+            DeleteDirectoryEntry(dir.fnumber, fileNbToRemove);
+        }
     }
     return true;
 }

@@ -13,7 +13,6 @@
 
 const char DEL        = 0x08;
 const char* PROMPT    = ">";
-const char* ALL_FILES = "*.*;*";
 
 std::vector<std::string> commandQueue;
 static void RunCLI(Files11FileSystem &fs);
@@ -184,21 +183,6 @@ static void RunCLI(Files11FileSystem &fs)
     //CloseHandle(hConsole);
 }
 
-static void SplitFilePath(const std::string &path, std::string &dir, std::string &file)
-{
-    // split dir and file
-    auto pos = path.find(']');
-    if (pos != std::string::npos)
-    {
-        dir = path.substr(0, pos + 1);
-        file = ((pos + 1) < path.length()) ? path.substr(pos + 1) : "*.*;*";
-    }
-    else
-    {
-        dir = "";
-        file = path;
-    }
-}
 
 //
 // HELP, PWD, CD, DIR, DMPLBN, DMPHDR, CAT, TYPE, TIME, FREE, IMPORT, EXPORT
@@ -211,85 +195,27 @@ static void ProcessCommand(std::string &command, Files11FileSystem& fs)
     {
         if (words[0] == "HELP")
         {
-            if (nbWords == 2)
-                help.PrintHelp(words[1]);
-            else
-                help.PrintHelp();
+            std::vector<std::string> args(words);
+            help.PrintHelp(args);
         }
         else if (words[0] == "PWD")
         {
             std::cout << fs.GetCurrentWorkingDirectory() << std::endl;
         }
+        else if (words[0] == "CD")
+        {
+            if (nbWords == 2)
+                fs.ChangeWorkingDirectory(words[1].c_str());
+            else
+                std::cout << "ERROR -- missing argument\n";
+        }
         else if (words[0] == "VFY")
         {
             fs.VerifyFileSystem(words);
         }
-        else if (words[0] == "CD")
-        {
-            if (nbWords == 2) {
-                fs.ChangeWorkingDirectory(words[1].c_str());
-            }
-            else
-                std::cout << "ERROR -- missing argument\n";
-        }
         else if (words[0] == "DIR")
         {
-            if (nbWords == 2) {
-                std::string dir, file;
-                SplitFilePath(words[1], dir, file);
-                if (dir.empty())
-                    dir = fs.GetCurrentWorkingDirectory();
-                if (file.empty())
-					file = ALL_FILES;
-                fs.ListDirs(dir.c_str(), file.c_str());
-            }
-            else
-                fs.ListDirs(fs.GetCurrentWorkingDirectory(), ALL_FILES);
-        }
-        else if ((words[0].substr(0, 3) == "DEL") || (words[0] == "RM"))
-        {
-            if (nbWords == 2) {
-                std::string dir, fname;
-                SplitFilePath(words[1], dir, fname);
-                fs.DeleteFile(dir.c_str(), fname.c_str());
-            }
-            else
-                std::cout << "ERROR -- missing argument\n";
-        }
-        else if (words[0] == "DMPLBN")
-        {
-            if ((nbWords == 2)&&(words[1].length() > 1))
-            {
-                int base = 10;
-                if (words[1][0] == '0')
-                    base = 8;
-                else if ((words[1][0] == 'x') || (words[1][0] == 'X'))
-                    base = 16;
-                int lbn = strtol(words[1].c_str(), NULL, base);
-                fs.DumpLBN(lbn);
-            }
-            else
-                std::cout << "ERROR -- missing argument\n";
-        }
-        else if (words[0] == "DMPHDR")
-        {
-            if (nbWords == 2) {
-                std::string dir, file;
-                SplitFilePath(words[1], dir, file);
-                //fs.ListDirs(Files11FileSystem::DMPHDR, dir.c_str(), file.c_str());
-            }
-            else
-                std::cout << "ERROR -- missing argument\n";
-        }
-        else if ((words[0] == "CAT") || (words[0] == "TYPE"))
-        {
-            if (nbWords == 2) {
-                std::string dir, file;
-                SplitFilePath(words[1], dir, file);
-                //fs.ListDirs(Files11FileSystem::TYPE, dir.c_str(), file.c_str());
-            }
-            else
-                std::cout << "ERROR -- missing argument\n";
+            fs.ListDirs(words);
         }
         else if (words[0] == "TIME")
         {
@@ -298,6 +224,39 @@ static void ProcessCommand(std::string &command, Files11FileSystem& fs)
         else if (words[0] == "FREE")
         {
             fs.PrintFreeBlocks();
+        }
+        else if ((words[0].substr(0, 3) == "DEL") || (words[0] == "RM"))
+        {
+            if (nbWords >= 2) {
+                fs.DeleteFile(words);
+            }
+            else
+                std::cout << "ERROR -- missing argument\n";
+        }
+        else if (words[0] == "DMPLBN")
+        {
+            if (nbWords >= 2)
+                fs.DumpLBN(words);
+            else
+                std::cout << "ERROR -- missing argument\n";
+        }
+        else if (words[0] == "DMPHDR")
+        {
+            if (nbWords >= 2) {
+                fs.DumpHeader(words);
+            }
+            else
+                std::cout << "ERROR -- missing argument\n";
+        }
+        else if ((words[0] == "CAT") || (words[0] == "TYPE"))
+        {
+            if (nbWords == 2) {
+                std::string dir, file;
+                Files11FileSystem::SplitFilePath(words[1], dir, file);
+                //fs.ListDirs(Files11FileSystem::TYPE, dir.c_str(), file.c_str());
+            }
+            else
+                std::cout << "ERROR -- missing argument\n";
         }
         else if ((words[0].substr(0,3) == "IMP") || (words[0] == "UP"))
         {
@@ -334,7 +293,7 @@ static void ProcessCommand(std::string &command, Files11FileSystem& fs)
             std::string dir;
             if (nbWords >= 2) {
                 std::string dir, file, output;
-                SplitFilePath(words[1], dir, file);
+                Files11FileSystem::SplitFilePath(words[1], dir, file);
                 if (dir.empty())
                     dir = fs.GetCurrentWorkingDirectory();
                 if (nbWords == 2)

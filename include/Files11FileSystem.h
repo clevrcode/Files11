@@ -19,6 +19,7 @@ public:
 	Files11FileSystem();
 	~Files11FileSystem();
 
+	const char* ALL_FILES = "*.*;*";
 	typedef struct FileInfo {
 		FileInfo(void) : fnumber(0), version(0) {};
 		FileInfo(int nb, int vrs) : fnumber(nb), version(vrs) {};
@@ -34,6 +35,8 @@ public:
 	void PrintFile(int fileNumber, std::ostream& strm);
 	void DumpFile(int fileNumber, std::ostream& strm);
 	void DumpHeader(int fileNumber);
+
+	static void SplitFilePath(const std::string& path, std::string& dir, std::string& file);
 
 	int  GetHighestVersion(int dirfnb, const char* filename, Files11Record& fileRecord);
 	
@@ -58,21 +61,23 @@ public:
 	void VerifyFileSystem(Args_t args);
 
 	void ListFiles(const Files11Record& dirRecord, const char* filename, FileList_t &fileList);
-	void ListDirs(const char* dir, const char *file);
+	void ListDirs(const Args_t &args);
+	bool DeleteFile(const Args_t& args);
+	void DumpLBN(const Args_t &args);
+	void DumpHeader(const Args_t args);
+	void DumpHeader(const Files11Record& dirRecord, const char* filename);
+
 	void ExportFiles(const char* dirname, const char* filename, const char* outdir);
 
 	void TypeFile(const Files11Record& dirRecord, const char* filename);
-	void DumpHeader(const Files11Record& dirRecord, const char* filename);
 
 	void ChangeWorkingDirectory(const char*);
 	const char* GetCurrentWorkingDirectory(void) const { return m_CurrentDirectory.c_str(); };
 	const char* GetErrorMessage(void) const { return m_strErrorMsg.c_str(); };
 	const std::string GetCurrentSystemTime(void) { return m_File.GetCurrentPDPTime(); };
 	void PrintFreeBlocks(void);
-	void DumpLBN(int lbn);
 
 	bool AddFile(const char* nativeName, const char *pdp11Dir, const char* pdp11Name=nullptr);
-	bool DeleteFile(const char* pdp11Dir, const char* pdp11name);
 	bool DeleteFile(int fileNumber);
 
 	int  FindFreeBlocks(int nbBlocks, Files11Base::BlockList_t &blkList);

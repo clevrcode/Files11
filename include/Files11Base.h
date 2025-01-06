@@ -63,6 +63,7 @@ public:
 	static int           makeLBN(unsigned int hi, unsigned int lo) { return (hi << 16) + lo; };
 	static int           GetBlockPointers(F11_MapArea_t* p, BlockList_t& blklist);
 	static int           GetBlockCount(const BlockList_t& blklist);
+	static int           StringToInt(const std::string& str);
 
 private:
 	int                m_LastBlockRead;

@@ -7,8 +7,7 @@ class HelpUtil
 public:
     HelpUtil(void);
 
-    void PrintHelp(void);
-    void PrintHelp(std::string& topic);
+    void PrintHelp(std::vector<std::string> &args);
 
     typedef struct HelpTopics_ {
         const char* topic;
