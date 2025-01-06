@@ -31,18 +31,17 @@ public:
 	const char* GetFullName(void) const         { return fullName.c_str();            };
 	const char* GetFullName(int version)  { 
 		char octbuf[32];
-		snprintf(octbuf, sizeof(octbuf), "%o", version);
+		snprintf(octbuf, sizeof(octbuf), "%d", version);
 		fullNameWithVersion = fullName + ";" + octbuf;
 		return fullNameWithVersion.c_str(); 
 	};
-	void           PrintRecord(void);
+	void           PrintRecord(int version);
 	const char*    GetFileCreation(void)       const { return fileCreationDate.c_str(); };
 	const char*    GetFileRevisionDate(void)   const { return fileRevisionDate.c_str(); };
 	const uint16_t GetOwnerUIC(void)           const { return ownerUIC;                 };
 	const uint16_t GetFileProtection(void)     const { return fileProtection;           };
 
 protected:
-	bool ValidateHeader(F11_FileHeader_t* pHeader);
 	F11_FileHeader_t* ReadFileHeader(int lbn, std::fstream& istrm);
 
 private:

@@ -60,16 +60,19 @@ public:
 	// Commands
 	void VerifyFileSystem(Args_t args);
 
-	void ListFiles(const Files11Record& dirRecord, const char* filename, FileList_t &fileList);
+	//void ListFiles(const Files11Record& dirRecord, const char* filename, FileList_t &fileList);
+	void ListFiles(const Args_t& args);
 	void ListDirs(const Args_t &args);
 	bool DeleteFile(const Args_t& args);
 	void DumpLBN(const Args_t &args);
-	void DumpHeader(const Args_t args);
-	void DumpHeader(const Files11Record& dirRecord, const char* filename);
+	void DumpHeader(const Args_t &args);
+	//void DumpHeader(const Files11Record& dirRecord, const char* filename);
 
 	void ExportFiles(const char* dirname, const char* filename, const char* outdir);
 
-	void TypeFile(const Files11Record& dirRecord, const char* filename);
+	//void TypeFile(const Files11Record& dirRecord, const char* filename);
+	void TypeFile(int fnumber);
+
 
 	void ChangeWorkingDirectory(const char*);
 	const char* GetCurrentWorkingDirectory(void) const { return m_CurrentDirectory.c_str(); };

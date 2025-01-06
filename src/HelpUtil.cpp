@@ -16,7 +16,7 @@ HelpUtil::HelpTopics_t HelpUtil::HelpTopics[] = {
     { "IMPORT", "Import a file to the specified directory, or the current directory" },
     { "EXPORT", "Export the specified file9s) to the native directory" },
     { "DEL"   , "Delete the specified file" },
-    { "RM"   , "Delete the specified file" },
+    { "RM"    , "Delete the specified file" },
     { nullptr , "?????" }
 };
 
@@ -32,7 +32,7 @@ void HelpUtil::PrintHelp(std::vector<std::string>& args)
 {
     if (args.size() == 1)
     {
-        std::cout << "\nHelp is available on the following commands :\n\n";
+        std::cout << "\nHelp is available for the following commands :\n\n";
         std::cout << std::left;
         int item = 0;
         for (auto cmd : commands)

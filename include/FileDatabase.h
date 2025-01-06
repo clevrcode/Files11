@@ -16,11 +16,11 @@ public:
 	bool Delete(int nb);
 	bool Filter(const Files11Record& rec, const char* name);
 	int  GetNbHeaders(void) const { return (int)m_Database.size(); };
-	static void SplitName(const std::string &fullname, std::string& name, std::string& ext, std::string& version);
 	int  FindFirstFreeFile(void);
 	int  FileNumberToLBN(int fnb) { return (fnb < m_FileNumberToLBN.size()) ? m_FileNumberToLBN[fnb] : -1; };
 	void SetLBN(int fnb, int lbn) { m_FileNumberToLBN[fnb] = lbn; };
 	void AppendLBN(int lbn)       { m_FileNumberToLBN.push_back(lbn); };
+	static void SplitName(const std::string &fullname, std::string& name, std::string& ext, std::string& version);
 
 	// Directory stuff
 	static std::string FormatDirectory(const std::string& dir);

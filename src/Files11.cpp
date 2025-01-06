@@ -250,10 +250,8 @@ static void ProcessCommand(std::string &command, Files11FileSystem& fs)
         }
         else if ((words[0] == "CAT") || (words[0] == "TYPE"))
         {
-            if (nbWords == 2) {
-                std::string dir, file;
-                Files11FileSystem::SplitFilePath(words[1], dir, file);
-                //fs.ListDirs(Files11FileSystem::TYPE, dir.c_str(), file.c_str());
+            if (nbWords >= 2) {
+                fs.ListFiles(words);
             }
             else
                 std::cout << "ERROR -- missing argument\n";

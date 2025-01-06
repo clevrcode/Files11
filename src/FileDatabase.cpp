@@ -301,24 +301,27 @@ void FileDatabase::FindMatchingFiles(const char* dir, const char* filename, DirL
                 ext_file_number = Files11Base::GetBlockPointers(pMap, blklist);
                 for (auto& block : blklist)
                 {
-                    for (auto lbn = block.lbn_start; lbn <= block.lbn_end; ++lbn, ++vbn)
+                    for (auto lbn = block.lbn_start; (lbn <= block.lbn_end) && (vbn <= eof_block); ++lbn, ++vbn)
                     {
+                        Files11Base file;
                         fetch(lbn, file);
                         DirectoryRecord_t* pDir = file.GetDirectoryRecord();
-						int nbrecs = (vbn == eof_block) ? eof_byte / sizeof(DirectoryRecord_t) : F11_BLOCK_SIZE / sizeof(DirectoryRecord_t);
+                        int nbrecs = (vbn == eof_block) ? eof_byte / sizeof(DirectoryRecord_t) : F11_BLOCK_SIZE / sizeof(DirectoryRecord_t);
                         for (int i = 0; i < nbrecs; ++i)
                         {
                             if (pDir[i].fileNumber != 0)
                             {
                                 Files11Record frec;
                                 if (Get(pDir[i].fileNumber, frec, filename)) {
+                                    if (pDir[i].version == 0)
+                                        printf("version 0\n");
                                     dir.fileList.push_back(DirFileRecord_t(pDir[i].fileNumber, pDir[i].fileSeq, pDir[i].version, frec.GetFileName(), frec.GetFileExt()));
                                 }
                             }
                         }
                     }
                 }
-            } while (ext_file_number > 0);
+            } while ((ext_file_number > 0) && (vbn <= eof_block));
         }
     }
 }

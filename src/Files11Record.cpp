@@ -92,10 +92,10 @@ F11_FileHeader_t* Files11Record::ReadFileHeader(int lbn, std::fstream& istrm)
 	return pHeader;
 }
 
-void Files11Record::PrintRecord(void)
+void Files11Record::PrintRecord(int version)
 {
 	std::cout.fill(' ');	
-	std::cout.width(20); std::cout << std::left << GetFullName(fileVersion);
+	std::cout.width(20); std::cout << std::left << GetFullName(version);
 	std::string blks(std::to_string(GetUsedBlockCount()));
 	blks += ".";
 	std::cout.width(8);	std::cout << blks << (IsContiguous() ? "C  " : "   ") << GetFileCreation() << std::endl;
