@@ -893,8 +893,11 @@ void Files11FileSystem::TypeFile(int fnumber)
     Files11Record fileRec;
     if (FileDatabase.Get(fnumber, fileRec))
     {
-        if ((fileRec.GetFileFCS().GetRecordType() & rt_vlr) && (fileRec.GetFileFCS().GetRecordAttributes() & ra_cr))
+        if ((fileRec.GetFileFCS().GetRecordType() & rt_vlr) && (fileRec.GetFileFCS().GetRecordAttributes() & ra_cr)) {
+            std::cout << "\x1b[33m";
             PrintFile(fileRec.GetFileNumber(), std::cout);
+            std::cout << "\x1b[0m";
+        }
         else
             DumpFile(fileRec.GetFileNumber(), std::cout);
     }

@@ -55,13 +55,6 @@ static void del(size_t n=1)
         // Move cursor back, then delete character at cursor
         std::cout << "\x1b[D" << "\x1b[P";
     }
-    
-    //const char DEL = 0x08;
-    //for (auto i = 0; i < n; i++) {
-    //    _putch(DEL);
-    //    _putch(' ');
-    //    _putch(DEL);
-    //}
 }
 
 //-----------------------------------------
@@ -69,8 +62,6 @@ static void del(size_t n=1)
 static void putstring(const char* str)
 {
     std::cout << str;
-    //for (auto i = 0; str[i] != '\0'; ++i)
-    //    _putch(str[i]);
 }
 
 static std::string stripWhitespaces(std::string str)
@@ -118,11 +109,12 @@ static void RunCLI(Files11FileSystem &fs)
 
     const char* PROMPT = ">";
 
-
     std::vector<std::string> commandQueue;
     std::string command;
     size_t currCommand = 0;
     std::cout << PROMPT;
+
+    DWORD prevOutMode, prevInMode;
 
     // Set output mode to handle virtual terminal sequences
     HANDLE hOut = GetStdHandle(STD_OUTPUT_HANDLE);
@@ -144,7 +136,7 @@ static void RunCLI(Files11FileSystem &fs)
         std::cerr << "Failed to get output console mode, error [" << GetLastError() << "]\n";
         return;
     }
-
+    prevOutMode = dwMode;
     dwMode |= (ENABLE_VIRTUAL_TERMINAL_PROCESSING | DISABLE_NEWLINE_AUTO_RETURN);
     if (!SetConsoleMode(hOut, dwMode))
     {
@@ -157,6 +149,7 @@ static void RunCLI(Files11FileSystem &fs)
         std::cerr << "Failed to get input console mode, error [" << GetLastError() << "]\n";
         return;
     }
+    prevInMode = dwMode;
     dwMode |= ENABLE_VIRTUAL_TERMINAL_INPUT;
     dwMode &= ~(ENABLE_LINE_INPUT | ENABLE_ECHO_INPUT);
 
@@ -269,6 +262,10 @@ static void RunCLI(Files11FileSystem &fs)
             std::cout << PROMPT;
         }
     }
+
+    // Put back to original console mode
+    SetConsoleMode(hIn, prevInMode);
+    SetConsoleMode(hOut, prevOutMode);
     CloseHandle(hIn);
     CloseHandle(hOut);
 }
