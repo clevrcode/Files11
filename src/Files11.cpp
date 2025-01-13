@@ -11,13 +11,11 @@
 #include <Files11FileSystem.h>
 #include "HelpUtil.h"
 
-const char DEL        = 0x08;
-const char* PROMPT    = ">";
 
-std::vector<std::string> commandQueue;
 static void RunCLI(Files11FileSystem &fs);
 static void ProcessCommand(std::string& command, Files11FileSystem& fs);
 static void GetFileList(std::string search_path, std::vector<std::string>& list);
+
 HelpUtil help;
 
 int main(int argc, char *argv[])
@@ -49,23 +47,30 @@ int main(int argc, char *argv[])
 }
 
 // ---------------------------------------------------
-// Delete n character at teh end of the command line
+// Delete n character at the end of the command line
 
 static void del(size_t n=1)
 {
-    for (auto i = 0; i < n; i++) {
-        _putch(DEL);
-        _putch(' ');
-        _putch(DEL);
+    for (int i = 0; i < n; i++) {
+        // Move cursor back, then delete character at cursor
+        std::cout << "\x1b[D" << "\x1b[P";
     }
+    
+    //const char DEL = 0x08;
+    //for (auto i = 0; i < n; i++) {
+    //    _putch(DEL);
+    //    _putch(' ');
+    //    _putch(DEL);
+    //}
 }
 
 //-----------------------------------------
 // Put a string on the command line, no CR
 static void putstring(const char* str)
 {
-    for (auto i = 0; str[i] != '\0'; ++i)
-        _putch(str[i]);
+    std::cout << str;
+    //for (auto i = 0; str[i] != '\0'; ++i)
+    //    _putch(str[i]);
 }
 
 static std::string stripWhitespaces(std::string str)
@@ -107,60 +112,143 @@ static size_t parseCommand(std::string& command, Words_t& words)
 
 static void RunCLI(Files11FileSystem &fs)
 {
+    const char ESC = 0x1b;
+    const char* CURBACK = "\x1b[D";
+    const char* CURFORW = "\x1b[C";
+
+    const char* PROMPT = ">";
+
+
+    std::vector<std::string> commandQueue;
     std::string command;
     size_t currCommand = 0;
     std::cout << PROMPT;
-    //HANDLE hConsole = CreateConsoleScreenBuffer(GENERIC_READ | GENERIC_WRITE, 0, NULL, CONSOLE_TEXTMODE_BUFFER, NULL);
-    //SetConsoleActiveScreenBuffer(hConsole);
-    //DWORD dwBytesWritten = 0;
-    //COORD pos = { 0, 0 };
-    //WriteConsoleOutputCharacter(hConsole, PROMPT, (DWORD)strlen(PROMPT), pos, &dwBytesWritten);
 
+    // Set output mode to handle virtual terminal sequences
+    HANDLE hOut = GetStdHandle(STD_OUTPUT_HANDLE);
+    if (hOut == INVALID_HANDLE_VALUE)
+    {
+        std::cerr << "Failed to get output console handle, error [" << GetLastError() <<"]\n";
+        return;
+    }
+    HANDLE hIn = GetStdHandle(STD_INPUT_HANDLE);
+    if (hIn == INVALID_HANDLE_VALUE)
+    {
+        std::cerr << "Failed to get input console handle, error [" << GetLastError() << "]\n";
+        return;
+    }
+
+    DWORD dwMode = 0;
+    if (!GetConsoleMode(hOut, &dwMode))
+    {
+        std::cerr << "Failed to get output console mode, error [" << GetLastError() << "]\n";
+        return;
+    }
+
+    dwMode |= (ENABLE_VIRTUAL_TERMINAL_PROCESSING | DISABLE_NEWLINE_AUTO_RETURN);
+    if (!SetConsoleMode(hOut, dwMode))
+    {
+        std::cerr << "Failed to enable output virtual terminal console mode, error [" << GetLastError() << "]\n";
+        return;
+    }
+
+    if (!GetConsoleMode(hIn, &dwMode))
+    {
+        std::cerr << "Failed to get input console mode, error [" << GetLastError() << "]\n";
+        return;
+    }
+    dwMode |= ENABLE_VIRTUAL_TERMINAL_INPUT;
+    dwMode &= ~(ENABLE_LINE_INPUT | ENABLE_ECHO_INPUT);
+
+    if (!SetConsoleMode(hIn, dwMode))
+    {
+        std::cerr << "Failed to enable input virtual terminal console mode, error [" << GetLastError() << "]\n";
+        return;
+    }
+
+    int cmd_ptr = 0;
     for (;;)
     {
         size_t nbCommands = commandQueue.size();
-        int key = _getch();
+        char buffer[16];
+        DWORD nbChar;
+        memset(buffer, 0, sizeof(buffer));
+
+        ReadConsole(hIn, &buffer, sizeof(buffer), &nbChar, NULL);
+        int key = buffer[0];
         if (key != '\r') {
-            if (key == 0xe0) {
-                key = _getch();
-                if (key == 0x48) // up-arrow
+            if (key == 0x1b) 
+            {
+                std::string escseq(buffer);
+                if (escseq == "\x1b[A") // up-arrow
                 {
                     // erase current line
                     if (currCommand > 0) {
                         del(command.length());
                         command = commandQueue[--currCommand];
                         putstring(command.c_str());
+                        cmd_ptr = (int)command.length();
                     }
                 }
-                else if (key == 0x50) // down-arrow
+                else if (escseq == "\x1b[B") // down-arrow
                 {
-                    if (currCommand < (commandQueue.size() - 1)) {
+                    if ((commandQueue.size() > 0) && (currCommand < (commandQueue.size() - 1))) {
                         del(command.length());
                         command = commandQueue[++currCommand];
                         putstring(command.c_str());
+                        cmd_ptr = (int)command.length();
                     }
                 }
-                else if (0x4b) // Left arrow
+                else if (escseq == "\x1b[D") // Left arrow
                 {
-
+                    if (cmd_ptr > 0) {
+                        cmd_ptr--;
+                        std::cout << CURBACK;
+                    }
                 }
-                else if (0x4d) // right arrow
+                else if (escseq == "\x1b[C") // right arrow
                 {
-
+                    if (cmd_ptr < command.length()) {
+                        cmd_ptr++;
+                        std::cout << CURFORW;
+                    }
                 }
             }
-            else if (key == 0x08)
+            else if (key == 0x7f) // Backspace
             {
-                if (command.length() > 0) {
+                if ((cmd_ptr > 0) && (command.length() > 0)) {
                     del();
-                    command.pop_back();
+                    if (cmd_ptr >= command.length()) {
+                        command.pop_back();
+                        cmd_ptr--;
+                    }
+                    else
+                    {
+                        cmd_ptr--;
+                        command.erase(command.begin() + cmd_ptr);
+                    }
                 }
             }
             else
             {
                 key = toupper(key);
-                command += key;
-                _putch(key);
+                if (cmd_ptr >= command.length()) {
+                    command += (char)key;
+                    cmd_ptr++;
+                    std::cout << (char)key;
+                }
+                else {
+                    int p = cmd_ptr;
+                    command.insert(command.begin() + cmd_ptr, (char)key);
+                    for (auto it = command.cbegin() + cmd_ptr; it != command.cend(); ++it, ++p) {
+                        std::cout << *it;
+                    }
+                    cmd_ptr++;
+                    while (p > cmd_ptr) {
+                        std::cout << CURBACK;
+                        p--;
+                    }
+                }
             }
         }
         else
@@ -176,13 +264,14 @@ static void RunCLI(Files11FileSystem &fs)
                 currCommand = commandQueue.size();
                 ProcessCommand(command, fs);
                 command.clear();
+                cmd_ptr = 0;
             }
             std::cout << PROMPT;
         }
     }
-    //CloseHandle(hConsole);
+    CloseHandle(hIn);
+    CloseHandle(hOut);
 }
-
 
 //
 // HELP, PWD, CD, DIR, DMPLBN, DMPHDR, CAT, TYPE, TIME, FREE, IMPORT, EXPORT
@@ -207,7 +296,7 @@ static void ProcessCommand(std::string &command, Files11FileSystem& fs)
             if (nbWords == 2)
                 fs.ChangeWorkingDirectory(words[1].c_str());
             else
-                std::cout << "ERROR -- missing argument\n";
+                Files11FileSystem::print_error("ERROR -- missing argument");
         }
         else if (words[0] == "VFY")
         {
@@ -231,14 +320,14 @@ static void ProcessCommand(std::string &command, Files11FileSystem& fs)
                 fs.DeleteFile(words);
             }
             else
-                std::cout << "ERROR -- missing argument\n";
+                Files11FileSystem::print_error("ERROR -- missing argument");
         }
         else if (words[0] == "DMPLBN")
         {
             if (nbWords >= 2)
                 fs.DumpLBN(words);
             else
-                std::cout << "ERROR -- missing argument\n";
+                Files11FileSystem::print_error("ERROR -- missing argument");
         }
         else if (words[0] == "DMPHDR")
         {
@@ -246,7 +335,7 @@ static void ProcessCommand(std::string &command, Files11FileSystem& fs)
                 fs.DumpHeader(words);
             }
             else
-                std::cout << "ERROR -- missing argument\n";
+                Files11FileSystem::print_error("ERROR -- missing argument");
         }
         else if ((words[0] == "CAT") || (words[0] == "TYPE"))
         {
@@ -254,7 +343,7 @@ static void ProcessCommand(std::string &command, Files11FileSystem& fs)
                 fs.ListFiles(words);
             }
             else
-                std::cout << "ERROR -- missing argument\n";
+                Files11FileSystem::print_error("ERROR -- missing argument");
         }
         else if ((words[0].substr(0,3) == "IMP") || (words[0] == "UP"))
         {
@@ -279,12 +368,11 @@ static void ProcessCommand(std::string &command, Files11FileSystem& fs)
                     }
                 }
                 else {
-                    std::cout << "ERROR -- File not found\n";
+                    Files11FileSystem::print_error("ERROR -- File not found");
                 }
             }
-            else {
-                std::cout << "ERROR -- Missing argument\n";
-            }
+            else
+                Files11FileSystem::print_error("ERROR -- missing argument");
         }
         else if ((words[0].substr(0, 3) == "EXP") || (words[0] == "DOWN"))
         {
@@ -301,7 +389,7 @@ static void ProcessCommand(std::string &command, Files11FileSystem& fs)
         }
         else
         {
-            std::cout << "Unknown command: " << words[0] << std::endl;
+            Files11FileSystem::print_error("ERROR -- Unknown command");
         }
     }
 }

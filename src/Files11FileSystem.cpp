@@ -96,7 +96,7 @@ bool Files11FileSystem::Open(const char *dskName)
             ext_file_number = Files11Base::GetBlockPointers(pMap, blklist);
 
             if (blklist.empty()) {
-	    		std::cerr << "ERROR -- Failed to read block list for INDEXF.SYS\n";
+	    		print_error("ERROR -- Failed to read block list for INDEXF.SYS");
                 m_dskStream.close();
                 return false;
             }
@@ -132,7 +132,7 @@ bool Files11FileSystem::Open(const char *dskName)
     }
     else
     {
-        std::cerr << "ERROR -- Failed to open disk image file\n";
+        print_error("ERROR -- Failed to open disk image file");
     }
 	return m_bValid;
 }
@@ -600,7 +600,7 @@ void Files11FileSystem::DumpLBN(const Args_t &args)
         {
             int lbn = Files11Base::StringToInt(args[i]);
             if ((lbn < 0) || (lbn > m_HomeBlock.GetNumberOfBlocks())) {
-                std::cout << "ERROR -- Invalid LBN [" << lbn << "]\n";
+                print_error("ERROR -- Invalid LBN");
                 continue;
             }
 
@@ -642,7 +642,7 @@ void Files11FileSystem::DumpHeader(int fileNumber)
     // Validate file number
     if (!FileDatabase.Exist(fileNumber))
     {
-        std::cout << "ERROR -- Invalid file number\n";
+        print_error("ERROR -- Invalid file number");
         return;
     }
     int lbn = FileDatabase.FileNumberToLBN(fileNumber);
@@ -765,6 +765,11 @@ void Files11FileSystem::DumpHeader(int fileNumber)
     std::cout << std::endl;
     std::cout << std::dec;
     std::cout.fill(' ');
+}
+
+void Files11FileSystem::print_error(const char* msg)
+{
+    std::cout << "\n\x1b[31m" << msg << "\x1b[0m\n\n";
 }
 
 void Files11FileSystem::print_blocks(int blk_hi, int blk_lo)
@@ -1123,7 +1128,7 @@ void Files11FileSystem::ListDirs(const Args_t& args)
     }
     else if (GrandTotalFiles == 0)
     {
-        std::cout << "\nDIR -- No such file(s)\n\n";
+        std::cout << "\x1b[31m" << "\nDIR -- No such file(s)\n\n" << "\x1b[0m\n";
     }
 }
 
@@ -1145,7 +1150,7 @@ void Files11FileSystem::ChangeWorkingDirectory(const char* dir)
         }
     }
     if (!found)
-        std::cout << "SET -- Invalid UIC\n";
+        print_error("ERROR -- Invalid UIC");
 }
 
 void Files11FileSystem::Close(void)
@@ -1160,7 +1165,7 @@ void Files11FileSystem::PrintVolumeInfo(void)
     if (m_bValid)
         m_HomeBlock.PrintInfo();
     else
-        printf("Invalid Files11 Volume\n");
+        print_error("ERROR -- Invalid Files11 Volume");
 }
 
 
@@ -1275,7 +1280,7 @@ bool Files11FileSystem::AddDirectoryEntry(int filenb, DirectoryRecord_t* pDirEnt
     Files11Record dirRec;
     if (!FileDatabase.Get(filenb, dirRec))
     {
-        std::cerr << "ERROR -- Directory not found\n";
+        print_error("ERROR -- Directory not found");
         return false;
     }
 
@@ -1385,7 +1390,7 @@ bool Files11FileSystem::AddDirectoryEntry(int filenb, DirectoryRecord_t* pDirEnt
             Files11Base::BlockPtrs_t oldPtrs(lbn, lbn + pFmt1[nbPointers - 1].blk_count);
             if (FindFreeBlocks(nbBlocks, newBlkList) <= 0)
             {
-                std::cerr << "ERROR -- Not enough free space\n";
+                print_error("ERROR -- Not enough free space");
                 return false;
             }
             // Mark data blocks as used in BITMAP.SYS
@@ -1413,7 +1418,7 @@ bool Files11FileSystem::AddDirectoryEntry(int filenb, DirectoryRecord_t* pDirEnt
         {
             if (FindFreeBlocks(1, newBlkList) <= 0)
             {
-                std::cerr << "ERROR -- Not enough free space\n";
+                print_error("ERROR -- Not enough free space");
                 return false;
             }
             // Mark data blocks as used in BITMAP.SYS
@@ -1451,7 +1456,7 @@ bool Files11FileSystem::DeleteDirectoryEntry(int filenb, std::vector<int> &fileN
     Files11Record dirRec;
     if (!FileDatabase.Get(filenb, dirRec))
     {
-        std::cerr << "ERROR -- Directory not found\n";
+        print_error("ERROR -- Directory not found");
         return false;
     }
 
@@ -1525,19 +1530,19 @@ bool Files11FileSystem::AddFile(const char* nativeName, const char* pdp11Dir, co
     FileDatabase::SplitName(pdp11name, name, ext, version);
     if ((name.length() > 9) || (ext.length() > 3))
     {
-        std::cerr << "ERROR -- Invalid file name\n";
+        print_error("ERROR -- Invalid file name");
         return false;
     }
 
     if (pdp11Dir == nullptr) {
-        std::cerr << "ERROR -- Invalid directory\n";
+        print_error("ERROR -- Invalid directory");
         return false;
     }
 
     FileDatabase::DirList_t dirList;
     FileDatabase.FindDirectory(pdp11Dir, dirList);
     if (dirList.size() != 1) {
-        std::cerr << "ERROR -- Invalid directory\n";
+        print_error("ERROR -- Invalid directory");
         return false;
     }   
     FileDatabase::DirInfo_t dirInfo(dirList[0]);
@@ -1569,7 +1574,7 @@ bool Files11FileSystem::AddFile(const char* nativeName, const char* pdp11Dir, co
     Files11Base::BlockList_t BlkList;
     if (FindFreeBlocks(nbBlocks, BlkList) <= 0)
     {
-        std::cerr << "ERROR -- Not enough free space\n";
+        print_error("ERROR -- Not enough free space");
         return false;
     }
     // Mark data blocks as used in BITMAP.SYS
@@ -1585,7 +1590,7 @@ bool Files11FileSystem::AddFile(const char* nativeName, const char* pdp11Dir, co
         // 4) Find/assign a free file header/number for the file metadata
         int newFileNumber = FileDatabase.FindFirstFreeFile();
         if (newFileNumber <= 0) {
-            std::cerr << "ERROR -- File system full\n";
+            print_error("ERROR -- File system full");
             return false;
         }
         hdrFileNumber.push_back(newFileNumber);
@@ -1641,7 +1646,7 @@ bool Files11FileSystem::AddFile(const char* nativeName, const char* pdp11Dir, co
     if (typeText) {
         if (!VarLengthRecord::WriteFile(nativeName, m_dskStream, BlkList, pUserAttr))
         {
-            std::cerr << "ERROR -- Write variable record length file\n";
+            print_error("ERROR -- Write variable record length file");
             return false;
         }
     }
@@ -1649,7 +1654,7 @@ bool Files11FileSystem::AddFile(const char* nativeName, const char* pdp11Dir, co
     {
         if (!FixedLengthRecord::WriteFile(nativeName, m_dskStream, BlkList, pUserAttr))
         {
-            std::cerr << "ERROR -- Write fixed record length file\n";
+            print_error("ERROR -- Write fixed record length file");
             return false;
         }
     }
@@ -1826,7 +1831,7 @@ int Files11FileSystem::FindFreeBlocks(int nbBlocks, Files11Base::BlockList_t &fo
                 if (Files11Base::readBlock(lbn, m_dskStream, buffer) == nullptr)
                 {
                     error = true;
-                    std::cerr << "Failed to read block\n";
+                    print_error("ERROR -- Failed to read block");
                     break;
                 }
                 int nbBits = F11_BLOCK_SIZE * 8;

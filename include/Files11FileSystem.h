@@ -87,9 +87,9 @@ public:
 	int  ValidateIndexBitmap(void);
 	int  ValidateDirectory(const char* dirname, DirFileList_t & dirFileMap, int *pTotalFilesChecked); // This function is recursive
 	int  ValidateStorageBitmap(void);
+	static void print_error(const char* msg);
 
 private:
-
 	static void print_blocks(int blk_hi, int blk_lo);
 	static void print_map_area(F11_MapArea_t* pMap);
 
