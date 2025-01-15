@@ -1118,6 +1118,11 @@ void Files11FileSystem::ExportFiles(const Args_t& args)
         FileDatabase.Get(dir.fnumber, dirRec);
         ExportDirectory(dirRec, filename.c_str());
     }
+    if (_chdir("..") != 0)
+    {
+        print_error("ERROR -- Failed to change working directory");
+        return;
+    }
     return;
 }
 
@@ -1154,8 +1159,10 @@ void Files11FileSystem::ExportDirectory(Files11Record& dirInfo, const char* fnam
         {
             if (f.IsDirectory())
             {
-                // Recursive call to create a sub-directory
-                ExportDirectory(f, fnameFilter);
+                std::string dirname(f.GetFileName());
+                if (dirname != "000000")
+                    // Recursive call to create a sub-directory
+                    ExportDirectory(f, fnameFilter);
             }
             else
             {
