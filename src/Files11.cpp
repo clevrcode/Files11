@@ -386,21 +386,16 @@ static void ProcessCommand(std::string &command, Files11FileSystem& fs)
         }
         else if ((words[0].substr(0, 3) == "EXP") || (words[0] == "DOWN"))
         {
+            // Usage: [DOWN|EXP] <[pdp11dir]:file> <hostdir>
             std::string dir;
             if (nbWords >= 2) {
-                std::string dir, file, output;
-                Files11FileSystem::SplitFilePath(words[1], dir, file);
-                if (dir.empty())
-                    dir = fs.GetCurrentWorkingDirectory();
-                if (nbWords == 2)
-                    words.push_back(".");
-                fs.ExportFiles(dir.c_str(), file.c_str(), words[2].c_str());
+                fs.ExportFiles(words);
             }
+            else
+                Files11FileSystem::print_error("ERROR -- missing argument");
         }
         else
-        {
             Files11FileSystem::print_error("ERROR -- Unknown command");
-        }
     }
 }
 

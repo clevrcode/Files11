@@ -35,14 +35,10 @@ public:
 	void PrintFile(int fileNumber, std::ostream& strm);
 	void DumpFile(int fileNumber, std::ostream& strm);
 	void DumpHeader(int fileNumber);
-
-	static void SplitFilePath(const std::string& path, std::string& dir, std::string& file);
-
+	void SplitFilePath(const std::string& path, std::string& dir, std::string& file);
 	int  GetHighestVersion(int dirfnb, const char* filename, Files11Record& fileRecord);
-	
 	int  GetDirList(const char* dirname, FileDatabase::DirList_t &dlist);
 	int  GetFileList(int dirfnb, FileList_t& fileList);
-
 	bool MarkDataBlock(Files11Base::BlockList_t blkList, bool used);
 	bool MarkHeaderBlock(int lbn, bool used);
 	bool AddDirectoryEntry(int filenb, DirectoryRecord_t* pDirEntry);
@@ -69,7 +65,8 @@ public:
 	void FullList(const Args_t& args);
 	//void DumpHeader(const Files11Record& dirRecord, const char* filename);
 
-	void ExportFiles(const char* dirname, const char* filename, const char* outdir);
+	void ExportFiles(const Args_t& args);
+	void ExportDirectory(Files11Record &dirInfo, const char *fnameFilter=nullptr);
 
 	//void TypeFile(const Files11Record& dirRecord, const char* filename);
 	void TypeFile(int fnumber);

@@ -160,11 +160,6 @@ int Files11FileSystem::ValidateIndexBitmap(int *nbIndexBlockUsed)
 {
     *nbIndexBlockUsed = 0; 
 
-    const int IndexBitmapLBN = m_HomeBlock.GetBitmapLBN();
-    const int nbIndexBlock = m_HomeBlock.GetIndexSize();
-    const int maxFiles = m_HomeBlock.GetMaxFiles();
-    int totalErrors = 0;
-
     std::cout << "\nCONSISTENCY CHECK OF INDEX AND BITMAP ON DR0:\n\n";
 
     // Initialize the File Number to LBN index
@@ -203,6 +198,11 @@ int Files11FileSystem::ValidateIndexBitmap(int *nbIndexBlockUsed)
             }
         }
     } while (ext_file_number > 0);
+
+    const int IndexBitmapLBN = m_HomeBlock.GetBitmapLBN();
+    const int nbIndexBlock = m_HomeBlock.GetIndexSize();
+    const int maxFiles = m_HomeBlock.GetMaxFiles();
+    int totalErrors = 0;
 
     int fileNumber = 1;
     for (int bmpIndexBlock = 0; bmpIndexBlock < nbIndexBlock; ++bmpIndexBlock)
@@ -697,6 +697,7 @@ void Files11FileSystem::DumpLBN(const Args_t &args)
             }
             std::cout.fill(' ');
             std::cout << std::endl << std::endl;
+            std::cout << std::dec;
         }
     }
 }
@@ -894,7 +895,7 @@ void Files11FileSystem::PrintFreeBlocks(void)
     Files11Record fileRec;
     if (!FileDatabase.Get(F11_BITMAP_SYS, fileRec))
     {
-        std::cout << "Invalid Disk Image\n";
+        print_error("ERROR -- Invalid Disk Image");
         return;
     }
 
@@ -902,10 +903,6 @@ void Files11FileSystem::PrintFreeBlocks(void)
     
     Files11Base::BlockList_t blklist;
     GetBlockList(fileRec.GetHeaderLBN(), blklist);
-
-    //printf("Record Type : 0x%02x\n", fileFCS.GetRecordType());
-    //if (fileFCS.GetRecordType() != 0)
-    //    return;
 
     if (!blklist.empty())
     {
@@ -945,11 +942,12 @@ void Files11FileSystem::PrintFreeBlocks(void)
         }
         if (!error)
         {
-            // Write report
+            // Write report (PDP-11 format)
             // DU0: has 327878. blocks free, 287122. blocks used out of 615000.
             // Largest contiguous space = 277326. blocks
             // 22025. file headers are free, 7975. headers used out of 30000.
-            std::cout << "DU0: has " << counter.GetNbHi() << ". blocks free, " << counter.GetNbLo() << ". blocks used out of " << totalBlocks << ".\n";
+
+            std::cout << "\nDU0: has " << counter.GetNbHi() << ". blocks free, " << counter.GetNbLo() << ". blocks used out of " << totalBlocks << ".\n";
             std::cout << "Largest contiguous space = " << counter.GetLargestContiguousHi() << ". blocks\n";
             std::cout << m_HomeBlock.GetFreeHeaders() << ". file headers are free, " << m_HomeBlock.GetUsedHeaders() << ". headers used out of " << m_HomeBlock.GetMaxFiles() << ".\n\n";
         }
@@ -980,12 +978,9 @@ void Files11FileSystem::DumpHeader(const Args_t &args)
     std::string dir(GetCurrentWorkingDirectory());
     std::string file;
     SplitFilePath(args[1], dir, file);
-
-    if (file.empty())
+    // No wildcard allowed for this command
+    if (file.find("*") != std::string::npos)
         return;
-
-    if (dir.empty())
-        dir = GetCurrentWorkingDirectory();
 
     FileDatabase::DirList_t dirList;
     FileDatabase.FindMatchingFiles(dir.c_str(), file.c_str(), dirList, [&](int lbn, Files11Base& obj) { obj.ReadBlock(lbn, m_dskStream); });
@@ -1007,10 +1002,6 @@ void Files11FileSystem::ListFiles(const Args_t& args)
 
     if (args.size() == 2) {
         SplitFilePath(args[1], dir, file);
-        if (dir.empty())
-            dir = GetCurrentWorkingDirectory();
-        if (file.empty())
-            file = ALL_FILES;
     }
 
     std::string filename;
@@ -1050,6 +1041,7 @@ void Files11FileSystem::FullList(const Args_t& args)
 {
     int fileNumber = 1;
     int fileCounter = 0;
+    int totalBlockUsed = 0;
     int ext_file_number = F11_INDEXF_SYS;
     do {
         Files11Base file;
@@ -1073,32 +1065,48 @@ void Files11FileSystem::FullList(const Args_t& args)
                     Files11Record fr;
                     FileDatabase.Get(fileNumber++, fr);
                     fr.ListRecord();
+                    totalBlockUsed += fr.GetUsedBlockCount();
                     fileCounter++;
                 }
             }
         }
 
     } while (ext_file_number > 0);
-    std::cout << "\nTotal " << fileCounter << "/" << m_HomeBlock.GetMaxFiles() << " files\n\n";
+    std::cout << "\nTotal " << fileCounter << "/" << m_HomeBlock.GetMaxFiles() << " files\n";
+    std::cout << "Total block used: " << totalBlockUsed << ".\n";
 }
 
-void Files11FileSystem::ExportFiles(const char* dirname, const char* filename, const char* outdir)
+void Files11FileSystem::ExportFiles(const Args_t& args)
 {
-    if ((dirname == nullptr) || (filename == nullptr) || (outdir == nullptr))
-        return;
+    assert(args.size() >= 2);
+    std::string dir, filename, outdir;
+    Files11FileSystem::SplitFilePath(args[1], dir, filename);
+    if (args.size() == 2)
+        outdir = ".";
+    else
+        outdir = args[2];
 
     std::string directory(outdir);
     if (directory == ".") {
         directory += "\\";
         directory += m_HomeBlock.GetVolumeName();
     }
-    _mkdir(directory.c_str());
-    _chdir(directory.c_str());
+    if ((_mkdir(directory.c_str()) != 0) && (errno != EEXIST))
+    {
+        printf("error: %d\n", errno);
+        print_error("ERROR -- Failed to create output directory");
+        return;
+    }
+    if (_chdir(directory.c_str()) != 0)
+    {
+        print_error("ERROR -- Failed to change current worwing directory");
+        return;
+    }
 
     //std::string pdpdir(DirDatabase::makeKey(DirDatabase::FormatDirectory(dirname)));
-    std::string pdpdir(FileDatabase::FormatDirectory(dirname));
+    std::string pdpdir(FileDatabase::FormatDirectory(dir));
     std::cout << "-------------------------------------------------------\n";
-    std::cout << "Output directory: " << directory << std::endl;
+    std::cout << "Exporting to directory: " << directory << " ..." << std::endl;
     std::cout << pdpdir << std::endl;
     std::cout << filename << std::endl;
 
@@ -1108,35 +1116,48 @@ void Files11FileSystem::ExportFiles(const char* dirname, const char* filename, c
     {
         Files11Record dirRec;
         FileDatabase.Get(dir.fnumber, dirRec);
-        std::string prefix("---");
-        std::cout << prefix << dirRec.GetFullName() << std::endl;
+        ExportDirectory(dirRec, filename.c_str());
+    }
+    return;
+}
 
-        std::vector<Files11Record> filteredList;
+void Files11FileSystem::ExportDirectory(Files11Record& dirInfo, const char* fnameFilter/*=nullptr*/)
+{
+    std::cout << "------------------------------------------------------\n";
+    std::cout << "Create directory: " << dirInfo.GetFullName() << std::endl;
+    if ((_mkdir(dirInfo.GetFileName()) != 0) && (errno != EEXIST))
+    {
+        print_error("ERROR -- Failed to create subdirectory");
+        return;
+    }
+    if (_chdir(dirInfo.GetFileName()) != 0)
+    {
+        print_error("Failed to set working directory");
+        return;
+    }
 
-        FileList_t fileList;
-        GetFileList(dir.fnumber, fileList);
-        for (auto& file : fileList)
+    std::vector<Files11Record> filteredList;
+
+    FileList_t fileList;
+    GetFileList(dirInfo.GetFileNumber(), fileList);
+    for (auto& file : fileList)
+    {
+        Files11Record frec;
+        if (FileDatabase.Get(file.fnumber, frec, fnameFilter))
         {
-            Files11Record frec;
-            if (FileDatabase.Get(file.fnumber, frec, filename))
-            {
-                filteredList.push_back(frec);
-                //std::string name(frec.GetFullName());
-                ////if ((name.length(0 > 4)&&(name.substr(name.length()-4) == ".DIR"))
-                //if (frec.IsDirectory())
-                //    std::cout << "********************** DIRECTORY *************************\n";
-                //std::cout << prefix << prefix << ">" << frec.GetFullName() << std::endl;
-                //if (frec.IsDirectory())
-                //    std::cout << "**********************************************************\n";
-            }
+            filteredList.push_back(frec);
         }
-        if (!filteredList.empty())
+    }
+    if (!filteredList.empty())
+    {
+        for (auto f : filteredList)
         {
-            std::cout << "------------------------------------------------------\n";
-            std::cout << "Create directory: " << dirRec.GetFullName() << std::endl;
-            _mkdir(dirRec.GetFileName());
-            _chdir(dirRec.GetFileName());
-            for (auto f : filteredList)
+            if (f.IsDirectory())
+            {
+                // Recursive call to create a sub-directory
+                ExportDirectory(f, fnameFilter);
+            }
+            else
             {
                 if (f.GetFileFCS().GetRecordType() & rt_vlr) {
                     std::fstream oStream;
@@ -1146,14 +1167,16 @@ void Files11FileSystem::ExportFiles(const char* dirname, const char* filename, c
                         oStream.close();
                     }
                 }
-                //else
-                //    WriteFile(f.GetFileNumber(), std::cout);
             }
-            _chdir("..");
         }
     }
-    return;
+    if (_chdir("..") != 0)
+    {
+        print_error("ERROR -- Failed to change working directory");
+        return;
+    }
 }
+
 
 void Files11FileSystem::SplitFilePath(const std::string& path, std::string& dir, std::string& file)
 {
@@ -1166,8 +1189,8 @@ void Files11FileSystem::SplitFilePath(const std::string& path, std::string& dir,
     }
     else
     {
-        dir = "";
-        file = path;
+        dir = m_CurrentDirectory;
+        file = (path.length() > 0) ? path : "*.*;*";;
     }
 }
 
@@ -1180,10 +1203,6 @@ void Files11FileSystem::ListDirs(const Args_t& args)
 
     if (args.size() == 2) {
         SplitFilePath(args[1], dir, file);
-        if (dir.empty())
-            dir = GetCurrentWorkingDirectory();
-        if (file.empty())
-            file = ALL_FILES;
     }
 
     FileDatabase::DirList_t dirList;
@@ -1834,8 +1853,8 @@ bool Files11FileSystem::DeleteFile(const Args_t& args)
 
     for (auto arg : args)
     {
-        std::string dir, fname;
-        SplitFilePath(arg, dir, fname);
+        std::string fdir, fname;
+        SplitFilePath(arg, fdir, fname);
 
         // Validate file name name max 9 chars, extension max 3 chars
         std::string name, ext, version;
@@ -1844,10 +1863,6 @@ bool Files11FileSystem::DeleteFile(const Args_t& args)
         {
             std::cerr << "ERROR -- Invalid file name [" << fname << "]\n";
             return false;
-        }
-        std::string fdir(dir);
-        if (fdir.length() == 0) {
-            fdir = GetCurrentWorkingDirectory();
         }
 
         FileDatabase::DirList_t dirlist;

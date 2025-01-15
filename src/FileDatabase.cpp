@@ -85,7 +85,7 @@ void FileDatabase::SplitName(const std::string &fullname, std::string& name, std
 
 bool FileDatabase::Filter(const Files11Record& rec, const char* fullname)
 {
-    if (fullname)
+    if (fullname != nullptr)
     {
         int iVersion = 0;
         const std::string strFullName(fullname);
