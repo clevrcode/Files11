@@ -64,6 +64,7 @@ public:
 	static int           GetBlockPointers(F11_MapArea_t* p, BlockList_t& blklist);
 	static int           GetBlockCount(const BlockList_t& blklist);
 	static int           StringToInt(const std::string& str);
+	static void          GetFileProtectionString(uint16_t pro, std::string &prot);
 
 private:
 	int                m_LastBlockRead;

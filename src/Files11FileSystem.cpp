@@ -79,7 +79,7 @@ bool Files11FileSystem::Open(const char *dskName)
         std::string filename(IndexFileRecord.GetFullName());
         if (filename != "INDEXF.SYS")
         {
-            std::cerr << "Invalid File System\n";
+            print_error("ERROR -- Invalid File System\n");
 			m_dskStream.close();
             return false;
         }
@@ -112,9 +112,6 @@ bool Files11FileSystem::Open(const char *dskName)
                         int fileNumber = fileRecord.Initialize(lbn, m_dskStream);
                         if (fileNumber > 0)
                         {
-							// TODO assert(fileNumber == Files11Base::FileNumberToLBN.size() - 1);
-                            //printf("%06o:%06o %-20sOwner: [%03o,%03o], Protection: 0x%04x LBN: %d %c\n", fileRecord.GetFileNumber(), fileRecord.GetFileSeq(), 
-                            //    fileRecord.GetFullName(), fileRecord.GetOwnerUIC() >> 8, fileRecord.GetOwnerUIC() & 0xff, fileRecord.GetFileProtection(), lbn, fileRecord.IsFileExtension() ? 'Y' : 'N');
                             FileDatabase.Add(fileNumber, fileRecord);
                         }
                     }
@@ -126,9 +123,6 @@ bool Files11FileSystem::Open(const char *dskName)
         // set current working directory to the user UIC
         m_CurrentDirectory = m_HomeBlock.GetOwnerUIC();
         m_bValid = true;
-
-		std::cout << "Number of header used: " << FileDatabase.GetNbHeaders() << std::endl;
-
     }
     else
     {
@@ -162,13 +156,53 @@ int Files11FileSystem::GetHighestVersion(int dirfnb, const char* filename, Files
     return highVersion;
 }
 
-int Files11FileSystem::ValidateIndexBitmap(void)
+int Files11FileSystem::ValidateIndexBitmap(int *nbIndexBlockUsed)
 {
+    *nbIndexBlockUsed = 0; 
+
     const int IndexBitmapLBN = m_HomeBlock.GetBitmapLBN();
     const int nbIndexBlock = m_HomeBlock.GetIndexSize();
-    const int IndexLBN = m_HomeBlock.GetIndexLBN();
     const int maxFiles = m_HomeBlock.GetMaxFiles();
     int totalErrors = 0;
+
+    std::cout << "\nCONSISTENCY CHECK OF INDEX AND BITMAP ON DR0:\n\n";
+
+    // Initialize the File Number to LBN index
+    Files11Base dskfile;
+    int ext_file_number = F11_INDEXF_SYS;
+    (*nbIndexBlockUsed)++; // count the index file block
+    do {
+        dskfile.ReadBlock(FileDatabase.FileNumberToLBN(ext_file_number), m_dskStream);
+        F11_MapArea_t* pMap = dskfile.GetMapArea();
+        Files11Base::BlockList_t  blklist;
+        ext_file_number = Files11Base::GetBlockPointers(pMap, blklist);
+        if (blklist.empty()) {
+            print_error("ERROR -- Failed to read block list for INDEXF.SYS");
+            break;
+        }
+        for (auto& block : blklist)
+        {
+            for (auto lbn = block.lbn_start; lbn <= block.lbn_end; ++lbn)
+            {
+                (*nbIndexBlockUsed)++;
+                Files11Base file;
+                F11_FileHeader_t *pHdr = file.ReadHeader(lbn, m_dskStream);
+                if (file.ValidateHeader())
+                {
+                    int fileNumber = pHdr->fh1_w_fid_num;
+                    if (fileNumber > 5)
+                    {
+                        // count number of block used by this file
+                        F11_MapArea_t* pFileMap = file.GetMapArea();
+                        Files11Base::BlockList_t  fileBlkList;
+                        Files11Base::GetBlockPointers(pFileMap, fileBlkList);
+                        for (auto& fblock : fileBlkList)
+                            *nbIndexBlockUsed += (fblock.lbn_end - fblock.lbn_start + 1);
+                    }
+                }
+            }
+        }
+    } while (ext_file_number > 0);
 
     int fileNumber = 1;
     for (int bmpIndexBlock = 0; bmpIndexBlock < nbIndexBlock; ++bmpIndexBlock)
@@ -181,7 +215,7 @@ int Files11FileSystem::ValidateIndexBitmap(void)
             {
                 //int fileNumber = (bmpIndexBlock * 4096) + (filebmp * 8) + i + 1;
                 int lbn = FileDatabase.FileNumberToLBN(fileNumber);
-                if (lbn > 0)
+                if (lbn >= 0)
                 {
                     bool used = (bitmap[filebmp] & (1 << i)) != 0;
                     Files11Record fileRecord;
@@ -205,10 +239,11 @@ int Files11FileSystem::ValidateIndexBitmap(void)
     return totalErrors;
 }
 
-int Files11FileSystem::ValidateStorageBitmap(void)
+int Files11FileSystem::ValidateStorageBitmap(int *nbBitmapBlockUsed)
 {
     int totalErrors = 0;
     Files11Record bmpRecord;
+    *nbBitmapBlockUsed = 0;
     if (FileDatabase.Get(F11_BITMAP_SYS, bmpRecord))
     {
         std::string fname(bmpRecord.GetFullName());
@@ -217,6 +252,10 @@ int Files11FileSystem::ValidateStorageBitmap(void)
         Files11Base::BlockList_t blkList;
         GetBlockList(bmpRecord.GetHeaderLBN(), blkList);
         bool skipFCS = true;
+        BitCounter counter;
+        int vbn = 1;
+        int totalBlocks = m_HomeBlock.GetNumberOfBlocks();
+
         for (auto& block : blkList)
         {
             for (auto lbn = block.lbn_start; lbn <= block.lbn_end; ++lbn) {
@@ -225,11 +264,21 @@ int Files11FileSystem::ValidateStorageBitmap(void)
                     continue;
                 }
                 bmpLBN.push_back(lbn);
+                vbn++;
+
+                Files11Base bitFile;
+                uint8_t* buffer = bitFile.ReadBlock(lbn, m_dskStream);
+                if (buffer) {
+                    int nbBits = F11_BLOCK_SIZE * 8;
+                    if (totalBlocks < (vbn * (F11_BLOCK_SIZE * 8)))
+                        nbBits = totalBlocks % (F11_BLOCK_SIZE * 8);
+                    counter.Count(buffer, nbBits);
+                }
             }
         }
-        const int NumberOfBlocks = m_HomeBlock.GetNumberOfBlocks();
-        assert(bmpLBN.size() >= (NumberOfBlocks / 4096));
+        *nbBitmapBlockUsed = counter.GetNbLo();
 
+        assert(bmpLBN.size() >= (totalBlocks / 4096));
         Files11Base blockFile;
         int last_bitmap_block = -1;
         uint8_t* buffer = nullptr;
@@ -382,13 +431,19 @@ void Files11FileSystem::VerifyFileSystem(Args_t args)
     // Verify that each file listed in the INDEXF.SYS file is allocated
     if (args.size() == 1)
     {
-        int nbErrors = ValidateIndexBitmap();
-        nbErrors += ValidateStorageBitmap();
-        if (nbErrors > 0) {
+        int nbIndexBlockUsed;
+        int nbBitmapBlockUsed;
+        int nbErrors = ValidateIndexBitmap(&nbIndexBlockUsed);
+        nbErrors += ValidateStorageBitmap(&nbBitmapBlockUsed);
+        if (nbErrors > 0)
             std::cout << "\n -- " << nbErrors << " error(s) found\n\n";
-        }
         else
             std::cout << "\n -- no error found\n\n";
+    
+        int nbTotalBlocks = m_HomeBlock.GetNumberOfBlocks();
+        std::cout << "Index  indicates " << (nbTotalBlocks - nbIndexBlockUsed) << ".blocks free, " << nbIndexBlockUsed << ". blocks used out of " << nbTotalBlocks << ".\n";
+        std::cout << "Bitmap indicates " << (nbTotalBlocks - nbBitmapBlockUsed) << ".blocks free, " << nbBitmapBlockUsed << ". blocks used out of " << nbTotalBlocks << ".\n";
+        std::cout << std::endl;
     }
     else if ((args.size() >= 2) && (args[1] == "/DV"))
     {
@@ -574,15 +629,24 @@ void Files11FileSystem::DumpFile(int fileNumber, std::ostream& strm)
                 for (int i = 0; i < (nbBytes / 16); i++)
                 {
                     // 000000    054523 000000 054523 000000 054523 000000 054523 000000
-                    snprintf(header, sizeof(header), "%06o   ", i * 16);
+                    snprintf(header, sizeof(header), "%06o |", i * 16);
                     std::string output(header);
+                    std::string ascout(" | ");
                     for (int j = 0; j < 8; j++, ptr++)
                     {
                         char buf[16];
+                        char* ascptr = (char*)ptr;
                         snprintf(buf, sizeof(buf), " %06o", *ptr);
                         output += buf;
+                        for (int j = 0; j < 2; j++, ascptr++)
+                        {
+                            if (*ascptr >= 0x20 && *ascptr < 0x7f)
+                                ascout += *ascptr;
+                            else
+                                ascout += '.';
+                        }
                     }
-                    strm << output << std::endl;
+                    strm << output << ascout << std::endl;
                 }
             }
         }
@@ -649,6 +713,8 @@ void Files11FileSystem::DumpHeader(int fileNumber)
     Files11Base hdrFile;
     F11_FileHeader_t *pHeader = hdrFile.ReadHeader(lbn, m_dskStream);
     Files11Record fRec;
+    std::string strProt;
+
     FileDatabase.Get(fileNumber, fRec);
     std::cout << "\n\n";
     std::cout << "Dump of DU0:" << fRec.GetFullName() << " - File ID " << std::oct << fRec.GetFileNumber() << "," << fRec.GetFileSeq() << ",0\n";
@@ -668,7 +734,9 @@ void Files11FileSystem::DumpHeader(int fileNumber)
     std::cout << (pHeader->fh1_w_fileowner >> 8) << ",";
     std::cout.width(3); std::cout.fill('0');
     std::cout << (pHeader->fh1_w_fileowner & 0xFF) << "]" << std::endl;
-    std::cout << "        H.FPRO                 " << hdrFile.GetFileProtectionString(pHeader->fh1_w_fileprot) << std::endl;
+
+    Files11Base::GetFileProtectionString(pHeader->fh1_w_fileprot, strProt);
+    std::cout << "        H.FPRO                 " << strProt << std::endl;
 
     std::cout << "        H.UCHA                 ";
     std::cout.width(3); std::cout.fill('0');
@@ -976,6 +1044,42 @@ void Files11FileSystem::ListFiles(const Args_t& args)
             }
         }
     }
+}
+
+void Files11FileSystem::FullList(const Args_t& args)
+{
+    int fileNumber = 1;
+    int fileCounter = 0;
+    int ext_file_number = F11_INDEXF_SYS;
+    do {
+        Files11Base file;
+        file.ReadBlock(FileDatabase.FileNumberToLBN(ext_file_number), m_dskStream);
+        F11_MapArea_t* pMap = file.GetMapArea();
+        Files11Base::BlockList_t  blklist;
+        ext_file_number = Files11Base::GetBlockPointers(pMap, blklist);
+
+        if (blklist.empty()) {
+            print_error("ERROR -- Invalid file system");
+            m_dskStream.close();
+            return;
+        }
+
+        for (auto& block : blklist)
+        {
+            for (auto lbn = block.lbn_start; lbn <= block.lbn_end; ++lbn)
+            {
+                if (FileDatabase.Exist(fileNumber))
+                {
+                    Files11Record fr;
+                    FileDatabase.Get(fileNumber++, fr);
+                    fr.ListRecord();
+                    fileCounter++;
+                }
+            }
+        }
+
+    } while (ext_file_number > 0);
+    std::cout << "\nTotal " << fileCounter << "/" << m_HomeBlock.GetMaxFiles() << " files\n\n";
 }
 
 void Files11FileSystem::ExportFiles(const char* dirname, const char* filename, const char* outdir)

@@ -13,10 +13,11 @@ HelpUtil::HelpTopics_t HelpUtil::HelpTopics[] = {
     { "TYPE"  , "List the content of the specified file" },
     { "TIME"  , "Print the current system time" },
     { "FREE"  , "Print information about disk usage" },
-    { "IMPORT", "Import a file to the specified directory, or the current directory" },
-    { "EXPORT", "Export the specified file9s) to the native directory" },
+    { "IMPORT", "Import a file from the host to the specified directory, or the current directory" },
+    { "EXPORT", "Export the specified files to the host directory" },
     { "DEL"   , "Delete the specified file" },
     { "RM"    , "Delete the specified file" },
+    { "LSFULL", "Print a full list of files" },
     { nullptr , "?????" }
 };
 

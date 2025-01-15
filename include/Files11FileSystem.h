@@ -66,6 +66,7 @@ public:
 	bool DeleteFile(const Args_t& args);
 	void DumpLBN(const Args_t &args);
 	void DumpHeader(const Args_t &args);
+	void FullList(const Args_t& args);
 	//void DumpHeader(const Files11Record& dirRecord, const char* filename);
 
 	void ExportFiles(const char* dirname, const char* filename, const char* outdir);
@@ -84,9 +85,9 @@ public:
 	bool DeleteFile(int fileNumber);
 
 	int  FindFreeBlocks(int nbBlocks, Files11Base::BlockList_t &blkList);
-	int  ValidateIndexBitmap(void);
+	int  ValidateIndexBitmap(int *nbIndexBlockUsed);
 	int  ValidateDirectory(const char* dirname, DirFileList_t & dirFileMap, int *pTotalFilesChecked); // This function is recursive
-	int  ValidateStorageBitmap(void);
+	int  ValidateStorageBitmap(int* nbBitmapBlockUsed);
 	static void print_error(const char* msg);
 
 private:

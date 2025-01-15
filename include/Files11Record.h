@@ -36,6 +36,7 @@ public:
 		return fullNameWithVersion.c_str(); 
 	};
 	void           PrintRecord(int version);
+	void           ListRecord(void);
 	const char*    GetFileCreation(void)       const { return fileCreationDate.c_str(); };
 	const char*    GetFileRevisionDate(void)   const { return fileRevisionDate.c_str(); };
 	const uint16_t GetOwnerUIC(void)           const { return ownerUIC;                 };

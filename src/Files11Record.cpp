@@ -101,3 +101,22 @@ void Files11Record::PrintRecord(int version)
 	std::cout.width(8);	std::cout << blks << (IsContiguous() ? "C  " : "   ") << GetFileCreation() << std::endl;
 }
 
+void Files11Record::ListRecord(void)
+{
+	std::cout.fill(' ');
+	std::cout.width(18); std::cout << std::left << GetFullName(fileVersion);
+	std::string str(std::to_string(GetUsedBlockCount()));
+	str += ".";
+	std::cout.width(8);
+	std::cout << str << GetFileCreation();
+	str = " (";
+	str += std::to_string(fileNumber);
+	str += ',';
+	str += std::to_string(fileSeq);
+	str += ")";
+	std::cout.width(12);
+	std::string fprot;
+	Files11Base::GetFileProtectionString(fileProtection, fprot);
+	std::cout << str << " [" << headerLBN << "]  " << fprot << std::endl;
+}
+

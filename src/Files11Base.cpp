@@ -245,20 +245,20 @@ const std::string Files11Base::GetCurrentPDPTime(void)
     return m_CurrentTime;
 }
 
-const std::string Files11Base::GetFileProtectionString(uint16_t pro)
+void Files11Base::GetFileProtectionString(uint16_t pro, std::string& prot)
 {
     const char* strProtection = "RWED";
-    m_FileProtection.clear();
+    prot.clear();
     for (int i = 0; i < 4; ++i) {
-        m_FileProtection += (i > 0) ? "," : "[";
+        prot += (i > 0) ? "," : "[";
         for (int j = 0; j < 4; ++j) {
             if ((pro & 0x01) == 0)
-                m_FileProtection += strProtection[j];
+                prot += strProtection[j];
             pro >>= 1;
         }
     }
-    m_FileProtection += "]";
-    return m_FileProtection;
+    prot += "]";
+    return;
 }
 
 // Convert a 16-bit Radix-50 value to ASCII

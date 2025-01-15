@@ -92,18 +92,31 @@ bool Files11HomeBlock::ValidateHomeBlock(F11_HomeBlock_t* pHome)
 
 void Files11HomeBlock::PrintInfo(void)
 {
-	printf("Volume contains a valid ODS1 File system\n");
-	printf("Volume Name              : %s\n", strVolumeName.c_str());
-	printf("Format                   : %s\n", strFormatType.c_str());
-	printf("Maximum number of files  : %d\n", iMaxFiles);
-	printf("Total nb of headers used : %d\n", iUsedHeaders);
-	printf("Blocks In Volume         : %d\n", iScbUnitSizeBlk);
-	printf("Disk size                : %d\n", iScbUnitSizeBlk * F11_BLOCK_SIZE);
-	printf("Volume owner UIC         : %s\n", strVolumeOwner.c_str());
-	printf("Volume creation date     : %s\n", strVolumeCreationDate.c_str());
-	printf("Home block last rev date : %s\n", strLastRevision.c_str());
-	printf("Home block modif count   : %d\n", iCountHomeBlockRevision);
-	printf("Bitmap LBN               : %d (0x%08X)\n", iIndexBitmapLBN, iIndexBitmapLBN);
-	printf("Bitmap Index file size   : %d\n", iIndexBitmapSize);
+	const char* BOLD      = "\x1b[1m";
+	const char* NOBOLD    = "\x1b[22m";
+	const char* WHITE     = "\x1b[37m";
+	const char* MAGENTA   = "\x1b[35m";
+	const char* GREEN     = "\x1b[32m";
+	const char* YELLOW    = "\x1b[33m";
+	const char* UNDERLINE = "\x1b[4m";
+	const char* NOUNDERLN = "\x1b[24m";
+	const char* DEFAULT   = "\x1b[0m";
+
+	std::cout << UNDERLINE << BOLD << WHITE << "                                              " << NOUNDERLN << NOBOLD << std::endl;
+	std::cout << BOLD << WHITE << "Volume contains a valid ODS1 File system" << NOBOLD << std::endl;
+	std::cout << WHITE << "Volume Name              : " << YELLOW << strVolumeName   << std::endl;
+	std::cout << WHITE << "Format                   : " << YELLOW << strFormatType   << std::endl;
+	std::cout << WHITE << "Maximum number of files  : " << YELLOW << iMaxFiles       << std::endl;
+	std::cout << WHITE << "Total nb of headers used : " << YELLOW << iUsedHeaders    << std::endl;
+	std::cout << WHITE << "Blocks In Volume         : " << YELLOW << iScbUnitSizeBlk << std::endl;
+	std::cout << WHITE << "Disk size                : " << YELLOW << iScbUnitSizeBlk * F11_BLOCK_SIZE << std::endl;
+	std::cout << WHITE << "Volume owner UIC         : " << YELLOW << strVolumeOwner  << std::endl;
+	std::cout << WHITE << "Volume creation date     : " << YELLOW << strVolumeCreationDate << std::endl;
+	std::cout << WHITE << "Home block last rev date : " << YELLOW << strLastRevision << std::endl;
+	std::cout << WHITE << "Home block modif count   : " << YELLOW << iCountHomeBlockRevision << std::endl;
+	std::cout << WHITE << "Bitmap LBN               : " << YELLOW << iIndexBitmapLBN << " (0x" << std::hex << iIndexBitmapLBN << ")" << std::dec << std::endl;
+	std::cout << WHITE << "Bitmap Index file size   : " << YELLOW << iIndexBitmapSize << std::endl;
+	std::cout << UNDERLINE << BOLD << WHITE << "                                              " << NOUNDERLN << NOBOLD << std::endl;
+	std::cout << DEFAULT;
 }
 

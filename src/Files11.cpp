@@ -34,10 +34,6 @@ int main(int argc, char *argv[])
     Files11FileSystem F11_fs;
     if (F11_fs.Open(argv[1]))
     {
-        std::cout << "----------------------------------------------------\n";
-        F11_fs.PrintVolumeInfo();
-        std::cout << "----------------------------------------------------\n";
-
         // Enter CLI interactive mode, user enter Q[uit] to exit
         RunCLI(F11_fs);
     }
@@ -112,7 +108,6 @@ static void RunCLI(Files11FileSystem &fs)
     std::vector<std::string> commandQueue;
     std::string command;
     size_t currCommand = 0;
-    std::cout << PROMPT;
 
     DWORD prevOutMode, prevInMode;
 
@@ -158,6 +153,9 @@ static void RunCLI(Files11FileSystem &fs)
         std::cerr << "Failed to enable input virtual terminal console mode, error [" << GetLastError() << "]\n";
         return;
     }
+
+    fs.PrintVolumeInfo();
+    std::cout << PROMPT;
 
     int cmd_ptr = 0;
     for (;;)
@@ -206,6 +204,23 @@ static void RunCLI(Files11FileSystem &fs)
                         std::cout << CURFORW;
                     }
                 }
+                else if (escseq == "\x1b[H") // Home
+                {
+                    std::cout << "\x1b[" << cmd_ptr << "D";
+                    cmd_ptr = 0;
+                }                
+                else if (escseq == "\x1b[F") // End
+                {
+                    size_t cursor_move = command.length() - cmd_ptr;
+                    cmd_ptr = (int)command.length();
+                    if (cursor_move > 0) 
+                        std::cout << "\x1b[" << cursor_move << "C";
+                }
+                else if (escseq == "\x1b[3~") //Delete
+                {
+                    command.erase(command.begin() + cmd_ptr);
+                    std::cout << "\x1b[P";
+                }
             }
             else if (key == 0x7f) // Backspace
             {
@@ -233,14 +248,8 @@ static void RunCLI(Files11FileSystem &fs)
                 else {
                     int p = cmd_ptr;
                     command.insert(command.begin() + cmd_ptr, (char)key);
-                    for (auto it = command.cbegin() + cmd_ptr; it != command.cend(); ++it, ++p) {
-                        std::cout << *it;
-                    }
                     cmd_ptr++;
-                    while (p > cmd_ptr) {
-                        std::cout << CURBACK;
-                        p--;
-                    }
+                    std::cout << "\x1b[@" << (char)key;
                 }
             }
         }
@@ -341,6 +350,10 @@ static void ProcessCommand(std::string &command, Files11FileSystem& fs)
             }
             else
                 Files11FileSystem::print_error("ERROR -- missing argument");
+        }
+        else if (words[0] == "LSFULL")
+        {
+            fs.FullList(words);
         }
         else if ((words[0].substr(0,3) == "IMP") || (words[0] == "UP"))
         {
