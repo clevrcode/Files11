@@ -13,7 +13,7 @@
 
 
 static void RunCLI(Files11FileSystem &fs);
-static void ProcessCommand(std::string& command, Files11FileSystem& fs);
+static bool ProcessCommand(std::string& command, Files11FileSystem& fs);
 static void GetFileList(std::string search_path, std::vector<std::string>& list);
 
 HelpUtil help;
@@ -78,8 +78,9 @@ static std::string stripWhitespaces(std::string str)
 }
 
 typedef std::vector<std::string> Words_t;
-static size_t parseCommand(std::string& command, Words_t& words)
+static size_t parseCommand(const std::string& cmd, Words_t& words)
 {
+    std::string command(cmd);
     command = stripWhitespaces(command);
     do {
         auto pos = command.find_first_of(' ');
@@ -189,6 +190,11 @@ static void RunCLI(Files11FileSystem &fs)
                         putstring(command.c_str());
                         cmd_ptr = (int)command.length();
                     }
+                    else
+                    {
+                        std::cout << "\x1b[M" << PROMPT;
+                        command.clear();
+                    }
                 }
                 else if (escseq == "\x1b[D") // Left arrow
                 {
@@ -262,9 +268,9 @@ static void RunCLI(Files11FileSystem &fs)
                 if (command.front() == 'Q')
                     break;
 
+                ProcessCommand(command, fs);
                 commandQueue.push_back(command);
                 currCommand = commandQueue.size();
-                ProcessCommand(command, fs);
                 command.clear();
                 cmd_ptr = 0;
             }
@@ -282,7 +288,7 @@ static void RunCLI(Files11FileSystem &fs)
 //
 // HELP, PWD, CD, DIR, DMPLBN, DMPHDR, CAT, TYPE, TIME, FREE, IMPORT, EXPORT
 //
-static void ProcessCommand(std::string &command, Files11FileSystem& fs)
+static bool ProcessCommand(std::string &command, Files11FileSystem& fs)
 {
     Files11FileSystem::Args_t words;
     size_t nbWords = 0;
@@ -292,46 +298,57 @@ static void ProcessCommand(std::string &command, Files11FileSystem& fs)
         {
             std::vector<std::string> args(words);
             help.PrintHelp(args);
+            return true;
         }
         else if (words[0] == "PWD")
         {
             std::cout << fs.GetCurrentWorkingDirectory() << std::endl;
+            return true;
         }
         else if (words[0] == "CD")
         {
-            if (nbWords == 2)
+            if (nbWords == 2) {
                 fs.ChangeWorkingDirectory(words[1].c_str());
+                return true;
+            }
             else
                 Files11FileSystem::print_error("ERROR -- missing argument");
         }
         else if (words[0] == "VFY")
         {
             fs.VerifyFileSystem(words);
+            return true;
         }
         else if (words[0] == "DIR")
         {
             fs.ListDirs(words);
+            return true;
         }
         else if (words[0] == "TIME")
         {
             std::cout << fs.GetCurrentSystemTime();
+            return true;
         }
         else if (words[0] == "FREE")
         {
             fs.PrintFreeBlocks();
+            return true;
         }
         else if ((words[0].substr(0, 3) == "DEL") || (words[0] == "RM"))
         {
             if (nbWords >= 2) {
                 fs.DeleteFile(words);
+                return true;
             }
             else
                 Files11FileSystem::print_error("ERROR -- missing argument");
         }
         else if (words[0] == "DMPLBN")
         {
-            if (nbWords >= 2)
+            if (nbWords >= 2) {
                 fs.DumpLBN(words);
+                return true;
+            }
             else
                 Files11FileSystem::print_error("ERROR -- missing argument");
         }
@@ -339,6 +356,7 @@ static void ProcessCommand(std::string &command, Files11FileSystem& fs)
         {
             if (nbWords >= 2) {
                 fs.DumpHeader(words);
+                return true;
             }
             else
                 Files11FileSystem::print_error("ERROR -- missing argument");
@@ -347,6 +365,7 @@ static void ProcessCommand(std::string &command, Files11FileSystem& fs)
         {
             if (nbWords >= 2) {
                 fs.ListFiles(words);
+                return true;
             }
             else
                 Files11FileSystem::print_error("ERROR -- missing argument");
@@ -354,42 +373,42 @@ static void ProcessCommand(std::string &command, Files11FileSystem& fs)
         else if (words[0] == "LSFULL")
         {
             fs.FullList(words);
+            return true;
         }
         else if ((words[0].substr(0,3) == "IMP") || (words[0] == "UP"))
         {
-            std::string dir;
-            if (nbWords == 2) {
-                // If destination is not specified, set it to current working dir
-                words.push_back(fs.GetCurrentWorkingDirectory());
-            }
-            if (words.size() == 3) {
-                dir = words[2];
+            // Usage: >UP|IMPORT <host_dir_file(s)> [<pdp11_dir_file>]
+            if (words.size() >= 2) {
                 std::vector<std::string> list;
                 GetFileList(words[1], list);
+                if (words.size() > 2) {
+                    words[1] = words[2];
+                    // If importing multiple files, pdp11 file cannot be specified
+                    auto pos = words[2].find(']');
+                    if ((pos != std::string::npos) && (pos < words[2].length())) {
+                        Files11FileSystem::print_error("ERROR -- Invalid destination file");
+                        return false;
+                    }
+                }
+                words.pop_back();
                 if (list.size() > 0)
                 {
                     for (auto localfile : list)
-                    {
-                        std::string pdpfile(localfile);
-                        auto pos = localfile.rfind("/");
-                        if (pos != std::string::npos)
-                            pdpfile = localfile.substr(pos + 1);
-                        fs.AddFile(localfile.c_str(), dir.c_str(), pdpfile.c_str());
-                    }
+                        fs.AddFile(words, localfile.c_str());
                 }
-                else {
+                else
                     Files11FileSystem::print_error("ERROR -- File not found");
-                }
             }
             else
                 Files11FileSystem::print_error("ERROR -- missing argument");
         }
         else if ((words[0].substr(0, 3) == "EXP") || (words[0] == "DOWN"))
         {
-            // Usage: [DOWN|EXP] <[pdp11dir]:file> <hostdir>
+            // Usage: >DOWN|EXP <[pdp11dir]:file> [<hostdir>]
             std::string dir;
             if (nbWords >= 2) {
                 fs.ExportFiles(words);
+                return true;
             }
             else
                 Files11FileSystem::print_error("ERROR -- missing argument");
@@ -397,6 +416,7 @@ static void ProcessCommand(std::string &command, Files11FileSystem& fs)
         else
             Files11FileSystem::print_error("ERROR -- Unknown command");
     }
+    return false;
 }
 
 static void GetFileList(std::string search_path, std::vector<std::string>& list)

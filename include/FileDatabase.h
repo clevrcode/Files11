@@ -2,13 +2,27 @@
 #include <string>
 #include <map>
 #include <functional>
+//#include <forward_list>
 #include "Files11Record.h"
+
+class DiskBlock
+{
+public:
+	DiskBlock(void) : first(-1), last(-1) {};
+	DiskBlock(const char* name, int first, int size) : filename(name), first(first) { last = first + size - 1; };
+	bool IsFreeBlock(void) { return filename.empty(); };
+
+private:
+	std::string filename;
+	int first;
+	int last;
+};
 
 class FileDatabase
 {
 public:
-	FileDatabase(int maxFile=0) : m_MaxFileNumber(maxFile) {};
-	void SetMaxFile(int maxFile) { m_MaxFileNumber = maxFile; };
+	FileDatabase(int maxFile=0) : m_MaxFileNumber(maxFile), m_TotalBlock(0) {};
+	void SetMaxFile(int maxFile, int totalBlk) { m_MaxFileNumber = maxFile; m_TotalBlock = totalBlk; };
 	void Add(int nb, const Files11Record& frec);
 	bool Exist(int nb) const;
 	bool Get(int nb, Files11Record& frec);
@@ -65,5 +79,7 @@ private:
 	DirDatabase_t m_DirDatabase;
 	std::vector<int> m_FileNumberToLBN;
 	int m_MaxFileNumber;
+	int m_TotalBlock;
+	//std::forward_list<DiskBlock> m_BlockChain;
 };
 

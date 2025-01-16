@@ -78,7 +78,7 @@ public:
 	const std::string GetCurrentSystemTime(void) { return m_File.GetCurrentPDPTime(); };
 	void PrintFreeBlocks(void);
 
-	bool AddFile(const char* nativeName, const char *pdp11Dir, const char* pdp11Name=nullptr);
+	bool AddFile(const Args_t& args, const char* nativeName);
 	bool DeleteFile(int fileNumber);
 
 	int  FindFreeBlocks(int nbBlocks, Files11Base::BlockList_t &blkList);
@@ -102,6 +102,8 @@ private:
 	std::string      m_DiskFileName;
 	std::string      m_CurrentDirectory;
 	FileDatabase     FileDatabase;
+	std::vector<int> m_LBNtoBitmapPage;
+
 	//std::vector<int> m_FileNumberToLBN;
 };
 

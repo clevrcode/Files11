@@ -51,7 +51,6 @@ public:
 	static void          PrintError(const char* dir, DirectoryRecord_t* p, const char* msg);
 	const std::string    GetCurrentDate(void);
 	const std::string    GetCurrentPDPTime(void);
-	const std::string    GetFileProtectionString(uint16_t pro);
 
 	static uint8_t*      readBlock(int lbn, std::fstream& istrm, uint8_t*blk);
 	static uint8_t*      writeBlock(int lbn, std::fstream& istrm, uint8_t* blk);

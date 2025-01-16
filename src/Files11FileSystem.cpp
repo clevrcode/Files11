@@ -24,7 +24,6 @@ bool Files11FileSystem::Open(const char *dskName)
     m_dskStream.open(dskName, std::fstream::in | std::fstream::out | std::ifstream::binary);
     if (m_dskStream.is_open()) 
     {
-        FileDatabase.AppendLBN(0); // Exclude file number 0
 
         // Read the Home Block
         Files11Base file;
@@ -34,6 +33,10 @@ bool Files11FileSystem::Open(const char *dskName)
 			m_dskStream.close();
             return false;
         }
+
+        FileDatabase.SetMaxFile(m_HomeBlock.GetMaxFiles(), m_HomeBlock.GetNumberOfBlocks());
+        FileDatabase.AppendLBN(0); // Exclude file number 0
+
         file.ReadBlock(m_HomeBlock.GetBitmapSysLBN(), m_dskStream);
         if (!file.ValidateHeader())
             return false;
@@ -72,7 +75,6 @@ bool Files11FileSystem::Open(const char *dskName)
 
         // Build File Header Database
         const uint32_t IndexLBN = (uint32_t) m_HomeBlock.GetIndexLBN();
-        FileDatabase.SetMaxFile(m_HomeBlock.GetMaxFiles());
 
         Files11Record IndexFileRecord;
         IndexFileRecord.Initialize(IndexLBN, m_dskStream);
@@ -120,9 +122,39 @@ bool Files11FileSystem::Open(const char *dskName)
 
 		} while (ext_file_number > 0);
 
-        // set current working directory to the user UIC
-        m_CurrentDirectory = m_HomeBlock.GetOwnerUIC();
-        m_bValid = true;
+
+        // Initialize LBNtoBitmap table
+        Files11Record fileRec;
+        if (!FileDatabase.Get(F11_BITMAP_SYS, fileRec))
+        {
+            std::cout << "Invalid Disk Image\n";
+        }
+        else
+        {
+            Files11Base::BlockList_t blklist;
+            GetBlockList(fileRec.GetHeaderLBN(), blklist);
+            if (!blklist.empty())
+            {
+                int        vbn = 0;
+                bool       bFirstBlock = true;
+                bool       error = false;
+                int        totalBlocks = m_HomeBlock.GetNumberOfBlocks();
+                for (auto& block : blklist)
+                {
+                    for (auto lbn = block.lbn_start; lbn <= block.lbn_end; lbn++)
+                    {
+                        if (bFirstBlock) {
+                            bFirstBlock = false;
+                            continue;
+                        }
+                        m_LBNtoBitmapPage.push_back(lbn);
+                    }
+                }
+            }
+            // set current working directory to the user UIC
+            m_CurrentDirectory = m_HomeBlock.GetOwnerUIC();
+            m_bValid = true;
+        }
     }
     else
     {
@@ -892,66 +924,38 @@ void Files11FileSystem::print_map_area(F11_MapArea_t* pMap)
 
 void Files11FileSystem::PrintFreeBlocks(void)
 {
-    Files11Record fileRec;
-    if (!FileDatabase.Get(F11_BITMAP_SYS, fileRec))
+    int vbn = 0;
+    bool error = false;
+    int totalBlocks = m_HomeBlock.GetNumberOfBlocks();
+    int largestContiguousFreeBlock = 0;
+    BitCounter counter;
+
+    for (auto lbn : m_LBNtoBitmapPage)
     {
-        print_error("ERROR -- Invalid Disk Image");
-        return;
-    }
-
-    const Files11FCS& fileFCS = fileRec.GetFileFCS();
-    
-    Files11Base::BlockList_t blklist;
-    GetBlockList(fileRec.GetHeaderLBN(), blklist);
-
-    if (!blklist.empty())
-    {
-        int vbn = 0;
-        bool bFirstBlock = true;
-        bool error = false;
-        int totalBlocks = m_HomeBlock.GetNumberOfBlocks();
-        int largestContiguousFreeBlock = 0;
-        BitCounter counter;
-
-        for (auto& block : blklist)
-        {
-            for (auto lbn = block.lbn_start; lbn <= block.lbn_end; lbn++)
-            {
-                // Skip first block, Storage Control Block)
-                if (bFirstBlock) {
-                    bFirstBlock = false;
-                    continue;
-                }
-                vbn++;
-
-                Files11Base bitFile;
-                uint8_t* buffer = bitFile.ReadBlock(lbn, m_dskStream);
-                if (buffer) {
-                    int nbBits = F11_BLOCK_SIZE * 8;
-                    if (totalBlocks < (vbn * (F11_BLOCK_SIZE * 8)))
-                        nbBits = totalBlocks % (F11_BLOCK_SIZE * 8);
-                    counter.Count(buffer, nbBits);
-                }
-                else
-                {
-                    error = true;
-                    std::cerr << "Failed to read block\n";
-                    break;
-                }
-            }
+        vbn++;
+        Files11Base bitFile;
+        uint8_t* buffer = bitFile.ReadBlock(lbn, m_dskStream);
+        if (buffer) {
+            int nbBits = F11_BLOCK_SIZE * 8;
+            if (totalBlocks < (vbn * (F11_BLOCK_SIZE * 8)))
+                nbBits = totalBlocks % (F11_BLOCK_SIZE * 8);
+            counter.Count(buffer, nbBits);
         }
-        if (!error)
+        else
         {
-            // Write report (PDP-11 format)
-            // DU0: has 327878. blocks free, 287122. blocks used out of 615000.
-            // Largest contiguous space = 277326. blocks
-            // 22025. file headers are free, 7975. headers used out of 30000.
-
-            std::cout << "\nDU0: has " << counter.GetNbHi() << ". blocks free, " << counter.GetNbLo() << ". blocks used out of " << totalBlocks << ".\n";
-            std::cout << "Largest contiguous space = " << counter.GetLargestContiguousHi() << ". blocks\n";
-            std::cout << m_HomeBlock.GetFreeHeaders() << ". file headers are free, " << m_HomeBlock.GetUsedHeaders() << ". headers used out of " << m_HomeBlock.GetMaxFiles() << ".\n\n";
+            error = true;
+            std::cerr << "Failed to read block\n";
+            break;
         }
     }
+    // Write report (PDP-11 format)
+    // DU0: has 327878. blocks free, 287122. blocks used out of 615000.
+    // Largest contiguous space = 277326. blocks
+    // 22025. file headers are free, 7975. headers used out of 30000.
+
+    std::cout << "\nDU0: has " << counter.GetNbHi() << ". blocks free, " << counter.GetNbLo() << ". blocks used out of " << totalBlocks << ".\n";
+    std::cout << "Largest contiguous space = " << counter.GetLargestContiguousHi() << ". blocks\n";
+    std::cout << m_HomeBlock.GetFreeHeaders() << ". file headers are free, " << m_HomeBlock.GetUsedHeaders() << ". headers used out of " << m_HomeBlock.GetMaxFiles() << ".\n\n";
 }
 
 void Files11FileSystem::TypeFile(int fnumber)
@@ -1039,6 +1043,11 @@ void Files11FileSystem::ListFiles(const Args_t& args)
 
 void Files11FileSystem::FullList(const Args_t& args)
 {
+    bool out2file = args.size() == 2;
+
+    std::ofstream _f;
+    std::ostream& os = (args.size() == 2) ? (_f.open(args[1]), _f) : std::cout;
+
     int fileNumber = 1;
     int fileCounter = 0;
     int totalBlockUsed = 0;
@@ -1052,7 +1061,6 @@ void Files11FileSystem::FullList(const Args_t& args)
 
         if (blklist.empty()) {
             print_error("ERROR -- Invalid file system");
-            m_dskStream.close();
             return;
         }
 
@@ -1064,7 +1072,7 @@ void Files11FileSystem::FullList(const Args_t& args)
                 {
                     Files11Record fr;
                     FileDatabase.Get(fileNumber++, fr);
-                    fr.ListRecord();
+                    fr.ListRecord(os);
                     totalBlockUsed += fr.GetUsedBlockCount();
                     fileCounter++;
                 }
@@ -1072,8 +1080,8 @@ void Files11FileSystem::FullList(const Args_t& args)
         }
 
     } while (ext_file_number > 0);
-    std::cout << "\nTotal " << fileCounter << "/" << m_HomeBlock.GetMaxFiles() << " files\n";
-    std::cout << "Total block used: " << totalBlockUsed << ".\n";
+    os << "\nTotal " << fileCounter << "/" << m_HomeBlock.GetMaxFiles() << " files\n";
+    os << "Total block used: " << totalBlockUsed << ".\n";
 }
 
 void Files11FileSystem::ExportFiles(const Args_t& args)
@@ -1332,13 +1340,6 @@ bool Files11FileSystem::MarkHeaderBlock(int file_number, bool used)
 
 bool Files11FileSystem::MarkDataBlock(Files11Base::BlockList_t blkList, bool used)
 {
-    Files11Record bitmapRec;
-    if (!FileDatabase.Get(F11_BITMAP_SYS, bitmapRec))
-    {
-        std::cout << "Invalid Disk Image\n";
-        return false;
-    }
-
     // Make a list of blocks (LBN) to be marked
     std::vector<int> dataBlkList;
     for (auto& blk : blkList) {
@@ -1346,64 +1347,49 @@ bool Files11FileSystem::MarkDataBlock(Files11Base::BlockList_t blkList, bool use
             dataBlkList.push_back(lbn);
     }
 
-    Files11Base::BlockList_t bitmapBlklist;
-    GetBlockList(bitmapRec.GetHeaderLBN(), bitmapBlklist);
-    if (!bitmapBlklist.empty())
+    bool  error = false;
+    int   totalBlocks = m_HomeBlock.GetNumberOfBlocks();
+    int   firstBlock = 0;
+    int   lastBlock = firstBlock + (F11_BLOCK_SIZE * 8);
+
+    for (auto lbn : m_LBNtoBitmapPage)
     {
-        bool  bFirstBlock = true;
-        bool  error = false;
-        int   totalBlocks = m_HomeBlock.GetNumberOfBlocks();
-        int   firstBlock = 0;
-        int   lastBlock = firstBlock + (F11_BLOCK_SIZE * 8);
-
-        for (auto& blk : bitmapBlklist)
-        {
-            for (auto lbn = blk.lbn_start; (lbn <= blk.lbn_end) && (dataBlkList.size() > 0); ++lbn)
-            {
-                // Skip first block, Storage Control Block)
-                if (bFirstBlock) {
-                    bFirstBlock = false;
-                    continue;
-                }
-
-                // Check if any block to mark within the current block
-                bool found = false;
-                for (auto chkBlk : dataBlkList) {
-                    if ((chkBlk >= firstBlock) && (chkBlk < lastBlock)) {
-                        found = true;
-                        break;
-                    }
-                }
-                if (found)
-                {
-                    // Read the block
-                    Files11Base bitFile;
-                    uint8_t *buffer = bitFile.ReadBlock(lbn, m_dskStream);
-                    //
-                    std::vector<int> remainingBlks;
-                    for (auto chkBlk : dataBlkList) {
-                        if ((chkBlk >= firstBlock) && (chkBlk < lastBlock)) {
-                            int vblock = chkBlk - firstBlock;
-                            int index = vblock / 8;
-                            int bit = vblock % 8;
-                            // Bit 1 == free, 0 == used
-                            if (used)
-                                buffer[index] &= ~(1 << bit);
-                            else
-                                buffer[index] |= (1 << bit);
-                        }
-                        else
-                        {
-                            remainingBlks.push_back(chkBlk);
-                        }
-                    }
-                    bitFile.WriteBlock(m_dskStream);
-                    dataBlkList = remainingBlks;
-                }
-                firstBlock = lastBlock;
-                lastBlock = firstBlock + (F11_BLOCK_SIZE * 8);
+        // Check if any block to mark within the current block
+        bool found = false;
+        for (auto chkBlk : dataBlkList) {
+            if ((chkBlk >= firstBlock) && (chkBlk < lastBlock)) {
+                found = true;
+                break;
             }
         }
+        if (found)
+        {
+            // Read the block
+            Files11Base bitFile;
+            uint8_t *buffer = bitFile.ReadBlock(lbn, m_dskStream);
+            //
+            std::vector<int> remainingBlks;
+            for (auto chkBlk : dataBlkList) {
+                if ((chkBlk >= firstBlock) && (chkBlk < lastBlock)) {
+                    int vblock = chkBlk - firstBlock;
+                    int index = vblock / 8;
+                    int bit = vblock % 8;
+                    // Bit 1 == free, 0 == used
+                    if (used)
+                        buffer[index] &= ~(1 << bit);
+                    else
+                        buffer[index] |= (1 << bit);
+                }
+                else
+                {
+                    remainingBlks.push_back(chkBlk);
+                }
+            }
+            bitFile.WriteBlock(m_dskStream);
+            dataBlkList = remainingBlks;
+        }
+        firstBlock = lastBlock;
+        lastBlock = firstBlock + (F11_BLOCK_SIZE * 8);
     }
     return true;
 }
@@ -1656,24 +1642,41 @@ bool Files11FileSystem::DeleteDirectoryEntry(int filenb, std::vector<int> &fileN
 // 7) Transfer file content to the allocated blocks
 // 8) Complete
 
-bool Files11FileSystem::AddFile(const char* nativeName, const char* pdp11Dir, const char *pdp11name)
+bool Files11FileSystem::AddFile(const Args_t& args, const char* nativeName)
 {
-    // Validate file name name max 9 chars, extension max 3 chars
-    std::string name, ext, version;
-    FileDatabase::SplitName(pdp11name, name, ext, version);
-    if ((name.length() > 9) || (ext.length() > 3))
+    assert((nativeName != nullptr) && ((args.size() > 0) && ((args[0].substr(0, 3) == "IMP") || (args[0].substr(0, 2) == "UP"))));
+    std::string dir(GetCurrentWorkingDirectory());
+    std::string file;
+
+    if (args.size() == 2) {
+        SplitFilePath(args[1], dir, file);
+    }
+    else
     {
-        print_error("ERROR -- Invalid file name");
-        return false;
+        std::string localfile(nativeName);
+        auto pos = localfile.rfind("/");
+        if (pos != std::string::npos)
+            file = localfile.substr(pos + 1);
+        else
+            file = localfile;
     }
 
-    if (pdp11Dir == nullptr) {
-        print_error("ERROR -- Invalid directory");
+    std::string filename;
+    std::string file_ext;
+    std::string fileversion;
+    FileDatabase::SplitName(file, filename, file_ext, fileversion);
+
+    // Validate file name name max 9 chars, extension max 3 chars
+    std::string name, ext, version;
+    FileDatabase::SplitName(file, name, ext, version);
+    if ((name.length() > 9) || (ext.length() > 3))
+    {
+        print_error("ERROR -- Invalid file name, exceeds max file name ext size");
         return false;
     }
 
     FileDatabase::DirList_t dirList;
-    FileDatabase.FindDirectory(pdp11Dir, dirList);
+    FileDatabase.FindDirectory(dir.c_str(), dirList);
     if (dirList.size() != 1) {
         print_error("ERROR -- Invalid directory");
         return false;
@@ -1684,7 +1687,7 @@ bool Files11FileSystem::AddFile(const char* nativeName, const char* pdp11Dir, co
     std::ifstream ifs(nativeName, std::ifstream::binary);
     if (!ifs.good())
     {
-        std::cerr << "ERROR -- Failed to open file '" << nativeName << "'\n";
+        std::cout << "\n\x1b[31m" << "ERROR -- Failed to open file '" << nativeName << "\n\x1b[0m" << std::endl;
         return false;
     }
     ifs.close();
@@ -1710,8 +1713,6 @@ bool Files11FileSystem::AddFile(const char* nativeName, const char* pdp11Dir, co
         print_error("ERROR -- Not enough free space");
         return false;
     }
-    // Mark data blocks as used in BITMAP.SYS
-    MarkDataBlock(BlkList, true);
 
     // Calculate how many header is required
     int NbContiguousBlksPerHeader = BLOCKS_PER_POINTER * NB_POINTERS_PER_HEADER;
@@ -1731,6 +1732,10 @@ bool Files11FileSystem::AddFile(const char* nativeName, const char* pdp11Dir, co
         MarkHeaderBlock(newFileNumber, true);
     }
     assert(nbHeaders == hdrFileNumber.size());
+
+    // Mark data blocks as used in BITMAP.SYS after header block assignment completed successfully
+    MarkDataBlock(BlkList, true);
+
     // Convert file number to LBN
     int header_lbn = FileDatabase.FileNumberToLBN(hdrFileNumber[0]);
 
@@ -1929,64 +1934,42 @@ bool Files11FileSystem::DeleteFile(int fileNumber)
 
 int Files11FileSystem::FindFreeBlocks(int nbBlocks, Files11Base::BlockList_t &foundBlkList)
 {
-    Files11Record fileRec;
-    if (!FileDatabase.Get(F11_BITMAP_SYS, fileRec))
+    int        vbn = 0;
+    bool       error = false;
+    int        totalBlocks = m_HomeBlock.GetNumberOfBlocks();
+    BitCounter counter;
+
+    for (auto lbn : m_LBNtoBitmapPage)
     {
-        std::cout << "Invalid Disk Image\n";
+        vbn++;
+        uint8_t buffer[F11_BLOCK_SIZE];
+        if (Files11Base::readBlock(lbn, m_dskStream, buffer) == nullptr)
+        {
+            error = true;
+            print_error("ERROR -- Failed to read block");
+            break;
+        }
+        int nbBits = F11_BLOCK_SIZE * 8;
+        if (totalBlocks < (vbn * (F11_BLOCK_SIZE * 8))) {
+            nbBits = totalBlocks % (F11_BLOCK_SIZE * 8);
+        }
+        counter.FindSmallestBlock(buffer, nbBits, nbBlocks);
+    }
+    int firstFreeBlock = counter.GetSmallestBlockHi();
+    if (firstFreeBlock < 0)
+    {
         return -1;
     }
-
-    Files11Base::BlockList_t blklist;
-    GetBlockList(fileRec.GetHeaderLBN(), blklist);
-    if (!blklist.empty())
-    {
-        int        vbn = 0;
-        bool       bFirstBlock = true;
-        bool       error = false;
-        int        totalBlocks = m_HomeBlock.GetNumberOfBlocks();
-        BitCounter counter;
-
-        for (auto &block : blklist)
-        {
-            for (auto lbn = block.lbn_start; lbn <= block.lbn_end; lbn++)
-            {
-                // Skip first block, Storage Control Block)
-                if (bFirstBlock) {
-                    bFirstBlock = false;
-                    continue;
-                }
-                vbn++;
-                uint8_t buffer[F11_BLOCK_SIZE];
-                if (Files11Base::readBlock(lbn, m_dskStream, buffer) == nullptr)
-                {
-                    error = true;
-                    print_error("ERROR -- Failed to read block");
-                    break;
-                }
-                int nbBits = F11_BLOCK_SIZE * 8;
-                if (totalBlocks < (vbn * (F11_BLOCK_SIZE * 8))) {
-                    nbBits = totalBlocks % (F11_BLOCK_SIZE * 8);
-                }
-                counter.FindSmallestBlock(buffer, nbBits, nbBlocks);
-            }
-        }
-        // 
-        int firstFreeBlock = counter.GetSmallestBlockHi();
-        if (firstFreeBlock < 0)
-        {
-            return -1;
-        }
-        Files11Base::BlockPtrs_t ptrs;
-        while (nbBlocks > 0) {
-            int nb = nbBlocks / 256;
-            ptrs.lbn_start = firstFreeBlock;
-            if (nb >= 1)
-                ptrs.lbn_end = firstFreeBlock + 255;
-            else
-                ptrs.lbn_end = firstFreeBlock + (nbBlocks - 1);
-            foundBlkList.push_back(ptrs);
-            nbBlocks -= 256;
-        }
+    Files11Base::BlockPtrs_t ptrs;
+    while (nbBlocks > 0) {
+        int nb = nbBlocks / 256;
+        ptrs.lbn_start = firstFreeBlock;
+        if (nb >= 1)
+            ptrs.lbn_end = firstFreeBlock + 255;
+        else
+            ptrs.lbn_end = firstFreeBlock + (nbBlocks - 1);
+        foundBlkList.push_back(ptrs);
+        nbBlocks -= 256;
     }
     return (int)foundBlkList.size();
 }

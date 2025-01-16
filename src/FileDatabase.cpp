@@ -5,6 +5,13 @@ void FileDatabase::Add(int nb, const Files11Record &frec)
 {
     // Add a new entry for this file (key: file number)
     m_Database[nb] = frec;
+
+    // Insert file in block chain
+    //for (auto& block : m_BlockChain) {
+    //    m_BlockChain.insert_after(DiskBlock(frec.))
+    //}
+
+
     // If a directory, add to the directory database (key: dir name)
     if (frec.IsDirectory()) {
         DirInfo_t info(nb, frec.GetHeaderLBN());
@@ -27,7 +34,7 @@ bool FileDatabase::Delete(int nb)
 int  FileDatabase::FindFirstFreeFile(void)
 {
     int fileNumber = -1;
-    for (int fnb = F11_CORIMG_SYS + 1; (fnb < m_MaxFileNumber) && (fileNumber == 0); ++fnb) {
+    for (int fnb = F11_CORIMG_SYS + 1; fnb < m_MaxFileNumber; ++fnb) {
         if (!Exist(fnb)) {
             // Mark it as used with an empty record
             Files11Record frec;
