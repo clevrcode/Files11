@@ -1,5 +1,7 @@
 #include <direct.h>
 #include <assert.h>
+#include <map>
+#include <algorithm>
 #include "Files11FileSystem.h"
 #include "Files11_defs.h"
 #include "Files11Record.h"
@@ -147,7 +149,7 @@ bool Files11FileSystem::Open(const char *dskName)
                             bFirstBlock = false;
                             continue;
                         }
-                        m_LBNtoBitmapPage.push_back(lbn);
+                        m_BitmapPages.push_back(lbn);
                     }
                 }
             }
@@ -310,10 +312,18 @@ int Files11FileSystem::ValidateStorageBitmap(int *nbBitmapBlockUsed)
         }
         *nbBitmapBlockUsed = counter.GetNbLo();
 
+        int byteBlocks = (totalBlocks + 8) / 8;
+        std::vector<uint8_t> bitmapValidation(byteBlocks, 0);
+
         assert(bmpLBN.size() >= (totalBlocks / 4096));
         Files11Base blockFile;
         int last_bitmap_block = -1;
         uint8_t* buffer = nullptr;
+
+        //Files11Base::BlockList_t fBlock;
+        //fBlock.push_back(Files11Base::BlockPtrs_t(89818, 89819));
+        //MarkDataBlock(fBlock, true);
+
 
         for (int fnumber = 1; fnumber < m_HomeBlock.GetMaxFiles(); ++fnumber)
         {
@@ -326,7 +336,7 @@ int Files11FileSystem::ValidateStorageBitmap(int *nbBitmapBlockUsed)
 
                 // Check if file is marked for deletion
                 if (frec.IsMarkedForDeletion()) {
-                    printf("FILE ID %06o,%06o . OWNER [%o,%o]\n", frec.GetFileNumber(), frec.GetFileSeq(), frec.GetOwnerUIC() >> 8, frec.GetOwnerUIC() & 0xff);
+                    printf("FILE ID %06o,%06o %s;%o OWNER [%o,%o]\n", frec.GetFileNumber(), frec.GetFileSeq(), frec.GetFullName(), frec.GetFileVersion(), frec.GetOwnerUIC() >> 8, frec.GetOwnerUIC() & 0xff);
                     printf("        FILE IS MARKED FOR DELETE\n");
                 }
 
@@ -334,7 +344,7 @@ int Files11FileSystem::ValidateStorageBitmap(int *nbBitmapBlockUsed)
                 int last_vbn = frec.GetFileFCS().GetUsedBlockCount();
                 int eof_bytes = frec.GetFileFCS().GetFirstFreeByte();
                 Files11Base::BlockList_t fBlock;
-                GetBlockList(frec.GetHeaderLBN(), blkList);              
+                GetBlockList(frec.GetHeaderLBN(), fBlock);
                 for (auto& block : fBlock)
                 {
                     for (auto lbn = block.lbn_start; lbn <= block.lbn_end; ++lbn)
@@ -345,6 +355,16 @@ int Files11FileSystem::ValidateStorageBitmap(int *nbBitmapBlockUsed)
                         int bitmap_block = lbn / 4096;
                         int bitmap_index = (lbn % 4096) / 8;
                         int bitmap_bit = lbn % 8;
+
+                        if ((bitmapValidation[lbn / 8] & (1 << bitmap_bit)) != 0)
+                        {
+                            printf("FILE ID %06o,%06o %s;%o OWNER [%o,%o]\n", frec.GetFileNumber(), frec.GetFileSeq(), frec.GetFullName(), frec.GetFileVersion(), frec.GetOwnerUIC() >> 8, frec.GetOwnerUIC() & 0xff);
+                            printf("        MULTIPLE ALLOCATION     %o,%06o\n", lbn / 0x10000, lbn & 0xffff);
+                            totalErrors++;
+                        }
+                        else
+                            bitmapValidation[lbn / 8] |= (1 << bitmap_bit);
+
                         if (bitmap_block != last_bitmap_block)
                         {
                             buffer = blockFile.ReadBlock(bmpLBN[bitmap_block], m_dskStream);
@@ -930,7 +950,7 @@ void Files11FileSystem::PrintFreeBlocks(void)
     int largestContiguousFreeBlock = 0;
     BitCounter counter;
 
-    for (auto lbn : m_LBNtoBitmapPage)
+    for (auto lbn : m_BitmapPages)
     {
         vbn++;
         Files11Base bitFile;
@@ -1340,57 +1360,62 @@ bool Files11FileSystem::MarkHeaderBlock(int file_number, bool used)
 
 bool Files11FileSystem::MarkDataBlock(Files11Base::BlockList_t blkList, bool used)
 {
-    // Make a list of blocks (LBN) to be marked
-    std::vector<int> dataBlkList;
-    for (auto& blk : blkList) {
-        for (auto lbn = blk.lbn_start; lbn <= blk.lbn_end; ++lbn)
-            dataBlkList.push_back(lbn);
-    }
-
-    bool  error = false;
+    constexpr int PAGE_SIZE = (F11_BLOCK_SIZE * 8);
     int   totalBlocks = m_HomeBlock.GetNumberOfBlocks();
-    int   firstBlock = 0;
-    int   lastBlock = firstBlock + (F11_BLOCK_SIZE * 8);
 
-    for (auto lbn : m_LBNtoBitmapPage)
-    {
-        // Check if any block to mark within the current block
-        bool found = false;
-        for (auto chkBlk : dataBlkList) {
-            if ((chkBlk >= firstBlock) && (chkBlk < lastBlock)) {
-                found = true;
-                break;
+    // Make a list of blocks (LBN) to be marked
+    int firstPage = totalBlocks / PAGE_SIZE;
+    int lastPage = 0;
+
+    std::map<int, uint8_t> dataBlkList;
+    std::vector<int> dataKeys;
+    for (auto& blk : blkList) {
+        for (auto lbn = blk.lbn_start; lbn <= blk.lbn_end; ++lbn) {
+            int blockpos = lbn / 8;
+            auto pos = dataBlkList.find(blockpos);
+            if (pos != dataBlkList.end())
+                dataBlkList[blockpos] |= (1 << (lbn % 8));
+            else
+            {
+                dataBlkList[blockpos] = 1 << (lbn % 8);
+                dataKeys.push_back(blockpos);
             }
+            int page = lbn / PAGE_SIZE;
+            if (page < firstPage)
+                firstPage = page;
+            if (page > lastPage)
+                lastPage = page;
         }
-        if (found)
-        {
-            // Read the block
-            Files11Base bitFile;
-            uint8_t *buffer = bitFile.ReadBlock(lbn, m_dskStream);
-            //
-            std::vector<int> remainingBlks;
-            for (auto chkBlk : dataBlkList) {
-                if ((chkBlk >= firstBlock) && (chkBlk < lastBlock)) {
-                    int vblock = chkBlk - firstBlock;
-                    int index = vblock / 8;
-                    int bit = vblock % 8;
-                    // Bit 1 == free, 0 == used
-                    if (used)
-                        buffer[index] &= ~(1 << bit);
-                    else
-                        buffer[index] |= (1 << bit);
-                }
-                else
-                {
-                    remainingBlks.push_back(chkBlk);
-                }
-            }
-            bitFile.WriteBlock(m_dskStream);
-            dataBlkList = remainingBlks;
-        }
-        firstBlock = lastBlock;
-        lastBlock = firstBlock + (F11_BLOCK_SIZE * 8);
     }
+
+    std::sort(dataKeys.begin(), dataKeys.end());
+
+    bool dirty = false;
+    int   lastPageRead = -1;
+    Files11Base bitFile;
+    uint8_t* buffer = nullptr;
+
+    for (auto key : dataKeys)
+    {
+        int page = key / F11_BLOCK_SIZE;
+        if (page != lastPageRead)
+        {
+            if (lastPageRead != -1)
+                bitFile.WriteBlock(m_dskStream);
+            // Read the block
+            buffer = bitFile.ReadBlock(m_BitmapPages[page], m_dskStream);
+            lastPageRead = page;
+        }
+        assert(buffer != nullptr);
+        int index = key % F11_BLOCK_SIZE;
+        uint8_t bitmask = dataBlkList[key];
+        // Bit 1 == free, 0 == used
+        if (used)
+            buffer[index] &= ~(bitmask);
+        else
+            buffer[index] |= (bitmask);
+    }
+    bitFile.WriteBlock(m_dskStream);
     return true;
 }
 
@@ -1713,6 +1738,8 @@ bool Files11FileSystem::AddFile(const Args_t& args, const char* nativeName)
         print_error("ERROR -- Not enough free space");
         return false;
     }
+    // Mark data blocks as used in BITMAP.SYS after header block assignment completed successfully
+    MarkDataBlock(BlkList, true);
 
     // Calculate how many header is required
     int NbContiguousBlksPerHeader = BLOCKS_PER_POINTER * NB_POINTERS_PER_HEADER;
@@ -1725,6 +1752,7 @@ bool Files11FileSystem::AddFile(const Args_t& args, const char* nativeName)
         int newFileNumber = FileDatabase.FindFirstFreeFile();
         if (newFileNumber <= 0) {
             print_error("ERROR -- File system full");
+            MarkDataBlock(BlkList, false);
             return false;
         }
         hdrFileNumber.push_back(newFileNumber);
@@ -1733,8 +1761,6 @@ bool Files11FileSystem::AddFile(const Args_t& args, const char* nativeName)
     }
     assert(nbHeaders == hdrFileNumber.size());
 
-    // Mark data blocks as used in BITMAP.SYS after header block assignment completed successfully
-    MarkDataBlock(BlkList, true);
 
     // Convert file number to LBN
     int header_lbn = FileDatabase.FileNumberToLBN(hdrFileNumber[0]);
@@ -1939,7 +1965,7 @@ int Files11FileSystem::FindFreeBlocks(int nbBlocks, Files11Base::BlockList_t &fo
     int        totalBlocks = m_HomeBlock.GetNumberOfBlocks();
     BitCounter counter;
 
-    for (auto lbn : m_LBNtoBitmapPage)
+    for (auto lbn : m_BitmapPages)
     {
         vbn++;
         uint8_t buffer[F11_BLOCK_SIZE];
@@ -1960,6 +1986,14 @@ int Files11FileSystem::FindFreeBlocks(int nbBlocks, Files11Base::BlockList_t &fo
     {
         return -1;
     }
+
+    // Verify that free blocks are really free
+    if (!VerifyFreeBlock(firstFreeBlock, nbBlocks))
+    {
+        print_error("ERROR -- Block already assigned");
+        assert(false);
+        return -1;
+    }
     Files11Base::BlockPtrs_t ptrs;
     while (nbBlocks > 0) {
         int nb = nbBlocks / 256;
@@ -1972,6 +2006,30 @@ int Files11FileSystem::FindFreeBlocks(int nbBlocks, Files11Base::BlockList_t &fo
         nbBlocks -= 256;
     }
     return (int)foundBlkList.size();
+}
+
+bool Files11FileSystem::VerifyFreeBlock(int firstBlock, int nbBlocks)
+{
+    bool blocksAreFree = true;
+    uint8_t buffer[F11_BLOCK_SIZE];
+    int lastPage = -1;
+    memset(buffer, 0, sizeof(buffer));
+
+    for (int blk = firstBlock; (blk < firstBlock + nbBlocks) && blocksAreFree; blk++)
+    {
+        int page = blk / (F11_BLOCK_SIZE * 8);
+        int index = (blk / 8) % F11_BLOCK_SIZE;
+        int bit = blk % 8;
+
+        if (page != lastPage)
+        {
+            lastPage = page;
+            Files11Base::readBlock(m_BitmapPages[page], m_dskStream, buffer);
+        }
+        if ((buffer[index] & (1 << bit)) == 0)
+            blocksAreFree = false;
+    }
+    return blocksAreFree;
 }
 
 //--------------------------------------------------------

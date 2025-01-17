@@ -93,6 +93,7 @@ private:
 
 	int GetBlockList(int lbn, Files11Base::BlockList_t &blkList);
 	int BuildBlockList(int lbn, Files11Base::BlockList_t& blk_list, std::fstream& istrm);
+	bool VerifyFreeBlock(int firstBlock, int nbBlocks);
 
 	Files11Base      m_File;
 	std::fstream     m_dskStream;
@@ -102,7 +103,7 @@ private:
 	std::string      m_DiskFileName;
 	std::string      m_CurrentDirectory;
 	FileDatabase     FileDatabase;
-	std::vector<int> m_LBNtoBitmapPage;
+	std::vector<int> m_BitmapPages;
 
 	//std::vector<int> m_FileNumberToLBN;
 };

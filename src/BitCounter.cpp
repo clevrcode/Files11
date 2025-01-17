@@ -115,19 +115,21 @@ void BitCounter::FindSmallestBlock(const uint8_t data[], const size_t nbBits, in
         uint8_t b = data[i];
         if ((_nbits + 8) < nbBits)
         {
-            if (b == 0xff)
+            if ((b == 0xff) && bLastState)
             {
                 iNbHi += 8;
                 iContiguousHi += 8;
+                iContiguousLo = 0;
                 blockCounter += 8;
                 _nbits += 8;
                 bLastState = true;
                 continue;
             }
-            else if (b == 0)
+            else if ((b == 0) && !bLastState)
             {
                 iNbLo += 8;
                 iContiguousLo += 8;
+                iContiguousHi = 0;
                 blockCounter += 8;
                 _nbits += 8;
                 bLastState = false;

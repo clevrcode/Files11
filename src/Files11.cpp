@@ -28,7 +28,7 @@ int main(int argc, char *argv[])
         return 0;
     }
 
-    std::cout << "Opening disk file " << argv[1] << std::endl;
+    std::cout << "Opening disk file " << argv[1] << " ..." << std::endl;
 
     // Files-11 File System object
     Files11FileSystem F11_fs;
@@ -156,7 +156,7 @@ static void RunCLI(Files11FileSystem &fs)
     }
 
     fs.PrintVolumeInfo();
-    std::cout << PROMPT;
+    std::cout << std::endl << PROMPT;
 
     int cmd_ptr = 0;
     for (;;)

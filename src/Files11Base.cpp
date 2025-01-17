@@ -171,7 +171,8 @@ void Files11Base::MakeTime(uint8_t* tim, std::string& ftime)
 void Files11Base::MakeUIC(uint8_t* uic, std::string& strUIC)
 {
 	strUIC.clear();
-	strUIC += (char)('0' + ((uic[0] >> 6) & 0x07));
+    strUIC += '[';
+    strUIC += (char)('0' + ((uic[0] >> 6) & 0x07));
 	strUIC += (char)('0' + ((uic[0] >> 3) & 0x07));
 	strUIC += (char)('0' + (uic[0] & 0x07));
 	strUIC += ',';
