@@ -451,9 +451,32 @@ int Files11Base::GetBlockCount(const BlockList_t& blklist)
 int Files11Base::StringToInt(const std::string& str)
 {
     int base = 10;
-    if (str[0] == '0')
+    if (str[0] == '0') {
+        bool valid = true;
+        for (auto c : str) {
+            valid = ((c >= '0') && (c <= '7'));
+        }
+        if (!valid)
+            return -1;
         base = 8;
-    else if ((str[0] == 'x') || (str[0] == 'X'))
+    }
+    else if ((str[0] == 'x') || (str[0] == 'X')) {
+        bool valid = true;
+        for (auto c : str) {
+            valid = ((c >= '0') && (c <= '9')) || ((toupper(c) >= 'A') && (toupper(c) <= 'F'));
+        }
+        if (!valid)
+            return -1;
         base = 16;
+    }
+    else
+    {
+        bool valid = true;
+        for (auto c : str) {
+            valid = ((c >= '0') && (c <= '9'));
+        }
+        if (!valid)
+            return -1;
+    }
     return strtol(str.c_str(), NULL, base);
 }

@@ -751,7 +751,7 @@ void Files11FileSystem::DumpLBN(const Args_t &args)
         for (auto i = 1; i < args.size(); i++)
         {
             int lbn = Files11Base::StringToInt(args[i]);
-            if ((lbn < 0) || (lbn > m_HomeBlock.GetNumberOfBlocks())) {
+            if ((lbn < 0) || (lbn >= m_HomeBlock.GetNumberOfBlocks())) {
                 print_error("ERROR -- Invalid LBN");
                 continue;
             }
@@ -1341,18 +1341,22 @@ void Files11FileSystem::ListDirs(const Args_t& args)
 
 void Files11FileSystem::ChangeWorkingDirectory(const char* dir)
 {
-    std::string newdir(FileDatabase::FormatDirectory(dir));
     bool found = false;
-    if (newdir.length() > 0)
+    std::string chkdir(dir);
+    if ((chkdir.front() == '[') && (chkdir.back() == ']'))
     {
-        // No wildcard allowed for this command
-        if (newdir.find('*') == std::string::npos)
+        std::string newdir(FileDatabase::FormatDirectory(dir));
+        if (newdir.length() > 0)
         {
-            std::vector<int> dlist;
-            if (FileDatabase.DirectoryExist(newdir.c_str()))
+            // No wildcard allowed for this command
+            if (newdir.find('*') == std::string::npos)
             {
-                m_CurrentDirectory = newdir;
-                found = true;
+                std::vector<int> dlist;
+                if (FileDatabase.DirectoryExist(newdir.c_str()))
+                {
+                    m_CurrentDirectory = newdir;
+                    found = true;
+                }
             }
         }
     }

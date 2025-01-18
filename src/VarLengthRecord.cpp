@@ -26,35 +26,25 @@ bool VarLengthRecord::IsVariableLengthRecordFile(const char *fname)
 
 int VarLengthRecord::CalculateFileLength(const char *fname)
 {
-    int fsize = -1;
     std::ifstream ifs;
     ifs.open(fname, std::ifstream::binary);
-    if (ifs.good())
-    {
-        ifs.seekg(0, ifs.beg);
-        fsize = 2;
-        int line_len = 1;
+    if (!ifs.good())
+        return -1;
 
-        while (ifs.good())
-        {
-            uint8_t c = ifs.get();
-            if (ifs.gcount() == 1) {
-                if (c == 0x0A) {
-                    //fsize += (last != 0x0d) ? 2 : 1;
-                    fsize += (line_len % 2);
-                    line_len = 0;
-                }
-                else {
-                    if (fsize != 2) {
-                        fsize += (line_len == 0) ? 2 : 0;
-                        line_len++;
-                    }
-                    fsize++;
-                }
-            }
-        }
-        ifs.close();
-    }
+    int fsize = 0;
+    std::string line;
+    std::getline(ifs, line);
+    while (ifs.good())
+    {
+        // strip trailing newline or carriage-return characters
+        while (!line.empty() && ((line.back() == '\r') || (line.back() == '\n')))
+            line.pop_back();
+        int length = static_cast<int>(line.length() + 2);
+        fsize += length;
+        fsize += length % 2;
+        // Read one line (up to "\n" or eof)
+        std::getline(ifs, line);
+    };
 	return fsize;
 }
 
@@ -96,6 +86,10 @@ bool VarLengthRecord::WriteFile(const char *fname, std::fstream& outFile, BlockL
                 {
                     // Read one line (up to "\n" or eof)
                     std::getline(inFile, line);
+                    // strip trailing newline or carriage-return characters
+                    while (!line.empty() && ((line.back() == '\r') || (line.back() == '\n')))
+                        line.pop_back();
+
                     uint16_t* szPtr = (uint16_t*)&data[0][ptr];
                     *szPtr = static_cast<uint16_t>(line.length());
 
