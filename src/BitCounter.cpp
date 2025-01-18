@@ -7,18 +7,18 @@ BitCounter::BitCounter(void)
 
 void BitCounter::Reset(void)
 {
-    bLastState = false;
-    blockCounter = 0;
-    iNbHi = 0;
-    iNbLo = 0;
+    bLastState    = false;
+    blockCounter  = 0;
+    iNbHi         = 0;
+    iNbLo         = 0;
     iContiguousHi = 0;
     iContiguousLo = 0;
-    iLargestContiguousHi = 0;
-    iLargestContiguousLo = 0;
-    iSmallestContiguousHi = INT32_MAX;
-    iSmallestContiguousLo = INT32_MAX;
     iSmallBlockHi = -1;
     iSmallBlockLo = -1;
+    iLargestContiguousHi  = 0;
+    iLargestContiguousLo  = 0;
+    iSmallestContiguousHi = INT32_MAX;
+    iSmallestContiguousLo = INT32_MAX;
 }
 
 void BitCounter::Count(const uint8_t data[], const size_t nbBits)
@@ -43,7 +43,6 @@ void BitCounter::Count(const uint8_t data[], const size_t nbBits)
                         iLargestContiguousLo = iContiguousLo;
                     if (iContiguousLo < iSmallestContiguousLo)
                         iSmallestContiguousLo = iContiguousLo;
-
                     iContiguousLo = 0;
                     bLastState = true;
                 }

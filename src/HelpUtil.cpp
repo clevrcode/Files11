@@ -62,25 +62,3 @@ void HelpUtil::PrintHelp(std::vector<std::string>& args)
         std::cout << std::endl;
     }
 }
-
-//
-// For help in logging into the system, type HELP HELLO or HELP LOGIN.
-// You'll need a user-ID and password to log in.  Ask your system manager.
-//
-// Help is available on the following MCR commands :
-//
-// ABORT         ACD             ACS             ACTIVE          ALL
-// ALTER         ASN             ATL             BLK             BOOT
-// BRK           BRO             BYE             CANCEL          CBD
-// CLI           CLQ             DCL             DEA             DEBUG
-// DEV           DFL             DMO             FIX             FLAG
-// HELLO         HELP            HOME            INI             INS
-// LOAD          LOGIN           LUN             MOUNT           OPEN
-// PAR           REA             RED             REMOVE          RESUME
-// RUN           SAVE            SET             SSM             SWR
-// TAL           TAS             TIME            UFD             UNB
-// UNFIX         UNLOAD          UNSTOP          Dates
-// 
-// For information on help for utilities and other system features, type
-// HELP MORE.For information on a command, type HELP commandname.
-//

@@ -70,7 +70,7 @@ static std::string stripWhitespaces(std::string str)
         if (pos != std::string::npos)
             out = str.substr(pos);
         // strip back whitespaces
-        while (out.back() == ' ')
+        while (!out.empty() && (out.back() == ' '))
             out.pop_back();
         return out;
     }
@@ -294,6 +294,9 @@ static bool ProcessCommand(std::string &command, Files11FileSystem& fs)
     size_t nbWords = 0;
     if ((nbWords = parseCommand(command, words)) > 0)
     {
+        if (words[0].empty())
+            return true;
+
         if (words[0] == "HELP")
         {
             std::vector<std::string> args(words);
@@ -384,8 +387,7 @@ static bool ProcessCommand(std::string &command, Files11FileSystem& fs)
                 if (words.size() > 2) {
                     words[1] = words[2];
                     // If importing multiple files, pdp11 file cannot be specified
-                    auto pos = words[2].find(']');
-                    if ((pos != std::string::npos) && (pos < words[2].length())) {
+                    if (words[2].back() != ']') {
                         Files11FileSystem::print_error("ERROR -- Invalid destination file");
                         return false;
                     }

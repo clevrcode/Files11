@@ -33,6 +33,7 @@ public:
 	void Close(void);
 	void PrintVolumeInfo(void);
 	void PrintFile(int fileNumber, std::ostream& strm);
+	void WriteFile(int fileNumber, std::ostream& strm);
 	void DumpFile(int fileNumber, std::ostream& strm);
 	void DumpHeader(int fileNumber);
 	void SplitFilePath(const std::string& path, std::string& dir, std::string& file);

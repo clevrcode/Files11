@@ -2,7 +2,6 @@
 #include <string>
 #include <map>
 #include <functional>
-//#include <forward_list>
 #include "Files11Record.h"
 
 class DiskBlock
@@ -74,12 +73,11 @@ public:
 
 private:
 	typedef std::map<int, Files11Record> FileDatabase_t;
-	FileDatabase_t m_Database;
 	typedef std::map<std::string, DirInfo_t> DirDatabase_t;
-	DirDatabase_t m_DirDatabase;
+	FileDatabase_t   m_Database;
+	DirDatabase_t    m_DirDatabase;
 	std::vector<int> m_FileNumberToLBN;
-	int m_MaxFileNumber;
-	int m_TotalBlock;
-	//std::forward_list<DiskBlock> m_BlockChain;
+	int              m_MaxFileNumber;
+	int              m_TotalBlock;
 };
 

@@ -227,6 +227,10 @@ int Files11FileSystem::ValidateIndexBitmap(int *nbIndexBlockUsed)
                         Files11Base::GetBlockPointers(pFileMap, fileBlkList);
                         for (auto& fblock : fileBlkList)
                             *nbIndexBlockUsed += (fblock.lbn_end - fblock.lbn_start + 1);
+
+                        //F11_UserAttrArea_t *ptr = file.GetUserAttr();
+                        //*nbIndexBlockUsed += ((ptr->ufcs_highvbn_hi * 0x10000) + ptr->ufcs_highvbn_lo);
+
                     }
                 }
             }
@@ -637,6 +641,38 @@ void Files11FileSystem::PrintFile(int fileNumber, std::ostream& strm)
                     memcpy(buffer[0], buffer[1], F11_BLOCK_SIZE);
                     idx -= F11_BLOCK_SIZE;
                 }
+            }
+        }
+    }
+}
+
+void Files11FileSystem::WriteFile(int fileNumber, std::ostream& strm)
+{
+    Files11Record fileRec;
+    FileDatabase.Get(fileNumber, fileRec);
+    if (fileRec.IsFileExtension())
+        return;
+
+    const Files11FCS& fileFCS = fileRec.GetFileFCS();
+    Files11Base::BlockList_t blklist;
+    GetBlockList(fileRec.GetHeaderLBN(), blklist);
+    if (!blklist.empty())
+    {
+        int last_vbn = fileFCS.GetUsedBlockCount();
+        int high_vbn = fileFCS.GetHighVBN();
+        int last_block_length = fileFCS.GetFirstFreeByte();
+        int vbn = 1;
+        Files11Base file;
+
+        for (auto& block : blklist)
+        {
+            for (auto lbn = block.lbn_start; (lbn <= block.lbn_end) && (vbn <= last_vbn); ++lbn, ++vbn)
+            {
+                int block_size = F11_BLOCK_SIZE;
+                uint8_t *buffer = file.ReadBlock(lbn, m_dskStream);
+                if (vbn == last_vbn)
+                    block_size = last_block_length;
+                strm.write((const char *)buffer, block_size);
             }
         }
     }
@@ -1135,8 +1171,8 @@ void Files11FileSystem::ExportFiles(const Args_t& args)
     std::string pdpdir(FileDatabase::FormatDirectory(dir));
     std::cout << "-------------------------------------------------------\n";
     std::cout << "Exporting to directory: " << directory << " ..." << std::endl;
-    std::cout << pdpdir << std::endl;
-    std::cout << filename << std::endl;
+    //std::cout << pdpdir << std::endl;
+    //std::cout << filename << std::endl;
 
     FileDatabase::DirList_t dlist;
     GetDirList(pdpdir.c_str(), dlist);
@@ -1156,7 +1192,7 @@ void Files11FileSystem::ExportFiles(const Args_t& args)
 
 void Files11FileSystem::ExportDirectory(Files11Record& dirInfo, const char* fnameFilter/*=nullptr*/)
 {
-    std::cout << "------------------------------------------------------\n";
+    //std::cout << "------------------------------------------------------\n";
     std::cout << "Create directory: " << dirInfo.GetFullName() << std::endl;
     if ((_mkdir(dirInfo.GetFileName()) != 0) && (errno != EEXIST))
     {
@@ -1194,13 +1230,19 @@ void Files11FileSystem::ExportDirectory(Files11Record& dirInfo, const char* fnam
             }
             else
             {
-                if (f.GetFileFCS().GetRecordType() & rt_vlr) {
-                    std::fstream oStream;
-                    oStream.open(f.GetFullName(), std::fstream::out | std::fstream::trunc | std::ifstream::binary);
-                    if (oStream.is_open()) {
+                std::fstream oStream;
+                oStream.open(f.GetFullName(), std::fstream::out | std::fstream::trunc | std::ifstream::binary);
+                if (oStream.is_open()) 
+                {
+                    if (f.GetFileFCS().GetRecordType() & rt_vlr) 
+                    {
                         PrintFile(f.GetFileNumber(), oStream);
-                        oStream.close();
                     }
+                    else 
+                    {
+                        WriteFile(f.GetFileNumber(), oStream);
+                    }
+                    oStream.close();
                 }
             }
         }
@@ -1251,7 +1293,8 @@ void Files11FileSystem::ListDirs(const Args_t& args)
 
     for (auto& dirRec : dirList)
     {
-        if (!dirRec.fileList.empty())
+        // Contrary to PIP command, display directory header/footer with 0 files
+        //if (!dirRec.fileList.empty())
         {
             int usedBlocks = 0;
             int totalBlocks = 0;
@@ -1284,12 +1327,15 @@ void Files11FileSystem::ListDirs(const Args_t& args)
         }
     }
     // Grand Total
-    if ((DirectoryCount > 1) && (GrandTotalFiles > 0)) {
-        std::cout << "Grand total of " << GrandUsedBlocks << "./" << GrandTotalBlocks << ". blocks in " << GrandTotalFiles << ". files in " << DirectoryCount << ". directories\n";
-    }
-    else if (GrandTotalFiles == 0)
+    if (DirectoryCount > 1)
     {
-        std::cout << "\x1b[31m" << "\nDIR -- No such file(s)\n\n" << "\x1b[0m\n";
+        if (GrandTotalFiles > 0) {
+            std::cout << "Grand total of " << GrandUsedBlocks << "./" << GrandTotalBlocks << ". blocks in " << GrandTotalFiles << ". files in " << DirectoryCount << ". directories\n";
+        }
+        else
+        {
+            std::cout << "\nDIR -- No such file(s)\n\n";
+        }
     }
 }
 
@@ -1690,16 +1736,23 @@ bool Files11FileSystem::AddFile(const Args_t& args, const char* nativeName)
     std::string file_ext;
     std::string fileversion;
     FileDatabase::SplitName(file, filename, file_ext, fileversion);
+    // If dest name not specified, use native name
+    if (filename == "*")
+    {
+        std::string name(nativeName);
+        auto pos = name.rfind('/');
+        if (pos != std::string::npos) {
+            name = name.substr(pos + 1);
+        }
+        FileDatabase::SplitName(name, filename, file_ext, fileversion);
+    }
 
     // Validate file name name max 9 chars, extension max 3 chars
-    std::string name, ext, version;
-    FileDatabase::SplitName(file, name, ext, version);
-    if ((name.length() > 9) || (ext.length() > 3))
+    if ((filename.length() > 9) || (file_ext.length() > 3))
     {
         print_error("ERROR -- Invalid file name, exceeds max file name ext size");
         return false;
     }
-
     FileDatabase::DirList_t dirList;
     FileDatabase.FindDirectory(dir.c_str(), dirList);
     if (dirList.size() != 1) {
@@ -1787,8 +1840,8 @@ bool Files11FileSystem::AddFile(const Args_t& args, const char* nativeName)
     // Fill Ident Area
     F11_IdentArea_t* pIdent = newFile.GetIdentArea();
     // Encode file name, ext
-    Files11Base::AsciiToRadix50(name.c_str(), 9, pIdent->filename);
-    Files11Base::AsciiToRadix50(ext.c_str(), 3, pIdent->filetype);
+    Files11Base::AsciiToRadix50(filename.c_str(), 9, pIdent->filename);
+    Files11Base::AsciiToRadix50(file_ext.c_str(), 3, pIdent->filetype);
     pIdent->version = 1;
     pIdent->revision = 1;
     memset(pIdent->revision_date, 0, sizeof(pIdent->revision_date));
@@ -1889,8 +1942,9 @@ bool Files11FileSystem::DeleteFile(const Args_t& args)
 {
     assert((args.size() > 0) && ((args[0] == "DEL") || (args[0] == "RM")));
 
-    for (auto arg : args)
+    for (auto it=args.begin()+1; it != args.end(); ++it)
     {
+        std::string arg(*it);
         std::string fdir, fname;
         SplitFilePath(arg, fdir, fname);
 
@@ -1900,6 +1954,11 @@ bool Files11FileSystem::DeleteFile(const Args_t& args)
         if ((name.length() > 9) || (ext.length() > 3))
         {
             std::cerr << "ERROR -- Invalid file name [" << fname << "]\n";
+            return false;
+        }
+        if (version.empty())
+        {
+            std::cerr << "ERROR -- Version must be explicit or '*'\n";
             return false;
         }
 
