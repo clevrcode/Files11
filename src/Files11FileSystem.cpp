@@ -1294,7 +1294,7 @@ void Files11FileSystem::ListDirs(const Args_t& args)
     for (auto& dirRec : dirList)
     {
         // Contrary to PIP command, display directory header/footer with 0 files
-        //if (!dirRec.fileList.empty())
+        if (!dirRec.fileList.empty())
         {
             int usedBlocks = 0;
             int totalBlocks = 0;
@@ -1306,14 +1306,21 @@ void Files11FileSystem::ListDirs(const Args_t& args)
 
             std::cout << "\nDirectory DU0:" << FileDatabase::FormatDirectory(drec.GetFileName()) << std::endl;
             std::cout << m_File.GetCurrentDate() << "\n";
+            std::map<std::string, Files11Record> orderedDir;
             for (auto& frec : dirRec.fileList)
             {
                 Files11Record rec;
                 Files11Base::BlockList_t blklist;
                 FileDatabase.Get(frec.fnumber, rec);
-                rec.PrintRecord(frec.version);
-                usedBlocks += rec.GetUsedBlockCount();
-                totalBlocks += GetBlockList(rec.GetHeaderLBN(), blklist);
+                orderedDir[rec.GetFullName(frec.version)] = rec;
+            }
+
+            for (auto file : orderedDir)
+            {
+                Files11Record& frec = file.second;
+                frec.PrintRecord(frec.GetFileVersion());
+                usedBlocks += frec.GetUsedBlockCount();
+                totalBlocks += frec.GetTotalBlockCount();
                 totalFiles++;
             }
             std::cout << "\nTotal of " << usedBlocks << "./" << totalBlocks << ". blocks in " << totalFiles << ". file";

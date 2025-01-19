@@ -21,6 +21,7 @@ public:
 	uint16_t GetFileRevision(void) const        { return fileRevision;                };
 	uint32_t GetHeaderLBN(void) const           { return headerLBN;                   };
 	int      GetUsedBlockCount(void)            { return fileFCS.GetUsedBlockCount(); };
+	int      GetTotalBlockCount(void)           { return fileFCS.GetHighVBN();        };
 	bool	 IsDirectory(void) const            { return bDirectory;                  };
 	bool     IsFileExtension(void) const        { return fileExtensionSegment != 0;   };
 	bool     IsContiguous(void) const           { return (userCharacteristics & uc_con) != 0; };
