@@ -291,8 +291,8 @@ int Files11FileSystem::ValidateStorageBitmap(int *nbBitmapBlockUsed)
         GetBlockList(bmpRecord.GetHeaderLBN(), blkList);
         bool skipFCS = true;
         BitCounter counter;
-        int vbn = 1;
-        int totalBlocks = m_HomeBlock.GetNumberOfBlocks();
+        uint32_t vbn = 1;
+        uint32_t totalBlocks = m_HomeBlock.GetNumberOfBlocks();
 
         for (auto& block : blkList)
         {
@@ -353,6 +353,14 @@ int Files11FileSystem::ValidateStorageBitmap(int *nbBitmapBlockUsed)
                 {
                     for (auto lbn = block.lbn_start; lbn <= block.lbn_end; ++lbn)
                     {
+                        if (lbn >= totalBlocks)
+                        {
+                            printf("FILE ID %06o,%06o %s;%o OWNER [%o,%o]\n", frec.GetFileNumber(), frec.GetFileSeq(), frec.GetFullName(), frec.GetFileVersion(), frec.GetOwnerUIC() >> 8, frec.GetOwnerUIC() & 0xff);
+                            printf("        BAD BLOCK NUMBER        %o,%06o\n", lbn / 0x10000, lbn & 0xffff);
+                            totalErrors++;
+                            continue;
+                        }
+
                         //if (lbn == 0x15ed9) {
                         //    std::cout << "LBN 0x15ed9 used by " << frec.GetFullName() << "\n";
                         //}
@@ -625,7 +633,6 @@ void Files11FileSystem::PrintFile(int fileNumber, std::ostream& strm)
                 while (idx < EOB)
                 {
                     uint16_t reclen = *((uint16_t*)&buffer[0][idx]);
-                    assert(reclen <= max_reclength);
                     idx += 2;
                     if (reclen > 0) {
                         std::string tmp((const char*)&buffer[0][idx], reclen);
@@ -688,53 +695,57 @@ void Files11FileSystem::DumpFile(int fileNumber, std::ostream& strm)
     const Files11FCS& fileFCS = fileRec.GetFileFCS();
     Files11Base::BlockList_t blklist;
     GetBlockList(fileRec.GetHeaderLBN(), blklist);
-    if (!fileFCS.IsFixedLengthRecord())
-        return;
+    uint32_t totalBlocks = (uint32_t)m_HomeBlock.GetNumberOfBlocks();
 
     if (!blklist.empty())
     {
-        int last_vbn = fileFCS.GetUsedBlockCount();
-        int high_vbn = fileFCS.GetHighVBN();
-        int last_block_length = fileFCS.GetFirstFreeByte();
         int vbn = 1;
-
         for (auto& block : blklist)
         {
-            for (auto lbn = block.lbn_start; (lbn <= block.lbn_end) && (vbn <= last_vbn); lbn++, vbn++)
+            for (auto lbn = block.lbn_start; lbn <= block.lbn_end; lbn++, vbn++)
             {
-                Files11Base file;
-                uint16_t *ptr = (uint16_t *)file.ReadBlock(lbn, m_dskStream);
-                int nbBytes = F11_BLOCK_SIZE;
-                if (vbn == last_vbn)
-                    nbBytes = last_block_length;
-
-                char header[128];
-                snprintf(header, sizeof(header), "\n\n\n\nDump of DU0:%s;%d - File ID %d,%d,%d\n", fileRec.GetFullName(), 1, fileNumber, fileRec.GetFileSeq(), 0);
-                strm << header;
-                snprintf(header, sizeof(header), "                  Virtual block 0,%06d - Size %d. bytes\n\n", vbn, nbBytes);
-                strm << header;
-
-                for (int i = 0; i < (nbBytes / 16); i++)
+                if (lbn >= totalBlocks)
                 {
-                    // 000000    054523 000000 054523 000000 054523 000000 054523 000000
-                    snprintf(header, sizeof(header), "%06o |", i * 16);
-                    std::string output(header);
-                    std::string ascout(" | ");
-                    for (int j = 0; j < 8; j++, ptr++)
+                    std::cout << "DMP -- I/O ERROR ON INPUT FILE\n";
+                    std::cout << fileRec.GetFullName() << ";" << std::oct << fileRec.GetFileVersion() << std::dec << " -- \n";
+                    return;
+                }
+                Files11Base file;
+                uint16_t* ptr = (uint16_t*)file.ReadBlock(lbn, m_dskStream);
+                if (ptr != nullptr) 
+                {
+                    int nbBytes = F11_BLOCK_SIZE;
+                    //if (vbn == last_vbn)
+                    //    nbBytes = last_block_length;
+
+                    char header[128];
+                    snprintf(header, sizeof(header), "\n\n\n\nDump of DU0:%s;%d - File ID %d,%d,%d\n", fileRec.GetFullName(), 1, fileNumber, fileRec.GetFileSeq(), 0);
+                    strm << header;
+                    snprintf(header, sizeof(header), "                  Virtual block 0,%06d - Size %d. bytes\n\n", vbn, nbBytes);
+                    strm << header;
+
+                    for (int i = 0; i < (nbBytes / 16); i++)
                     {
-                        char buf[16];
-                        char* ascptr = (char*)ptr;
-                        snprintf(buf, sizeof(buf), " %06o", *ptr);
-                        output += buf;
-                        for (int j = 0; j < 2; j++, ascptr++)
+                        // 000000    054523 000000 054523 000000 054523 000000 054523 000000
+                        snprintf(header, sizeof(header), "%06o |", i * 16);
+                        std::string output(header);
+                        std::string ascout(" | ");
+                        for (int j = 0; j < 8; j++, ptr++)
                         {
-                            if (*ascptr >= 0x20 && *ascptr < 0x7f)
-                                ascout += *ascptr;
-                            else
-                                ascout += '.';
+                            char buf[16];
+                            char* ascptr = (char*)ptr;
+                            snprintf(buf, sizeof(buf), " %06o", *ptr);
+                            output += buf;
+                            for (int j = 0; j < 2; j++, ascptr++)
+                            {
+                                if (*ascptr >= 0x20 && *ascptr < 0x7f)
+                                    ascout += *ascptr;
+                                else
+                                    ascout += '.';
+                            }
                         }
+                        strm << output << ascout << std::endl;
                     }
-                    strm << output << ascout << std::endl;
                 }
             }
         }
@@ -1142,7 +1153,6 @@ void Files11FileSystem::FullList(const Args_t& args)
 
 void Files11FileSystem::ExportFiles(const Args_t& args)
 {
-    assert(args.size() >= 2);
     std::string dir, filename, outdir;
     Files11FileSystem::SplitFilePath(args[1], dir, filename);
     if (args.size() == 2)
@@ -1274,7 +1284,6 @@ void Files11FileSystem::SplitFilePath(const std::string& path, std::string& dir,
 void Files11FileSystem::ListDirs(const Args_t& args)
 {
     assert((args.size() > 0) && (args[0] == "DIR"));
-
     std::string dir(GetCurrentWorkingDirectory());
     std::string file(ALL_FILES);
 
@@ -1550,8 +1559,8 @@ bool Files11FileSystem::AddDirectoryEntry(int filenb, DirectoryRecord_t* pDirEnt
     Files11Base hdrFile;
     F11_FileHeader_t    *pHeader = hdrFile.ReadHeader(dirRec.GetHeaderLBN(), m_dskStream);
     F11_UserAttrArea_t*  pUser   = hdrFile.GetUserAttr();
-    F11_MapArea_t        *pMap    = hdrFile.GetMapArea();
-    int                nbPointers = pMap->USE / POINTER_SIZE;
+    F11_MapArea_t       *pMap    = hdrFile.GetMapArea();
+    int               nbPointers = pMap->USE / POINTER_SIZE;
 
     //-----------------------------------------------------------------------------
     // append a new directory entry (there is free room in the last directory block
@@ -1703,9 +1712,7 @@ bool Files11FileSystem::DeleteDirectoryEntry(int filenb, std::vector<int> &fileN
             }
             // Write back directory block
             newDir.WriteBlock(m_dskStream);
-            // TODO: check if block is empty and if so, remove it
-
-
+            // TODO: check if block is empty and if so, deallocate it
         }
     }
     return true;
@@ -1841,7 +1848,7 @@ bool Files11FileSystem::AddFile(const Args_t& args, const char* nativeName)
     pHeader->fh1_w_fid_num   = hdrFileNumber[0];
     pHeader->fh1_w_fid_seq   = new_file_seq; // Increase the sequence number when file is reused (Ref: 3.1)
     pHeader->fh1_w_struclev  = 0x0101; // (Ref 3.4.1.5)
-    pHeader->fh1_w_fileowner = F11_DEFAULT_FILE_OWNER;
+    pHeader->fh1_w_fileowner = Files11Base::MakeOwner(dir.c_str());
     pHeader->fh1_w_fileprot  = m_HomeBlock.GetDefaultFileProtection(); //  F11_DEFAULT_FILE_PROTECTION; // Full access
     pHeader->fh1_b_userchar  = 0x80; // Set contiguous bit only (Ref:3.4.1.8)
     pHeader->fh1_b_syschar   = 0; // 
@@ -1918,14 +1925,24 @@ bool Files11FileSystem::AddFile(const Args_t& args, const char* nativeName)
         pMap->ext_SegNumber = hdr;
 
         // 7) Fill the pointers
+        pMap->USE = 0;
         F11_Format1_t* Ptrs = (F11_Format1_t*)&pMap->pointers;
-        for (int k = 0; (k < NB_POINTERS_PER_HEADER) && (blk < BlkList.size()); ++blk, ++k)
+        for (int k = 0; k < NB_POINTERS_PER_HEADER; ++blk, ++k)
         {
-            Files11Base::BlockPtrs_t& p = BlkList[blk];
-            pMap->USE += POINTER_SIZE;
-            Ptrs->blk_count = p.lbn_end - p.lbn_start;
-            Ptrs->hi_lbn = p.lbn_start >> 16;
-            Ptrs->lo_lbn = p.lbn_start & 0xFFFF;
+            if (blk < BlkList.size())
+            {
+                Files11Base::BlockPtrs_t& p = BlkList[blk];
+                pMap->USE += POINTER_SIZE;
+                Ptrs->blk_count = p.lbn_end - p.lbn_start;
+                Ptrs->hi_lbn = p.lbn_start >> 16;
+                Ptrs->lo_lbn = p.lbn_start & 0xFFFF;
+            }
+            else
+            {
+                Ptrs->blk_count = 0;
+                Ptrs->hi_lbn = 0;
+                Ptrs->lo_lbn = 0;
+            }
             Ptrs++;
         }
 
@@ -2073,6 +2090,7 @@ int Files11FileSystem::FindFreeBlocks(int nbBlocks, Files11Base::BlockList_t &fo
         else
             ptrs.lbn_end = firstFreeBlock + (nbBlocks - 1);
         foundBlkList.push_back(ptrs);
+        firstFreeBlock += 256;
         nbBlocks -= 256;
     }
     return (int)foundBlkList.size();

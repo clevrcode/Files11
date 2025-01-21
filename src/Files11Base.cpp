@@ -182,6 +182,26 @@ void Files11Base::MakeUIC(uint8_t* uic, std::string& strUIC)
 	strUIC += ']';
 }
 
+uint16_t Files11Base::MakeOwner(const char* str)
+{
+    std::string owner(str);
+    if ((owner.front() == '[') && (owner.back() == ']'))
+    {
+		owner.erase(0, 1);
+		owner.pop_back();
+        auto pos = owner.find(',');
+		if (pos != std::string::npos)
+		{
+			std::string hi = owner.substr(0, pos);
+			std::string lo = owner.substr(pos + 1);
+            uint8_t _hi = (uint8_t)strtol(hi.c_str(), NULL, 8);
+			uint8_t _lo = (uint8_t)strtol(lo.c_str(), NULL, 8);
+			return (uint16_t)((_hi << 8) | _lo);
+		}
+    }
+    return 0;
+}
+
 void Files11Base::PrintError(const char *dir, DirectoryRecord_t* p, const char *msg)
 {
     std::string name, ext;

@@ -18,7 +18,6 @@ public:
     static void Help_DMPHDR(void);
     static void Help_CAT(void);
     static void Help_TYPE(void);
-    static void Help_TIME(void);
     static void Help_FREE(void);
     static void Help_IMPORT(void);
     static void Help_EXPORT(void);

@@ -11,7 +11,6 @@ HelpUtil::HelpTopics_t HelpUtil::HelpTopics[] = {
     { "DMPHDR", Help_DMPHDR },
     { "CAT"   , Help_CAT },
     { "TYPE"  , Help_TYPE },
-    { "TIME"  , Help_TIME },
     { "FREE"  , Help_FREE },
     { "IMPORT", Help_IMPORT },
     { "EXPORT", Help_EXPORT },
@@ -133,14 +132,6 @@ void HelpUtil::Help_TYPE(void)
     std::cout << "\n   >TYPE <file-spec>\n";
     std::cout << "\n   Display the content of a file.\n   If the file conatins binary, a binary dump will be displayed instead.";
     std::cout << "\n   This command is an alias to CAT command.";
-    std::cout << "\n\n";
-}
-
-void HelpUtil::Help_TIME(void)
-{
-    std::cout << "\n";
-    std::cout << "\n   >TIME\n";
-    std::cout << "\n   Display the current time in PDP-11 format.";
     std::cout << "\n\n";
 }
 
