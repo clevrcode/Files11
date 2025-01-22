@@ -10,11 +10,11 @@ HelpUtil::HelpTopics_t HelpUtil::HelpTopics[] = {
     { "DMPLBN", Help_DMPLBN },
     { "DMPHDR", Help_DMPHDR },
     { "CAT"   , Help_CAT },
-    { "TYPE"  , Help_TYPE },
+    { "TYPE"  , Help_CAT },
     { "FREE"  , Help_FREE },
     { "IMPORT", Help_IMPORT },
     { "EXPORT", Help_EXPORT },
-    { "DEL"   , Help_DEL },
+    { "DEL"   , Help_RM },
     { "RM"    , Help_RM },
     { "LSFULL", Help_LSFULL },
     { "PURGE" , Help_PURGE },
@@ -101,7 +101,7 @@ void HelpUtil::Help_DMPLBN(void)
 {
     std::cout << "\n";
     std::cout << "\n   >DMPLBN <lbn>\n";
-    std::cout << "\n   Dump the content of logical block number lbn.";
+    std::cout << "\n   Dump the content of logical block number 'lbn'.";
     std::cout << "\n   lbn must be a positive integer from 0 to number of blocks on the file system.\n";
     std::cout << "\n   lbn is octal if prefixed with a '0'.";
     std::cout << "\n   lbn is hexadecimal if prefixed with a 'x' or 'X' character.";
@@ -121,19 +121,11 @@ void HelpUtil::Help_CAT(void)
 {
     std::cout << "\n";
     std::cout << "\n   >CAT <file-spec>\n";
-    std::cout << "\n   Display the content of a file.\n   If the file conatins binary, a binary dump will be displayed instead.";
-    std::cout << "\n   This command is an alias to TYPE command.";
+    std::cout << "\n   >TYPE <file-spec>\n";
+    std::cout << "\n   Display the content of a file.\n   If the file contains binary, a binary dump will be displayed instead.";
     std::cout << "\n\n";
 }
 
-void HelpUtil::Help_TYPE(void)
-{
-    std::cout << "\n";
-    std::cout << "\n   >TYPE <file-spec>\n";
-    std::cout << "\n   Display the content of a file.\n   If the file conatins binary, a binary dump will be displayed instead.";
-    std::cout << "\n   This command is an alias to CAT command.";
-    std::cout << "\n\n";
-}
 
 void HelpUtil::Help_FREE(void)
 {
@@ -178,23 +170,13 @@ void HelpUtil::Help_EXPORT(void)
     std::cout << "\n\n";
 }
 
-void HelpUtil::Help_DEL(void)
-{
-    std::cout << "\n";
-    std::cout << "\n   >DEL [<UFD>]<file-spec>\n";
-    std::cout << "\n   Delete file(s) from a directory. The file specification can have a directory.";
-    std::cout << "\n   The file must specify a version number or '*' to delete all versions of the file(s).";
-    std::cout << "\n   This command is an alias to the RM command.";
-    std::cout << "\n\n";
-}
-
 void HelpUtil::Help_RM(void)
 {
     std::cout << "\n";
     std::cout << "\n   >RM [<UFD>]<file-spec>\n";
+    std::cout << "\n   >DEL [<UFD>]<file-spec>\n";
     std::cout << "\n   Delete file(s) from a directory. The file specification can have a directory.";
     std::cout << "\n   The file must specify a version number or '*' to delete all versions of the file(s).";
-    std::cout << "\n   This command is an alias to the DEL command.";
     std::cout << "\n\n";
 }
 

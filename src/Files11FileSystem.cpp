@@ -69,8 +69,6 @@ bool Files11FileSystem::Open(const char *dskName)
             //       - bit 0 = file number is free
 			//------------------------------------------
             m_HomeBlock.SetUsedHeaders(counter.GetNbHi());
-
-			// TODO: Build link list of headers
         }
         else
             return false;
@@ -227,10 +225,6 @@ int Files11FileSystem::ValidateIndexBitmap(int *nbIndexBlockUsed)
                         Files11Base::GetBlockPointers(pFileMap, fileBlkList);
                         for (auto& fblock : fileBlkList)
                             *nbIndexBlockUsed += (fblock.lbn_end - fblock.lbn_start + 1);
-
-                        //F11_UserAttrArea_t *ptr = file.GetUserAttr();
-                        //*nbIndexBlockUsed += ((ptr->ufcs_highvbn_hi * 0x10000) + ptr->ufcs_highvbn_lo);
-
                     }
                 }
             }
@@ -316,7 +310,7 @@ int Files11FileSystem::ValidateStorageBitmap(int *nbBitmapBlockUsed)
         }
         *nbBitmapBlockUsed = counter.GetNbLo();
 
-        int byteBlocks = (totalBlocks + 8) / 8;
+        int byteBlocks = (totalBlocks + 7) / 8;
         std::vector<uint8_t> bitmapValidation(byteBlocks, 0);
 
         assert(bmpLBN.size() >= (totalBlocks / 4096));
@@ -324,11 +318,8 @@ int Files11FileSystem::ValidateStorageBitmap(int *nbBitmapBlockUsed)
         int last_bitmap_block = -1;
         uint8_t* buffer = nullptr;
 
-        //Files11Base::BlockList_t fBlock;
-        //fBlock.push_back(Files11Base::BlockPtrs_t(89818, 89819));
-        //MarkDataBlock(fBlock, true);
-
-
+        // Go through all the valid headers and mark their used blocks, also validate that blocks are not
+        // assigned to multiple files.
         for (int fnumber = 1; fnumber < m_HomeBlock.GetMaxFiles(); ++fnumber)
         {
             if (FileDatabase.Exist(fnumber))
@@ -344,15 +335,16 @@ int Files11FileSystem::ValidateStorageBitmap(int *nbBitmapBlockUsed)
                     printf("        FILE IS MARKED FOR DELETE\n");
                 }
 
-                int vbn = 1;
-                int last_vbn = frec.GetFileFCS().GetUsedBlockCount();
+                int last_vbn = frec.GetFileFCS().GetHighVBN();
                 int eof_bytes = frec.GetFileFCS().GetFirstFreeByte();
                 Files11Base::BlockList_t fBlock;
                 GetBlockList(frec.GetHeaderLBN(), fBlock);
+                int block_count = 0;
                 for (auto& block : fBlock)
                 {
                     for (auto lbn = block.lbn_start; lbn <= block.lbn_end; ++lbn)
                     {
+                        block_count++;
                         if (lbn >= totalBlocks)
                         {
                             printf("FILE ID %06o,%06o %s;%o OWNER [%o,%o]\n", frec.GetFileNumber(), frec.GetFileSeq(), frec.GetFullName(), frec.GetFileVersion(), frec.GetOwnerUIC() >> 8, frec.GetOwnerUIC() & 0xff);
@@ -377,6 +369,7 @@ int Files11FileSystem::ValidateStorageBitmap(int *nbBitmapBlockUsed)
                         else
                             bitmapValidation[lbn / 8] |= (1 << bitmap_bit);
 
+                        // Read the actual bitmap block and check that the blocks bits are set
                         if (bitmap_block != last_bitmap_block)
                         {
                             buffer = blockFile.ReadBlock(bmpLBN[bitmap_block], m_dskStream);
@@ -387,13 +380,59 @@ int Files11FileSystem::ValidateStorageBitmap(int *nbBitmapBlockUsed)
                             if ((buffer[bitmap_index] & (1 << bitmap_bit)) != 0) {
                                 totalErrors++;
                                 // error, bit should be cleared since it is in use for this file
-                                std::cout << "LBN " << lbn << " not marked used, (file: " << frec.GetFullName() << ")\n";
+                                printf("FILE ID %06o,%06o %s;%o OWNER [%o,%o]\n", frec.GetFileNumber(), frec.GetFileSeq(), frec.GetFullName(), frec.GetFileVersion(), frec.GetOwnerUIC() >> 8, frec.GetOwnerUIC() & 0xff);
+                                std::cout << "        BLOCK IS MARKED FREE ";
                             }
                         }
                     }
                 }
+                if ((last_vbn != block_count)&&(last_vbn != 0))
+                {
+                    std::cerr << "expected " << last_vbn << " blocks but counted " << block_count << std::endl;
+                }
             }
         }
+        // Now, check that all block marked used are actually used.
+        // 
+        int page = 0;
+        int mismatch = 0;
+        for (auto lbn : m_BitmapPages)
+        {
+            Files11Base bitFile;
+            uint8_t* buffer = bitFile.ReadBlock(lbn, m_dskStream);
+            if (buffer) {
+                for (int i = 0; i < F11_BLOCK_SIZE; i++)
+                {
+                    int ofs = (page * F11_BLOCK_SIZE) + i;
+                    if (ofs >= bitmapValidation.size())
+                        break;
+
+                    uint8_t used = ~bitmapValidation[ofs];
+                    if (buffer[i] != used)
+                    {
+                        uint8_t diff = buffer[i] ^ used;
+                        uint8_t block = buffer[i];
+                        for (int b = 0; b < 8; b++)
+                        {
+                            if ((diff & (1 << b)) != 0)
+                            {
+                                mismatch++;
+                                if ((block & (1 << b)) != 0)
+                                    std::cout << "Block " << ((ofs * 8) + b) << " marked as unused but assigned to file\n";
+                                else
+                                    std::cout << "Block " << ((ofs * 8)+b) << " marked as used but not assigned to file\n";
+                            }
+                        }
+                    }
+                }
+                page++;
+            }
+            else
+            {
+                std::cerr << "Failed to read LBN: " << lbn << std::endl;
+            }
+        }
+        std::cout << "Total of " << mismatch << " mismatch blocks\n";
     }
     return totalErrors;
 }
@@ -1115,7 +1154,6 @@ void Files11FileSystem::FullList(const Args_t& args)
     std::ofstream _f;
     std::ostream& os = (args.size() == 2) ? (_f.open(args[1]), _f) : std::cout;
 
-    int fileNumber = 1;
     int fileCounter = 0;
     int totalBlockUsed = 0;
     int ext_file_number = F11_INDEXF_SYS;
@@ -1135,12 +1173,15 @@ void Files11FileSystem::FullList(const Args_t& args)
         {
             for (auto lbn = block.lbn_start; lbn <= block.lbn_end; ++lbn)
             {
-                if (FileDatabase.Exist(fileNumber))
+                Files11Base file;
+                file.ReadBlock(lbn, m_dskStream);
+                F11_FileHeader_t* pHeader = file.GetHeader();
+                if (file.ValidateHeader() && (pHeader->fh1_w_fid_num > 0))
                 {
                     Files11Record fr;
-                    FileDatabase.Get(fileNumber++, fr);
+                    FileDatabase.Get(pHeader->fh1_w_fid_num, fr);
                     fr.ListRecord(os);
-                    totalBlockUsed += fr.GetUsedBlockCount();
+                    totalBlockUsed += fr.GetTotalBlockCount();
                     fileCounter++;
                 }
             }
@@ -1586,7 +1627,6 @@ bool Files11FileSystem::AddDirectoryEntry(int filenb, DirectoryRecord_t* pDirEnt
 
     //------------------------------------------------------
     // We need to allocate a new block for directory entries
-    // TODO: TRY TO ALLOCATE A BLOCK CONTIGUOUS TO THE LAST DIRECTORY LBN
 
     if (nbPointers < NB_POINTERS_PER_HEADER)
     {
@@ -1656,7 +1696,8 @@ bool Files11FileSystem::AddDirectoryEntry(int filenb, DirectoryRecord_t* pDirEnt
         FileDatabase.Add(filenb, dirRec);
         return true;
     }
-    // TODO: Case where the pointer area is full and we must add an extension header
+    // TODO: Case where the pointer area is full and we must add an extension header 
+    //       (very unlikely, would need to contain more than 26,112 files)
 
     return false;
 }
@@ -1712,7 +1753,6 @@ bool Files11FileSystem::DeleteDirectoryEntry(int filenb, std::vector<int> &fileN
             }
             // Write back directory block
             newDir.WriteBlock(m_dskStream);
-            // TODO: check if block is empty and if so, deallocate it
         }
     }
     return true;
@@ -2000,7 +2040,6 @@ bool Files11FileSystem::DeleteFile(const Args_t& args)
             for (auto file : fileList) {
                 //std::cout << "DELETE FILE: [" << dirRec.GetFileName() << "]" << frec.GetFullName() << ";" << (int)frec.GetFileVersion() << " number: " << (int)frec.GetFileNumber() << std::endl;
                 Files11Record fileRec;
-                // TODO : NEED TO FILTER THIS LIST WITH THE FILENAME/EXT (use version -1 to get latest version)
                 if (FileDatabase.Get(file.fnumber, fileRec, fname.c_str())) {
                     DeleteFile(file.fnumber);
                     fileNbToRemove.push_back(file.fnumber);

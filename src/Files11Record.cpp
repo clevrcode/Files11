@@ -103,20 +103,27 @@ void Files11Record::PrintRecord(int version)
 
 void Files11Record::ListRecord(std::ostream& os)
 {
-	os.fill(' ');
-	os.width(18); os << std::left << GetFullName(fileVersion);
+	char buffer[1024];
+
+	// print filename.ext blocks used.
 	std::string str(std::to_string(GetUsedBlockCount()));
 	str += ".";
-	os.width(8);
-	os << str << GetFileCreation();
+	snprintf(buffer, sizeof(buffer), "%-20s%-8s%s ", GetFullName(fileVersion), str.c_str(), GetFileCreation());
+	os << buffer;
+	// print (filenumber,sequence) headerLBN
 	str = " (";
 	str += std::to_string(fileNumber);
 	str += ',';
 	str += std::to_string(fileSeq);
 	str += ")";
-	os.width(12);
+	snprintf(buffer, sizeof(buffer), "%-16s%-10d", str.c_str(), headerLBN);
+	os << buffer;
+
+	// print file owner, protection
+	Files11Base::MakeUIC((uint8_t*)&ownerUIC, str);
 	std::string fprot;
 	Files11Base::GetFileProtectionString(fileProtection, fprot);
-	os << str << " [" << headerLBN << "]  " << fprot << std::endl;
+	snprintf(buffer, sizeof(buffer), "%-10s%s", str.c_str(), fprot.c_str());
+	os << buffer << std::endl;
 }
 
