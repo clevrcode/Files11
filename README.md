@@ -26,15 +26,16 @@ The supported commands are:
 * IMPORT or UPLOAD
 * EXPORT or DOWNLOAD
 
+---
 ### HELP
-
-The HELP command displays a brief description of a command usage.
-For more details on a specific command, enter
 
 ```
 >HELP <command>
 ```
+The HELP command displays a brief description of a command usage.
+For more details on a specific command, enter
 
+---
 ### PWD
 
 ```
@@ -42,7 +43,7 @@ For more details on a specific command, enter
 ```
 Displays the current working directory.
 
-
+---
 ### CD
 
 ```
@@ -51,7 +52,7 @@ Displays the current working directory.
 ```
 Change the current working directory
 
-
+---
 ### DIR
 
 ```
@@ -69,7 +70,7 @@ Example:
     DIR FILE.CMD;*  : List all version(s) of 'FILE.CMD' on the current working directory.
 ```
 
-
+---
 ### CAT or TYPE
 
 ```
@@ -79,7 +80,7 @@ Example:
 Display the content of a file.
 If the file contains binary, a binary dump will be displayed instead.
 
-
+---
 ### FREE
 
 ```
@@ -90,11 +91,14 @@ Display the amount of available space on the disk, the largest contiguous space,
 the number of available headers and the number of headers used.
 This command is similar to PDP-11 'PIP /FR' command.
 
+---
 ### VFY
 
 Verify the integrity of the file system.
+
     /DV - To validate the directory structure and detects 'lost' files.
 
+---
 ### DEL or RM
 
 ```
@@ -104,7 +108,7 @@ Verify the integrity of the file system.
 Delete file(s) from a directory. The file specification can include the directory.
 The file must specify a version number or '*' to delete all versions of the file(s).
 
-
+---
 ### DMPLBN
 
 ```
@@ -116,7 +120,7 @@ lbn is octal if prefixed with a '0'.
 lbn is hexadecimal if prefixed with a 'x' or 'X' character.
 otherwise lbn is decimal.
 
-
+---
 ### DMPHDR
 
 ```
@@ -125,7 +129,7 @@ otherwise lbn is decimal.
 
 Dump the content of a file header (similar to PDP-11 'DMP /HD' command.)
 
-
+---
 ### IMPORT or UPLOAD
 
 ```
@@ -135,6 +139,7 @@ Dump the content of a file header (similar to PDP-11 'DMP /HD' command.)
 ```
 This command import/upload files from the host file system to the PDP-11 disk.
 The host file specifications can include wildcard and uses '/' directory delimiter.
+
 The local file specifier can specify a destination directory or default to the current directory.
 A specific local file can be specified if uploading a single file (useful if the host file doesn't
 match the 9.3 naming restrictions.)
@@ -149,7 +154,7 @@ Will upload all .txt files from the host data directory to the [100,200] directo
 ```
 Will upload all .txt files from the host data directory to the [100,200] directory.
 
-
+---
 ### EXPORT or DOWNLOAD
 
 ```
@@ -162,15 +167,16 @@ Example:
 ```
     >EXP [*]
 ```
-Export the whole PDP-11 volume to the host current working directory under a sub-directory named <volume-name>.
+Export the whole PDP-11 volume to the host current working directory under a sub-directory named **<volume-name>**.
 
 ```
     >EXP [100,200]
 ```
-Export the content of the [100,200] directory to the host current working directory under a sub-directory named '<volume-name>/100200'.
+Export the content of the [100,200] directory to the host current working directory under a sub-directory named **'<volume-name>/100200'**.
 
 ```
 >EXP [3,54]*.CMD
 ```
-Export the latest version of all .CMD files under the [3,54] directory to the host current working directory under a sub-directory named '<volume-name>/003054'.
+Export the latest version of all .CMD files under the [3,54] directory to the host current working directory under a sub-directory named **'<volume-name>/003054'**.
 
+---
