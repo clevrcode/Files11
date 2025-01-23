@@ -65,11 +65,11 @@ The directory and file specification can include '*' wildcard character.
 
 Example: 
 ```
-    DIR [*]         : List content of all directories.
-    DIR [2,*]       : List content of all directories in group 2.
-    DIR [2,54]      : List all files in directory [2,54].
-    DIR [*]FILE.CMD : List all highest version instances of file 'FILE.CMD' in any directory.
-    DIR FILE.CMD;*  : List all version(s) of 'FILE.CMD' on the current working directory.
+>DIR [*]         : List content of all directories.
+>DIR [2,*]       : List content of all directories in group 2.
+>DIR [2,54]      : List all files in directory [2,54].
+>DIR [*]FILE.CMD : List all highest version instances of file 'FILE.CMD' in any directory.
+>DIR FILE.CMD;*  : List all version(s) of 'FILE.CMD' on the current working directory.
 ```
 
 ---
