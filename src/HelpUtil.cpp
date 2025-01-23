@@ -181,7 +181,7 @@ void HelpUtil::Help_RM(void)
     std::cout << "\n";
     std::cout << "\n   >RM [<UFD>]<file-spec>\n";
     std::cout << "\n   >DEL [<UFD>]<file-spec>\n";
-    std::cout << "\n   Delete file(s) from a directory. The file specification can have a directory.";
+    std::cout << "\n   Delete file(s) from a directory. The file specification can include the directory.";
     std::cout << "\n   The file must specify a version number or '*' to delete all versions of the file(s).";
     std::cout << "\n\n";
 }
