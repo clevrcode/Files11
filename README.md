@@ -104,13 +104,13 @@ otherwise lbn is decimal.
 Export or download PDP-11 files to the host file system.
 Example: 
 ```
-    >EXP [*]
+>EXP [*]
 ```
 Export the whole PDP-11 volume to the host current working directory    
 under a sub-directory named **'&lt;volume-name&gt;'**.
 
 ```
-    >EXP [100,200]
+>EXP [100,200]
 ```
 Export the content of the [100,200] directory to the host current working directory    
 under a sub-directory named **'&lt;volume-name&gt;/100200'**.
