@@ -18,6 +18,7 @@ HelpUtil::HelpTopics_t HelpUtil::HelpTopics[] = {
     { "RM"    , Help_RM },
     { "LSFULL", Help_LSFULL },
     { "PURGE" , Help_PURGE },
+    { "VFY"   , Help_VFY },
     { nullptr , nullptr }
 };
 
@@ -66,6 +67,7 @@ void HelpUtil::PrintHelp(std::vector<std::string>& args)
 void HelpUtil::Help_HELP(void)
 {
     std::cout << "\n\nThe HELP command displays a brief description of a command usage.\n\n";
+    std::cout << "For more details on a specific command, enter\n\n>HELP <command>\n\n"
 }
 
 void HelpUtil::Help_PWD(void)
@@ -107,6 +109,10 @@ void HelpUtil::Help_DMPLBN(void)
     std::cout << "\n   lbn is hexadecimal if prefixed with a 'x' or 'X' character.";
     std::cout << "\n   otherwise lbn is decimal.";
     std::cout << "\n\n";
+}
+
+void HelpUtil::Help_VFY(void)
+{
 }
 
 void HelpUtil::Help_DMPHDR(void)
