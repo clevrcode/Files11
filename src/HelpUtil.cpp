@@ -113,6 +113,12 @@ void HelpUtil::Help_DMPLBN(void)
 
 void HelpUtil::Help_VFY(void)
 {
+    std::cout << "\n";
+    std::cout << "\n   >VFY";
+    std::cout << "\n   >VFY /DV\n";
+    std::cout << "\n   Verify the integrity of the file system.";
+    std::cout << "\n   The /DV switch validates directories against the files they list.";
+    std::cout << "\n\n";
 }
 
 void HelpUtil::Help_DMPHDR(void)

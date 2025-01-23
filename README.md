@@ -81,6 +81,16 @@ Display the content of a file.
 If the file contains binary, a binary dump will be displayed instead.
 
 ---
+### DEL or RM
+
+```
+>RM [<UFD>]<file-spec>
+>DEL [<UFD>]<file-spec>
+```
+Delete file(s) from a directory. The file specification can include the directory.
+The file must specify a version number or '*' to delete all versions of the file(s).
+
+---
 ### FREE
 
 ```
@@ -94,19 +104,12 @@ This command is similar to PDP-11 'PIP /FR' command.
 ---
 ### VFY
 
+```
+>VFY";
+>VFY /DV\n";
+```
 Verify the integrity of the file system.
-
-    /DV - To validate the directory structure and detects 'lost' files.
-
----
-### DEL or RM
-
-```
->RM [<UFD>]<file-spec>
->DEL [<UFD>]<file-spec>
-```
-Delete file(s) from a directory. The file specification can include the directory.
-The file must specify a version number or '*' to delete all versions of the file(s).
+The /DV switch validates directories against the files they list.
 
 ---
 ### DMPLBN
@@ -167,16 +170,16 @@ Example:
 ```
     >EXP [*]
 ```
-Export the whole PDP-11 volume to the host current working directory under a sub-directory named **<volume-name>**.
+Export the whole PDP-11 volume to the host current working directory under a sub-directory named **&lt;<volume-name&gt;**.
 
 ```
     >EXP [100,200]
 ```
-Export the content of the [100,200] directory to the host current working directory under a sub-directory named **'<volume-name>/100200'**.
+Export the content of the [100,200] directory to the host current working directory under a sub-directory named **'&lt;volume-name&gt;/100200'**.
 
 ```
 >EXP [3,54]*.CMD
 ```
-Export the latest version of all .CMD files under the [3,54] directory to the host current working directory under a sub-directory named **'<volume-name>/003054'**.
+Export the latest version of all .CMD files under the [3,54] directory to the host current working directory under a sub-directory named **'&lt;volume-name&gt;/003054'**.
 
 ---
