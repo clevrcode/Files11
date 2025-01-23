@@ -2,10 +2,8 @@
 
 The Files11 utility is a command line interface that provides some useful commands to manage a files-11 disk file.
 
-The code is based on the [DEC Files-11 Specification document from April 1981.](http://www.bitsavers.org/pdf/dec/pdp11/rsx11m_s/Files-11_ODS-1_Spec_Apr81.pdf). All reference in the source code refer to this document.
+The code is based on the [DEC Files-11 Specification document from April 1981](http://www.bitsavers.org/pdf/dec/pdp11/rsx11m_s/Files-11_ODS-1_Spec_Apr81.pdf). All references within the source code refer to this document.
 
-
-## Installing
 
 
 
@@ -13,35 +11,29 @@ The code is based on the [DEC Files-11 Specification document from April 1981.](
 
 The supported commands are:
 
-* HELP
-* PWD
-* CD
-* DIR
 * CAT or TYPE
+* CD
 * DEL or RM
-* FREE
-* VFY
-* DMPLBN
+* DIR
 * DMPHDR
-* IMPORT or UPLOAD
+* DMPLBN
 * EXPORT or DOWNLOAD
+* FREE
+* HELP
+* IMPORT or UPLOAD
+* LSFULL
+* PWD
+* VFY
 
 ---
-### HELP
+### CAT or TYPE
 
 ```
->HELP <command>
+>CAT <file-spec>
+>TYPE <file-spec>
 ```
-The HELP command displays a brief description of a command usage.
-For more details on a specific command, enter
-
----
-### PWD
-
-```
->PWD
-```
-Displays the current working directory.
+Display the content of a file.
+If the file contains binary, a binary dump will be displayed instead.
 
 ---
 ### CD
@@ -51,6 +43,16 @@ Displays the current working directory.
 >CD [dirname]
 ```
 Change the current working directory
+
+---
+### DEL or RM
+
+```
+>RM [<UFD>]<file-spec>
+>DEL [<UFD>]<file-spec>
+```
+Delete file(s) from a directory. The file specification can include the directory.
+The file must specify a version number or '*' to delete all versions of the file(s).
 
 ---
 ### DIR
@@ -71,45 +73,13 @@ Example:
 ```
 
 ---
-### CAT or TYPE
+### DMPHDR
 
 ```
->CAT <file-spec>
->TYPE <file-spec>
-```
-Display the content of a file.
-If the file contains binary, a binary dump will be displayed instead.
-
----
-### DEL or RM
-
-```
->RM [<UFD>]<file-spec>
->DEL [<UFD>]<file-spec>
-```
-Delete file(s) from a directory. The file specification can include the directory.
-The file must specify a version number or '*' to delete all versions of the file(s).
-
----
-### FREE
-
-```
->FREE
+>DMPHDR <file-spec>
 ```
 
-Display the amount of available space on the disk, the largest contiguous space,
-the number of available headers and the number of headers used.
-This command is similar to PDP-11 'PIP /FR' command.
-
----
-### VFY
-
-```
->VFY";
->VFY /DV\n";
-```
-Verify the integrity of the file system.
-The /DV switch validates directories against the files they list.
+Dump the content of a file header (similar to PDP-11 'DMP /HD' command.)
 
 ---
 ### DMPLBN
@@ -124,40 +94,6 @@ lbn is hexadecimal if prefixed with a 'x' or 'X' character.
 otherwise lbn is decimal.
 
 ---
-### DMPHDR
-
-```
->DMPHDR <file-spec>
-```
-
-Dump the content of a file header (similar to PDP-11 'DMP /HD' command.)
-
----
-### IMPORT or UPLOAD
-
-```
->IMPORT <host-file-spec> [local-file-spec]
->IMP    <host-file-spec> [local-file-spec]
->UP     <host-file-spec> [local-file-spec]
-```
-This command import/upload files from the host file system to the PDP-11 disk.
-The host file specifications can include wildcard and uses '/' directory delimiter.
-
-The local file specifier can specify a destination directory or default to the current directory.
-A specific local file can be specified if uploading a single file (useful if the host file doesn't
-match the 9.3 naming restrictions.)
-
-Example: 
-```
->IMP data/*.txt [100,200]
-```
-Will upload all .txt files from the host data directory to the [100,200] directory.
-```
->IMPORT longfilename.txt [100,200]LONG.TXT
-```
-Will upload all .txt files from the host data directory to the [100,200] directory.
-
----
 ### EXPORT or DOWNLOAD
 
 ```
@@ -170,16 +106,97 @@ Example:
 ```
     >EXP [*]
 ```
-Export the whole PDP-11 volume to the host current working directory under a sub-directory named **&lt;<volume-name&gt;**.
+Export the whole PDP-11 volume to the host current working directory    
+under a sub-directory named **'&lt;volume-name&gt;'**.
 
 ```
     >EXP [100,200]
 ```
-Export the content of the [100,200] directory to the host current working directory under a sub-directory named **'&lt;volume-name&gt;/100200'**.
+Export the content of the [100,200] directory to the host current working directory    
+under a sub-directory named **'&lt;volume-name&gt;/100200'**.
 
 ```
 >EXP [3,54]*.CMD
 ```
-Export the latest version of all .CMD files under the [3,54] directory to the host current working directory under a sub-directory named **'&lt;volume-name&gt;/003054'**.
+Export the latest version of all .CMD files under the [3,54] directory to the host    
+current working directory under a sub-directory named **'&lt;volume-name&gt;/003054'**.
+
+---
+### FREE
+
+```
+>FREE
+```
+
+Display the amount of available space on the disk, the largest contiguous space,
+the number of available headers and the number of headers used.
+This command is similar to PDP-11 'PIP /FR' command.
+
+---
+### HELP
+
+```
+>HELP [<command>]
+```
+The HELP command displays a brief description of a command usage.
+Enter the command name argument for more details.
+
+---
+### IMPORT or UPLOAD
+
+```
+>IMPORT <host-file-spec> [local-file-spec]
+>IMP    <host-file-spec> [local-file-spec]
+>UP     <host-file-spec> [local-file-spec]
+```
+This command import/upload files from the host file system to the PDP-11 disk.   
+The host file specifications can include wildcard and uses '/' directory delimiter.
+
+The local file specifier can specify a destination directory or default to the current directory.   
+A specific local file can be specified if uploading a single file (useful if the host file doesn't   
+match the 9.3 naming restrictions.)
+
+Example: 
+```
+>IMP data/*.txt [100,200]
+```
+Upload all .txt files from the host data directory to the [100,200] directory.
+```
+>IMPORT longfilename.txt [100,200]LONG.TXT
+```
+Upload longfilename.txt files to a file named 'LONG.TXT' in the [100,200] directory.
+
+---
+### LSFULL
+```
+>LSFULL
+>LSFULL <out-file>
+```
+List all files on the file system to the standard output or to 'out-file'.
+The output format is :   
+- Filename;version   
+- number of blocks used   
+- creation date   
+- (file number, file sequence)   
+- header lbn   
+- file owner and protection
+
+---
+### PWD
+
+```
+>PWD
+```
+Displays the current working directory.
+
+---
+### VFY
+
+```
+>VFY
+>VFY /DV
+```
+Verify the integrity of the file system.
+The /DV switch validates directories against the files they list.
 
 ---

@@ -17,7 +17,7 @@ HelpUtil::HelpTopics_t HelpUtil::HelpTopics[] = {
     { "DEL"   , Help_RM },
     { "RM"    , Help_RM },
     { "LSFULL", Help_LSFULL },
-    { "PURGE" , Help_PURGE },
+    //{ "PURGE" , Help_PURGE }, TODO
     { "VFY"   , Help_VFY },
     { nullptr , nullptr }
 };
@@ -66,8 +66,12 @@ void HelpUtil::PrintHelp(std::vector<std::string>& args)
 
 void HelpUtil::Help_HELP(void)
 {
-    std::cout << "\n\nThe HELP command displays a brief description of a command usage.\n\n";
-    std::cout << "For more details on a specific command, enter\n\n>HELP <command>\n\n"
+    std::cout << "\n";
+    std::cout << "\n   >HELP\n";
+    std::cout << "\n   Displays a list of all available commands\n";
+    std::cout << "\n   >HELP <command>\n";
+    std::cout << "\n   With a command name argument, displays a brief description of the command usage.";
+    std::cout << "\n\n";
 }
 
 void HelpUtil::Help_PWD(void)
@@ -80,7 +84,7 @@ void HelpUtil::Help_PWD(void)
 void HelpUtil::Help_CD(void)
 {
     std::cout << "\n";
-    std::cout << "\n   >CD [nnn, mmm]";
+    std::cout << "\n   >CD [nnn,mmm]";
     std::cout << "\n   >CD [dirname]\n";
     std::cout << "\n   Used to change the current working directory.\n\n";
 }
@@ -132,7 +136,7 @@ void HelpUtil::Help_DMPHDR(void)
 void HelpUtil::Help_CAT(void)
 {
     std::cout << "\n";
-    std::cout << "\n   >CAT <file-spec>\n";
+    std::cout << "\n   >CAT <file-spec>";
     std::cout << "\n   >TYPE <file-spec>\n";
     std::cout << "\n   Display the content of a file.\n   If the file contains binary, a binary dump will be displayed instead.";
     std::cout << "\n\n";
@@ -161,9 +165,9 @@ void HelpUtil::Help_IMPORT(void)
     std::cout << "\n   A specific local file can be specified if uploading a single file (useful if the host file doesn't";
     std::cout << "\n   match the 9.3 naming restrictions.)\n";
     std::cout << "\n   Example: >IMP data/*.txt [100,200]";
-    std::cout << "\n            Will upload all .txt files from the host data directory to the [100,200] directory.\n";
+    std::cout << "\n            Upload all .txt files from the host data directory to the [100,200] directory.\n";
     std::cout << "\n            >IMPORT longfilename.txt [100,200]LONG.TXT";
-    std::cout << "\n            Will upload all .txt files from the host data directory to the [100,200] directory.";
+    std::cout << "\n            Upload longfilename.txt files to a file named 'LONG.TXT' in the [100,200] directory.";
     std::cout << "\n\n";
 }
 
@@ -174,18 +178,18 @@ void HelpUtil::Help_EXPORT(void)
     std::cout << "\n   >DOWN   <local-file-spec> [host-directory]\n";
     std::cout << "\n   Export or download PDP-11 files to the host file system.\n";
     std::cout << "\n   Example: >EXP [*]";
-    std::cout << "\n            Export the whole PDP-11 volume to the host current working directory under a sub-directory named <volume-name>.\n";
+    std::cout << "\n            Export the whole PDP-11 volume to the host current working directory\n            under a sub-directory named '<volume-name>'.\n";
     std::cout << "\n            >EXP [100,200]";
-    std::cout << "\n            Export the content of the [100,200] directory to the host current working directory under a sub-directory named '<volume-name>/100200'.\n";
+    std::cout << "\n            Export the content of the [100,200] directory to the host current working directory\n            under a sub-directory named '<volume-name>/100200'.\n";
     std::cout << "\n            >EXP [3,54]*.CMD";
-    std::cout << "\n            Export the latest version of all .CMD files under the [3,54] directory to the host current working directory under a sub-directory named '<volume-name>/003054'.\n";
+    std::cout << "\n            Export the latest version of all .CMD files under the [3,54] directory to the host \n            current working directory under a sub-directory named '<volume-name>/003054'.\n";
     std::cout << "\n\n";
 }
 
 void HelpUtil::Help_RM(void)
 {
     std::cout << "\n";
-    std::cout << "\n   >RM [<UFD>]<file-spec>\n";
+    std::cout << "\n   >RM [<UFD>]<file-spec>";
     std::cout << "\n   >DEL [<UFD>]<file-spec>\n";
     std::cout << "\n   Delete file(s) from a directory. The file specification can include the directory.";
     std::cout << "\n   The file must specify a version number or '*' to delete all versions of the file(s).";
@@ -194,7 +198,18 @@ void HelpUtil::Help_RM(void)
 
 void HelpUtil::Help_LSFULL(void)
 {
-    std::cout << "\n\n   TODO\n\n";
+    std::cout << "\n";
+    std::cout << "\n   >LSFULL";
+    std::cout << "\n   >LSFULL <out-file>\n";
+    std::cout << "\n   List all files on the file system to the standard output or to 'out-file'.";
+    std::cout << "\n   The output format is : \n";
+    std::cout << "\n   - Filename;version";
+    std::cout << "\n   - number of blocks used";
+    std::cout << "\n   - creation date";
+    std::cout << "\n   - (file number, file sequence)";
+    std::cout << "\n   - header lbn";
+    std::cout << "\n   - file owner and protection.";
+    std::cout << "\n\n";
 }
 
 void HelpUtil::Help_PURGE(void)
