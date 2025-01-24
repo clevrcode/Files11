@@ -39,7 +39,7 @@ If the file contains binary, a binary dump will be displayed instead.
 ### CD
 
 ```
->CD [nnn, mmm]
+>CD [nnn,mmm]
 >CD [dirname]
 ```
 Change the current working directory
