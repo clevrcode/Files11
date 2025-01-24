@@ -74,6 +74,10 @@ ScaffoldingReadMe.txt
 StyleCopReport.xml
 
 # Files built by Visual Studio
+*.html
+*.jpeg
+*.png
+
 *_i.c
 *_p.c
 *_h.h

@@ -460,6 +460,10 @@ int Files11FileSystem::ValidateDirectory(const char* dirname, DirFileList_t& dir
             int last_vbn = dirFCS.GetUsedBlockCount();
             int eof_bytes = dirFCS.GetFirstFreeByte();
 
+            //--------------------------------------------------------------------------------
+            // TODO Validate that fnumber and seq in directory entry matches the header
+            //--------------------------------------------------------------------------------
+
             for (auto& block : dirblks)
             {
                 for (auto lbn = block.lbn_start; (lbn <= block.lbn_end) && (vbn <= last_vbn); ++lbn, ++vbn)
@@ -482,13 +486,12 @@ int Files11FileSystem::ValidateDirectory(const char* dirname, DirFileList_t& dir
                             }
                             else
                             {
-                                totalErrors++;
-                                std::string msg("File is present in another directory : ");
+                                //totalErrors++;
+                                std::string msg("FILE IN ANOTHER DIRECTORY : ");
                                 msg += pos->second;
                                 Files11Base::PrintError(strDirName.c_str(), p, msg.c_str());
                             }
 
-                            //std::cout << "checking file : " << name << "." << ext << ";" << pRec[idx].version << std::endl;
                             // Ignore INDEXF.SYS
                             if (p->fileNumber == F11_INDEXF_SYS)
                                 continue;
@@ -507,6 +510,14 @@ int Files11FileSystem::ValidateDirectory(const char* dirname, DirFileList_t& dir
                             Files11Record frec;
                             if (FileDatabase.Get(pRec[idx].fileNumber, frec))
                             {
+                                if (p->fileSeq != frec.GetFileSeq())
+                                {
+                                    totalErrors++;
+                                    char buffer[64];
+                                    std::snprintf(buffer, sizeof(buffer), "MISMATCH FILE SEQ : %06o", frec.GetFileSeq());
+                                    Files11Base::PrintError(strDirName.c_str(), p, buffer);
+                                }
+
                                 if (frec.IsDirectory())
                                 {
                                     std::string name(frec.GetFileName());
@@ -517,7 +528,7 @@ int Files11FileSystem::ValidateDirectory(const char* dirname, DirFileList_t& dir
                             else
                             {
                                 totalErrors++;
-                                Files11Base::PrintError(strDirName.c_str(), p, "FILE NOT FOUND IN FILE DATABASE");
+                                Files11Base::PrintError(strDirName.c_str(), p, "FILE NOT FOUND");
                             }
                         }
                     }
@@ -557,8 +568,8 @@ void Files11FileSystem::VerifyFileSystem(Args_t args)
             args.push_back("000000");
 
         // Directory Validation
-
         int nbErrors = ValidateDirectory(args[2].c_str(), DirectoryFileMap, &totalFiles);
+
         // -- Find Lost Files
         // Go to all headers and check that the file belongs in a directory
         for (int fnumber = 1; fnumber < m_HomeBlock.GetMaxFiles(); ++fnumber)

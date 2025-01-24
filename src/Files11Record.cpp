@@ -111,11 +111,8 @@ void Files11Record::ListRecord(std::ostream& os)
 	snprintf(buffer, sizeof(buffer), "%-20s%-8s%s ", GetFullName(fileVersion), str.c_str(), GetFileCreation());
 	os << buffer;
 	// print (filenumber,sequence) headerLBN
-	str = " (";
-	str += std::to_string(fileNumber);
-	str += ',';
-	str += std::to_string(fileSeq);
-	str += ")";
+	snprintf(buffer, sizeof(buffer), "(%06o,%06o) ", fileNumber, fileSeq);
+	os << buffer;
 	snprintf(buffer, sizeof(buffer), "%-16s%-10d", str.c_str(), headerLBN);
 	os << buffer;
 
